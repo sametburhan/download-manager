@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Download Manager for Windows — Ultra-Fast Multi-Threaded Downloader</title>
+  <meta name="description" content="Download Manager is a lightning-fast, modern multi-threaded desktop download accelerator and video stream sniffer for Windows 10 and 11." />
+  <link rel="icon" type="image/png" href="assets/app_icon.png" />
+
+  <!-- Premium Typography: Instrument Serif + Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Outer viewport frame matching the reference aesthetic -->
+  <div class="page-canvas">
+    
+    <!-- Top Floating Header -->
+    <header class="site-header">
+      <!-- Left: Logo -->
+      <a href="#" class="brand-logo" aria-label="Download Manager Home">
+        <div class="logo-icon-wrap">
+          <img src="assets/app_icon.png" alt="Download Manager Logo" class="brand-icon-img" />
+        </div>
+        <span class="brand-name">Download Manager</span>
+      </a>
+
+      <!-- Center: Dock Island Navigation Capsule -->
+      <nav class="center-dock" aria-label="Main Navigation">
+        <a href="#preview" class="dock-item dock-app-btn" title="App Overview" aria-label="App Overview">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <rect x="3" y="3" width="7" height="7" rx="1.5" />
+            <rect x="14" y="3" width="7" height="7" rx="1.5" />
+            <rect x="3" y="14" width="7" height="7" rx="1.5" />
+            <rect x="14" y="14" width="7" height="7" rx="1.5" />
+          </svg>
+        </a>
+        <a href="#features" class="dock-item" title="Key Features" aria-label="Features">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+          </svg>
+        </a>
+        <a href="#extension-guide" class="dock-item" title="Browser Integration Guide" aria-label="Browser Integration">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <circle cx="12" cy="12" r="4" />
+            <line x1="21.17" y1="8" x2="12" y2="8" />
+            <line x1="3.95" y1="6.06" x2="8.54" y2="14" />
+            <line x1="10.88" y1="21.94" x2="15.46" y2="14" />
+          </svg>
+        </a>
+        <a href="#features" class="dock-item" title="Multi-Thread Acceleration" aria-label="Speed Engine">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+            <line x1="8" y1="21" x2="16" y2="21" />
+            <line x1="12" y1="17" x2="12" y2="21" />
+          </svg>
+        </a>
+      </nav>
+
+      <!-- Right: Contact / Feedback Action Button -->
+      <div class="header-action">
+        <button type="button" class="nav-contact-btn" id="navContactBtn" aria-haspopup="dialog" aria-controls="contactModal">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+          </svg>
+          <span>Contact Me</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Hero Container -->
+    <main class="hero-container">
+      
+      <!-- Upper Hero Text & Primary CTA -->
+      <div class="hero-content">
+        <!-- Pill Badge -->
+        <div class="hero-badge">
+          <span class="badge-dot"></span>
+          <span class="badge-text">Engineered for Windows 10 & 11 • v1.1.0</span>
+        </div>
+
+        <!-- Editorial Display Title -->
+        <h1 class="hero-title">
+          Autopilot for your downloads.<br />
+          Speed up effortlessly.
+        </h1>
+
+        <!-- Short Subtitle -->
+        <p class="hero-subtitle">
+          Up to 16 multi-threaded connections, seamless browser integration, and intelligent video sniffing in one ultra-clean Windows application.
+        </p>
+
+        <!-- Centered Main Download CTA Button -->
+        <div class="cta-wrapper">
+          <a href="assets/DownloadManagerSetup.exe" class="main-download-btn" id="mainDownloadBtn" download="DownloadManagerSetup.exe">
+            <span class="btn-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+            </span>
+            <span class="btn-label">Download for Windows</span>
+          </a>
+          
+          <div class="download-meta">
+            <span>Windows 10 / 11 (64-bit)</span>
+            <span class="meta-sep">•</span>
+            <span>77.9 MB</span>
+            <span class="meta-sep">•</span>
+            <span>Free & Open Source</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lower Preview Stage: App Card nestled in Grassy Hill -->
+      <div class="stage-section" id="preview">
+        <!-- Scenic Grassy Landscape Background -->
+        <div class="landscape-backdrop" style="background-image: url('assets/hero_grass_landscape.jpg');">
+          <!-- Soft gradient feather overlay to blend top sky smoothly -->
+          <div class="sky-blend-gradient"></div>
+
+          <!-- App Mockup Window rising from the meadow -->
+          <div class="app-window-wrapper">
+            <div class="app-window-frame">
+              
+              <!-- Window Titlebar -->
+              <div class="window-titlebar">
+                <div class="window-controls">
+                  <span class="ctrl-dot ctrl-close"></span>
+                  <span class="ctrl-dot ctrl-min"></span>
+                  <span class="ctrl-dot ctrl-max"></span>
+                </div>
+                <div class="window-title">
+                  <img src="assets/app_icon.png" alt="" class="win-title-icon" />
+                  <span>Download Manager</span>
+                </div>
+                <div class="window-badge-stat">
+                  <span class="stat-pulse"></span>
+                  <span>Active • 27.5 MB/s</span>
+                </div>
+              </div>
+
+              <!-- Window Toolbar -->
+              <div class="window-toolbar">
+                <div class="tb-left">
+                  <button class="tb-btn tb-add-btn">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    <span>Add URL</span>
+                  </button>
+                  <button class="tb-btn tb-del-btn">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    <span>Delete</span>
+                  </button>
+                  <button class="tb-btn tb-media-btn">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                    <span>Video / Streams</span>
+                  </button>
+                </div>
+                <div class="tb-right">
+                  <span class="tb-pill-tag">16 Threads Acceleration</span>
+                </div>
+              </div>
+
+              <!-- Window Body: Sidebar + Tasks -->
+              <div class="window-body">
+                <!-- Mini Sidebar -->
+                <aside class="win-sidebar">
+                  <div class="sidebar-item active">
+                    <span class="sb-icon">📥</span>
+                    <span class="sb-label">All Downloads</span>
+                    <span class="sb-badge">8</span>
+                  </div>
+                  <div class="sidebar-item">
+                    <span class="sb-icon">⚡</span>
+                    <span class="sb-label">Downloading</span>
+                    <span class="sb-badge highlight">2</span>
+                  </div>
+                  <div class="sidebar-item">
+                    <span class="sb-icon">✅</span>
+                    <span class="sb-label">Completed</span>
+                    <span class="sb-badge">6</span>
+                  </div>
+                  <div class="sidebar-sep"></div>
+                  <div class="sidebar-item">
+                    <span class="sb-icon">🎬</span>
+                    <span class="sb-label">Videos & Movies</span>
+                  </div>
+                  <div class="sidebar-item">
+                    <span class="sb-icon">📦</span>
+                    <span class="sb-label">Compressed</span>
+                  </div>
+                  <div class="sidebar-item">
+                    <span class="sb-icon">📄</span>
+                    <span class="sb-label">Documents</span>
+                  </div>
+                </aside>
+
+                <!-- Tasks Table / Cards -->
+                <section class="win-task-list">
+                  
+                  <!-- Task 1: Active 4K Video Stream -->
+                  <div class="task-card active-task">
+                    <div class="task-col-icon">🎬</div>
+                    <div class="task-col-info">
+                      <div class="task-name-row">
+                        <span class="task-title">NASA_JamesWebb_DeepSpace_4K_HDR.mp4</span>
+                        <span class="task-speed">18.4 MB/s</span>
+                      </div>
+                      <div class="progress-bar-wrap">
+                        <div class="progress-bar-fill animated-shimmer" style="width: 76%;"></div>
+                      </div>
+                      <div class="task-meta-row">
+                        <span class="task-size">3.20 GB / 4.21 GB (76%)</span>
+                        <span class="task-eta">ETA: 00:00:54</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Task 2: Active Software Package -->
+                  <div class="task-card active-task">
+                    <div class="task-col-icon">📦</div>
+                    <div class="task-col-info">
+                      <div class="task-name-row">
+                        <span class="task-title">Ubuntu_24.04_LTS_Desktop_x64.iso</span>
+                        <span class="task-speed">9.1 MB/s</span>
+                      </div>
+                      <div class="progress-bar-wrap">
+                        <div class="progress-bar-fill" style="width: 48%;"></div>
+                      </div>
+                      <div class="task-meta-row">
+                        <span class="task-size">2.68 GB / 5.58 GB (48%)</span>
+                        <span class="task-eta">ETA: 00:05:18</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Task 3: Completed Archive -->
+                  <div class="task-card completed-task">
+                    <div class="task-col-icon">✅</div>
+                    <div class="task-col-info">
+                      <div class="task-name-row">
+                        <span class="task-title">Visual_Studio_Code_Insiders_Setup.exe</span>
+                        <span class="task-status-tag">Completed</span>
+                      </div>
+                      <div class="progress-bar-wrap">
+                        <div class="progress-bar-fill done" style="width: 100%;"></div>
+                      </div>
+                      <div class="task-meta-row">
+                        <span class="task-size">98.40 MB</span>
+                        <span class="task-eta">Transferred in 5.2s</span>
+                      </div>
+                    </div>
+                  </div>
+
+                </section>
+              </div>
+
+              <!-- Window Statusbar -->
+              <div class="window-statusbar">
+                <span class="status-indicator-dot"></span>
+                <span>WebSocket Engine: Connected (Port 6800) • Extension Linked</span>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- Interactive Features Strip -->
+    <section class="features-strip" id="features">
+      <div class="feature-item">
+        <div class="feat-icon">⚡</div>
+        <div class="feat-content">
+          <h3>16x Acceleration</h3>
+          <p>Multi-segmented chunk downloader splits files across up to 16 parallel threads for maximum network throughput.</p>
+        </div>
+      </div>
+      <div class="feature-item">
+        <div class="feat-icon">🎬</div>
+        <div class="feat-content">
+          <h3>Stream & HLS Sniffer</h3>
+          <p>Deep-sniffs network requests for m3u8 playlists, DASH manifests, and video streams with seamless yt-dlp integration.</p>
+        </div>
+      </div>
+      <div class="feature-item">
+        <div class="feat-icon">🌐</div>
+        <div class="feat-content">
+          <h3>Browser Integration</h3>
+          <p>Chrome extension automatically captures downloads with built-in startup shields and floating 1-click video buttons.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Browser Extension Tutorial Section -->
+    <section class="extension-guide-section" id="extension-guide">
+      <div class="guide-header">
+        <div class="guide-badge">
+          <span class="guide-badge-dot"></span>
+          <span>Browser Integration Guide • Manifest V3</span>
+        </div>
+        <h2 class="guide-title">Install the Extension in 3 Quick Steps</h2>
+        <p class="guide-subtitle">
+          Download Manager seamlessly intercepts download links and detects video streams directly in your browser. Install it in under 30 seconds.
+        </p>
+
+        <!-- Supported Browsers Showcase -->
+        <div class="supported-browsers-wrap">
+          <span class="supported-label">Supported Browsers:</span>
+          <div class="browser-tags">
+            <span class="browser-tag"><span class="browser-tag-icon">🌐</span> Google Chrome</span>
+            <span class="browser-tag"><span class="browser-tag-icon">🦊</span> Mozilla Firefox</span>
+            <span class="browser-tag"><span class="browser-tag-icon">🔴</span> Opera / GX</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3-Step Cards Grid -->
+      <div class="guide-steps-grid">
+        
+        <!-- Step 1 -->
+        <div class="step-card">
+          <div class="step-num-badge">01</div>
+          <div class="step-card-body">
+            <div class="step-icon-wrap">📁</div>
+            <h3>Locate Extension Folder</h3>
+            <p>
+              When Download Manager is installed, its extension is already prepared in your installation folder:
+            </p>
+            <div class="step-code-snippet">
+              <code>%LOCALAPPDATA%\Programs\Download Manager\extension</code>
+            </div>
+            <span class="step-hint">Or inside the downloaded project's <strong>extension</strong> directory.</span>
+          </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="step-card">
+          <div class="step-num-badge">02</div>
+          <div class="step-card-body">
+            <div class="step-icon-wrap">⚙️</div>
+            <h3>Enable Developer Mode</h3>
+            <p>
+              Open your browser's extension management page by navigating to:
+            </p>
+            <div class="step-code-snippet">
+              <code>chrome://extensions</code> <span>•</span> <code>about:debugging</code>
+            </div>
+            <span class="step-hint">Turn on <strong>Developer mode</strong> (Geliştirici Modu) or click <em>Load Temporary Add-on</em> in Firefox.</span>
+          </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="step-card">
+          <div class="step-num-badge">03</div>
+          <div class="step-card-body">
+            <div class="step-icon-wrap">🚀</div>
+            <h3>Load Unpacked & Done</h3>
+            <p>
+              Click <strong>"Load unpacked"</strong> (Paketlenmemiş öğe yükle) and select the <strong>extension</strong> folder.
+            </p>
+            <div class="step-pill-ready">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+              <span>Ready & Shield Protected</span>
+            </div>
+            <span class="step-hint">The extension icon appears in your toolbar and automatically captures downloads!</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Pro-Tip Note Card -->
+      <div class="guide-tip-banner">
+        <div class="tip-badge">PRO TIP</div>
+        <p>
+          <strong>Startup Shield Included:</strong> Our extension intelligently prevents previous tab sessions from spamming downloads upon browser launch, and activates floating 1-click download pills on video streaming pages.
+        </p>
+      </div>
+
+    </section>
+
+    <!-- Clean Minimal Footer -->
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <div class="footer-left">
+          <span class="footer-logo">⚡ Download Manager</span>
+          <span class="footer-copy">Built for speed, simplicity, and visual elegance on Windows.</span>
+        </div>
+        <div class="footer-right">
+          <a href="assets/DownloadManagerSetup.exe" download="DownloadManagerSetup.exe" class="footer-link">Download v1.1.0 (.exe)</a>
+          <span class="footer-sep">•</span>
+          <a href="#preview" class="footer-link">App Preview</a>
+          <span class="footer-sep">•</span>
+          <a href="#extension-guide" class="footer-link">Extension Setup</a>
+          <span class="footer-sep">•</span>
+          <button type="button" class="footer-link-btn" id="footerContactBtn">Contact & Feedback</button>
+          <span class="footer-sep">•</span>
+          <span class="footer-note">Free & Clean</span>
+        </div>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- Contact / Feedback Modal Window -->
+  <div class="modal-backdrop" id="contactModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" hidden>
+    <div class="modal-overlay" id="modalOverlay"></div>
+    <div class="modal-card">
+      
+      <!-- Close Button -->
+      <button type="button" class="modal-close-btn" id="modalCloseBtn" aria-label="Close Contact Dialog">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+
+      <!-- Modal Header -->
+      <div class="modal-header">
+        <div class="modal-tag">
+          <span class="modal-tag-dot"></span>
+          <span>Feedback & Inquiries</span>
+        </div>
+        <h2 id="modalTitle" class="modal-title">Get in Touch</h2>
+        <p class="modal-desc">
+          Have feedback, found an issue, or want to suggest a new feature? Send us a message and we'll review it right away.
+        </p>
+      </div>
+
+      <!-- Feedback Form -->
+      <form id="contactForm" class="contact-form" action="https://formsubmit.co/ajax/samet26burhan2@gmail.com" method="POST">
+        <input type="hidden" name="_captcha" value="false" />
+        <input type="hidden" name="_template" value="table" />
+        <input type="hidden" name="_subject" value="New Feedback - Download Manager" />
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label for="contactName">Your Name</label>
+            <input type="text" id="contactName" name="name" placeholder="e.g. Samet" required />
+          </div>
+          <div class="form-group">
+            <label for="contactEmail">Email Address</label>
+            <input type="email" id="contactEmail" name="email" placeholder="name@example.com" required />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Topic / Category</label>
+          <div class="category-pills">
+            <label class="category-pill">
+              <input type="radio" name="category" value="Feedback" checked />
+              <span>💬 Feedback</span>
+            </label>
+            <label class="category-pill">
+              <input type="radio" name="category" value="Feature Request" />
+              <span>💡 Feature Request</span>
+            </label>
+            <label class="category-pill">
+              <input type="radio" name="category" value="Bug Report" />
+              <span>🐛 Bug Report</span>
+            </label>
+            <label class="category-pill">
+              <input type="radio" name="category" value="General" />
+              <span>✨ General</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="contactMessage">Your Message</label>
+          <textarea id="contactMessage" name="message" rows="4" placeholder="Share your experience, suggest ideas, or report what happened..." required></textarea>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-modal-cancel" id="modalCancelBtn">Cancel</button>
+          <button type="submit" class="btn-modal-submit" id="submitFeedbackBtn">
+            <span>Send Feedback</span>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </button>
+        </div>
+      </form>
+
+      <!-- Success State (Shown after submit) -->
+      <div id="contactSuccess" class="modal-success" hidden>
+        <div class="success-icon-wrap">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </div>
+        <h3>Feedback Received!</h3>
+        <p>Thank you for reaching out. Your feedback helps us make Download Manager faster, cleaner, and better.</p>
+        <button type="button" class="btn-modal-submit btn-modal-done" id="modalDoneBtn">Done</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="download-toast" id="downloadToast">
+    <span class="toast-icon">🚀</span>
+    <div class="toast-body">
+      <strong>Download Starting...</strong>
+      <span>DownloadManagerSetup.exe (77.9 MB) is downloading.</span>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

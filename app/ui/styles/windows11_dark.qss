@@ -1,0 +1,198 @@
+/* Windows 11 Fluent Design - Modern Koyu Tema QSS */
+
+QWidget {
+    background-color: #1a1a1a;
+    color: #f3f3f3;
+    font-family: "Segoe UI Variable Display", "Segoe UI", sans-serif;
+    font-size: 13px;
+    selection-background-color: #0078d4;
+    selection-color: #ffffff;
+}
+
+/* Ana Pencere ve Arka Plan */
+QMainWindow {
+    background-color: #121212;
+}
+
+/* Kart Panelleri ve Çerçeveler */
+QFrame#cardFrame {
+    background-color: #202020;
+    border: 1px solid #2e2e2e;
+    border-radius: 10px;
+    padding: 12px;
+}
+
+QFrame#cardFrame:hover {
+    border: 1px solid #3d3d3d;
+    background-color: #242424;
+}
+
+/* Butonlar */
+QPushButton {
+    background-color: #2c2c2c;
+    color: #ffffff;
+    border: 1px solid #383838;
+    border-radius: 6px;
+    padding: 7px 16px;
+    font-weight: 600;
+    font-size: 13px;
+}
+
+QPushButton:hover {
+    background-color: #383838;
+    border: 1px solid #484848;
+}
+
+QPushButton:pressed {
+    background-color: #1e1e1e;
+    border: 1px solid #0078d4;
+}
+
+QPushButton:disabled {
+    background-color: #1e1e1e;
+    color: #666666;
+    border: 1px solid #262626;
+}
+
+/* Vurgulu Buton (Primary Accent) */
+QPushButton#primaryBtn {
+    background-color: #0078d4;
+    border: 1px solid #1084d8;
+    color: #ffffff;
+}
+
+QPushButton#primaryBtn:hover {
+    background-color: #1084d8;
+    border: 1px solid #2490e0;
+}
+
+QPushButton#primaryBtn:pressed {
+    background-color: #005a9e;
+}
+
+/* İlerleme Çubuğu (Progress Bar) */
+QProgressBar {
+    background-color: #2b2b2b;
+    border: 1px solid #3a3a3a;
+    border-radius: 5px;
+    text-align: center;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: bold;
+    min-height: 14px;
+    max-height: 14px;
+}
+
+QProgressBar::chunk {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #0078d4, stop:1 #00c6ff);
+    border-radius: 4px;
+}
+
+/* Metin Giriş Kutuları (LineEdit, TextEdit) */
+QLineEdit, QTextEdit, QPlainTextEdit {
+    background-color: #202020;
+    color: #ffffff;
+    border: 1px solid #333333;
+    border-radius: 6px;
+    padding: 6px 10px;
+}
+
+QLineEdit:focus, QTextEdit:focus {
+    border: 1px solid #0078d4;
+    background-color: #242424;
+}
+
+/* Açılır Menü (ComboBox) */
+QComboBox {
+    background-color: #202020;
+    color: #ffffff;
+    border: 1px solid #333333;
+    border-radius: 6px;
+    padding: 6px 10px;
+    min-width: 6em;
+}
+
+QComboBox:hover {
+    border: 1px solid #444444;
+}
+
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 25px;
+    border-left: 1px solid #333333;
+}
+
+QComboBox QAbstractItemView {
+    background-color: #202020;
+    color: #ffffff;
+    border: 1px solid #333333;
+    selection-background-color: #0078d4;
+}
+
+/* Sol Kenar Çubuğu Listesi (ListWidget) */
+QListWidget#sidebarList {
+    background-color: #181818;
+    border: none;
+    border-right: 1px solid #282828;
+    padding: 10px 6px;
+    font-size: 13px;
+}
+
+QListWidget#sidebarList::item {
+    padding: 10px 14px;
+    border-radius: 6px;
+    margin-bottom: 4px;
+    color: #cccccc;
+    font-weight: 500;
+}
+
+QListWidget#sidebarList::item:hover {
+    background-color: #242424;
+    color: #ffffff;
+}
+
+QListWidget#sidebarList::item:selected {
+    background-color: #2a2a2a;
+    color: #00b4d8;
+    font-weight: bold;
+    border-left: 3px solid #0078d4;
+}
+
+/* Kaydırma Çubuğu (ScrollBar) */
+QScrollBar:vertical {
+    background-color: #181818;
+    width: 10px;
+    margin: 0px;
+    border-radius: 5px;
+}
+
+QScrollBar::handle:vertical {
+    background-color: #383838;
+    min-height: 25px;
+    border-radius: 5px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background-color: #4f4f4f;
+}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0px;
+}
+
+/* Durum Çubuğu (StatusBar) */
+QStatusBar {
+    background-color: #141414;
+    border-top: 1px solid #252525;
+    color: #999999;
+    font-size: 12px;
+}
+
+/* Araç Çubuğu (ToolBar) */
+QToolBar {
+    background-color: #1a1a1a;
+    border-bottom: 1px solid #282828;
+    padding: 8px;
+    spacing: 8px;
+}

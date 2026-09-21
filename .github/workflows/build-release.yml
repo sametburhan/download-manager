@@ -1,0 +1,146 @@
+name: Build & Release Download Manager
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release Version (e.g. 1.1.0)'
+        required: true
+        default: '1.1.0'
+      publish_release:
+        description: 'Publish as GitHub Release?'
+        required: true
+        type: boolean
+        default: true
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Run Automated Tests
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Test Suite
+        run: |
+          python -m unittest discover tests
+
+  build:
+    name: Build Windows Installer & Packages
+    needs: test
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Determine Version
+        id: get_version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          else
+            VERSION="1.1.0"
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Target build version: $VERSION"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Dependencies & PyInstaller
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller
+
+      - name: Install Inno Setup
+        run: |
+          choco install innosetup --no-progress
+
+      - name: Sync Version Metadata
+        run: |
+          python update_version.py ${{ env.VERSION }}
+
+      - name: Generate Application Icons
+        run: |
+          python build_icon.py
+
+      - name: Build Standalone Executable (PyInstaller)
+        run: |
+          python -m PyInstaller build.spec --clean --noconfirm
+
+      - name: Compile Inno Setup Windows Installer
+        shell: pwsh
+        run: |
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            $iscc = "C:\Program Files\Inno Setup 6\ISCC.exe"
+          }
+          if (-not (Test-Path $iscc)) {
+            $iscc = (Get-Command iscc.exe -ErrorAction SilentlyContinue).Source
+          }
+          & $iscc "/dMyAppVersion=${{ env.VERSION }}" installer\setup.iss
+
+      - name: Package Browser Extension ZIP
+        shell: pwsh
+        run: |
+          Compress-Archive -Path extension\* -DestinationPath "dist\DownloadManager-Extension-v${{ env.VERSION }}.zip" -Force
+
+      - name: Package Portable Application ZIP
+        shell: pwsh
+        run: |
+          Compress-Archive -Path dist\DownloadManager\* -DestinationPath "dist\DownloadManager-Portable-v${{ env.VERSION }}.zip" -Force
+
+      - name: Prepare Installer Artifact
+        shell: pwsh
+        run: |
+          if (Test-Path "dist\DownloadManagerSetup.exe") {
+            Copy-Item "dist\DownloadManagerSetup.exe" "dist\DownloadManagerSetup-v${{ env.VERSION }}.exe" -Force
+          }
+
+      - name: Upload Build Artifacts to GitHub Actions
+        uses: actions/upload-artifact@v4
+        with:
+          name: DownloadManager-v${{ env.VERSION }}
+          path: |
+            dist/DownloadManagerSetup-v${{ env.VERSION }}.exe
+            dist/DownloadManager-Portable-v${{ env.VERSION }}.zip
+            dist/DownloadManager-Extension-v${{ env.VERSION }}.zip
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_release == true)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.VERSION }}
+          name: Download Manager v${{ env.VERSION }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            dist/DownloadManagerSetup-v${{ env.VERSION }}.exe
+            dist/DownloadManager-Portable-v${{ env.VERSION }}.zip
+            dist/DownloadManager-Extension-v${{ env.VERSION }}.zip

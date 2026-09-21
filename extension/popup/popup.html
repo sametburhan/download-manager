@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Download Manager</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Header -->
+    <div class="header">
+      <div class="title-row">
+        <span class="logo">⚡</span>
+        <h2>Download Manager</h2>
+      </div>
+      <div id="statusBadge" class="status-badge disconnected">
+        <span class="status-dot"></span>
+        <span id="statusText">Disconnected</span>
+      </div>
+    </div>
+
+    <!-- 1. Detected Videos List -->
+    <div class="card media-card">
+      <div class="setting-row">
+        <span class="setting-label">🎬 Found Videos (<span id="mediaCountBadge">0</span>)</span>
+        <div class="header-actions">
+          <button id="clearMediaBtn" class="action-icon-btn" title="Clear list">🗑️</button>
+          <button id="rescanMediaBtn" class="action-icon-btn" title="Rescan videos on this page">🔄</button>
+        </div>
+      </div>
+      <div id="mediaListContainer" class="media-list-container">
+        <p class="empty-media-msg">No videos detected on this page yet.<br><span style="color:#888;">(Play a video on the page or click 🔄 above)</span></p>
+      </div>
+      <div id="mediaFeedbackMsg" class="feedback-msg"></div>
+    </div>
+
+    <!-- 2. Settings Section -->
+    <div class="card" id="autoCaptureCard">
+      <div class="setting-row">
+        <label for="autoCaptureToggle" class="setting-label">Automatic Download Interception</label>
+        <label class="switch">
+          <input type="checkbox" id="autoCaptureToggle" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <p class="setting-desc">Automatically forwards file download links to the desktop application.</p>
+    </div>
+
+    <!-- 3. Quick Download URL -->
+    <div class="card">
+      <label class="input-label">Quick Download URL:</label>
+      <div class="input-group">
+        <input type="text" id="manualUrlInput" placeholder="https://..." />
+        <button id="sendUrlBtn" class="primary-btn">Download</button>
+      </div>
+      <div id="feedbackMsg" class="feedback-msg"></div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <button id="reconnectBtn" class="secondary-btn">🔄 Reconnect</button>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
