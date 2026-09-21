@@ -156,5 +156,6 @@ jobs:
           generate_release_notes: true
           files: |
             dist/DownloadManagerSetup-v${{ env.VERSION }}.exe
+            dist/DownloadManagerSetup.exe
             dist/DownloadManager-Portable-v${{ env.VERSION }}.zip
             dist/DownloadManager-Extension-v${{ env.VERSION }}.zip
