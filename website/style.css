@@ -155,7 +155,17 @@ body {
   color: #ffffff !important;
 }
 
-/* Right Navigation Button */
+/* Right Navigation Action Area */
+.header-action {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nav-gh-btn svg {
+  color: #24292f !important;
+}
+
 .nav-contact-btn,
 .nav-download-btn {
   display: inline-flex;

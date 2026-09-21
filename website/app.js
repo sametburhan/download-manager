@@ -5,6 +5,11 @@
 document.addEventListener("DOMContentLoaded", () => {
   const mainDownloadBtn = document.getElementById("mainDownloadBtn");
   const downloadToast = document.getElementById("downloadToast");
+  const heroVersionBadge = document.getElementById("heroVersionBadge");
+  const downloadMetaSize = document.getElementById("downloadMetaSize");
+  const downloadMetaVersion = document.getElementById("downloadMetaVersion");
+  const footerDownloadLink = document.getElementById("footerDownloadLink");
+  const toastDetails = document.getElementById("toastDetails");
 
   let toastTimeout = null;
 
@@ -24,7 +29,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const originalText = originalLabel ? originalLabel.textContent : "";
 
     if (originalLabel) {
-      originalLabel.textContent = "Opening Installer...";
+      originalLabel.textContent = "Starting Download...";
       setTimeout(() => {
         originalLabel.textContent = originalText;
       }, 3000);
@@ -36,6 +41,74 @@ document.addEventListener("DOMContentLoaded", () => {
   if (mainDownloadBtn) {
     mainDownloadBtn.addEventListener("click", handleDownloadClick);
   }
+
+  // --- Dynamic Latest Release Fetcher from GitHub Releases API ---
+  const GITHUB_REPO = "sametburhan/download-manager";
+  const GITHUB_API_URL = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`;
+
+  function formatBytes(bytes) {
+    if (!bytes || isNaN(bytes)) return "";
+    const mb = bytes / (1024 * 1024);
+    return `${mb.toFixed(1)} MB`;
+  }
+
+  async function fetchLatestRelease() {
+    try {
+      const res = await fetch(GITHUB_API_URL);
+      if (!res.ok) {
+        console.warn("GitHub Releases API returned status:", res.status);
+        return;
+      }
+      const data = await res.json();
+      const tagName = data.tag_name || "v1.1.0";
+
+      // Find the Windows installer (.exe)
+      const exeAsset = data.assets && data.assets.find(
+        (a) => a.name && a.name.toLowerCase().endsWith(".exe")
+      );
+
+      if (exeAsset) {
+        const downloadUrl = exeAsset.browser_download_url;
+        const fileSizeFormatted = formatBytes(exeAsset.size);
+
+        // Update Main Download CTA
+        if (mainDownloadBtn) {
+          mainDownloadBtn.href = downloadUrl;
+          mainDownloadBtn.setAttribute("download", exeAsset.name);
+        }
+
+        // Update Footer Download Link
+        if (footerDownloadLink) {
+          footerDownloadLink.href = downloadUrl;
+          footerDownloadLink.textContent = `Download ${tagName} (.exe)`;
+          footerDownloadLink.setAttribute("download", exeAsset.name);
+        }
+
+        // Update Hero Version Badge
+        if (heroVersionBadge) {
+          heroVersionBadge.textContent = `Engineered for Windows 10 & 11 • ${tagName}`;
+        }
+
+        // Update Metadata info
+        if (downloadMetaSize && fileSizeFormatted) {
+          downloadMetaSize.textContent = fileSizeFormatted;
+        }
+        if (downloadMetaVersion) {
+          downloadMetaVersion.textContent = tagName;
+        }
+
+        // Update Toast text
+        if (toastDetails) {
+          toastDetails.textContent = `${exeAsset.name} ${fileSizeFormatted ? `(${fileSizeFormatted})` : ""} is downloading.`;
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to query latest release:", err);
+    }
+  }
+
+  // Fetch immediately on load
+  fetchLatestRelease();
 
   // --- Contact / Feedback Modal Logic ---
   const navContactBtn = document.getElementById("navContactBtn");
