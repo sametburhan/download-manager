@@ -91,7 +91,7 @@ class TestNetworkSettings(unittest.TestCase):
         self.assertTrue(dialog.spin_port.isEnabled())
 
         dialog.close()
-        print("\n[OK] Tum Network Settings ayar ve arayuz testleri basariyla gecti!")
+        print("\n[OK] All Network Settings and UI tests passed successfully!")
 
 
 if __name__ == "__main__":

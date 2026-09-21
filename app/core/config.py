@@ -63,18 +63,18 @@ def load_network_settings() -> NetworkSettings:
                     proxy_pass=str(data.get("proxy_pass", ""))
                 )
         except Exception as e:
-            print(f"Ayar yükleme hatası: {e}")
+            print(f"Failed to load settings: {e}")
 
     return NetworkSettings()
 
 
 def save_network_settings(settings: NetworkSettings) -> bool:
-    """Ayarları settings.json dosyasına kaydeder."""
+    """Saves settings to settings.json file."""
     file_path = get_config_file_path()
     try:
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(asdict(settings), f, indent=4, ensure_ascii=False)
         return True
     except Exception as e:
-        print(f"Ayar kaydetme hatası: {e}")
+        print(f"Failed to save settings: {e}")
         return False

@@ -134,7 +134,7 @@ class TestWebSocketBridgeIntegration(unittest.TestCase):
         self.assertEqual(received_signals[0][0], "download")
         self.assertEqual(received_signals[0][1]["url"], "https://speed.hetzner.de/100MB.bin")
         self.assertEqual(received_signals[1][0], "media")
-        print("\n[OK] Tum Asama 1 entegrasyon testleri basariyla gecti!")
+        print("\n[OK] All Stage 1 integration tests passed successfully!")
 
 
 if __name__ == "__main__":

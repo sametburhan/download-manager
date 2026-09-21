@@ -111,7 +111,7 @@ class TestGuiIntegration(unittest.TestCase):
         self.assertEqual(data["num_chunks"], 8)
         dialog.close()
 
-        print("\n[OK] Tum Asama 3 GUI ve arayuz entegrasyon testleri basariyla gecti!")
+        print("\n[OK] All Stage 3 GUI and UI integration tests passed successfully!")
 
 
 if __name__ == "__main__":

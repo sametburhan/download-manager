@@ -101,7 +101,7 @@ class TestCompactAndAutostart(unittest.TestCase):
         tray.tray_icon.hide()
         main_win.close()
 
-        print("\n[OK] Kompakt pencere, sistem tepsisi ve otomatik başlatma testleri basariyla gecti!")
+        print("\n[OK] Compact window, system tray, and autostart tests passed successfully!")
 
 
 if __name__ == "__main__":

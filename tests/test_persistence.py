@@ -172,7 +172,7 @@ class TestTaskPersistence(unittest.TestCase):
 
             win.close()
 
-        print("\n[OK] Tum gorev kaliciligi ve yeniden yukleme testleri basariyla gecti!")
+        print("\n[OK] All task persistence and reload tests passed successfully!")
 
 
 if __name__ == "__main__":

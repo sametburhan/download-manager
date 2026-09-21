@@ -81,5 +81,5 @@ def set_autostart(enabled: bool, run_minimized: bool = True) -> bool:
         winreg.CloseKey(key)
         return True
     except Exception as exc:
-        print(f"Otomatik başlatma ayarı kaydedilemedi: {exc}")
+        print(f"Failed to save autostart setting: {exc}")
         return False

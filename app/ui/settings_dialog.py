@@ -242,7 +242,7 @@ class NetworkSettingsDialog(QDialog):
             try:
                 subprocess.Popen("rundll32.exe shell32.dll,Control_RunDLL inetcpl.cpl,,4")
             except Exception as e:
-                print(f"Sistem proxy sayfası açılamadı: {e}")
+                print(f"Failed to open system proxy settings: {e}")
 
     def _on_save_clicked(self) -> None:
         """Kullanıcının girdiği ayarları nesneye aktarıp kaydeder."""

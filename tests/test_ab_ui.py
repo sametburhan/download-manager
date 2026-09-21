@@ -168,7 +168,7 @@ class TestAbDownloadManagerUi(unittest.TestCase):
         self.assertEqual(pix.width(), 32)
         self.assertEqual(pix.height(), 32)
 
-        print("\n[OK] Tum Download Manager arayuz ve detay penceresi testleri basariyla gecti!")
+        print("\n[OK] All Download Manager UI and detail window tests passed successfully!")
 
 
 if __name__ == "__main__":

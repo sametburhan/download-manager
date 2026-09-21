@@ -210,7 +210,7 @@ class TestDownloadEngine(unittest.TestCase):
         self.assertTrue(os.path.exists(final_file))
         self.assertEqual(calculate_file_hash(final_file), TEST_HASH)
 
-        print("\n[OK] Tum Asama 2 indirme motoru testleri basariyla gecti!")
+        print("\n[OK] All Stage 2 download engine tests passed successfully!")
 
 
 if __name__ == "__main__":

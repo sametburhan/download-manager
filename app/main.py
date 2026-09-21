@@ -34,7 +34,7 @@ def load_stylesheet(app: QApplication) -> None:
             with open(qss_file, "r", encoding="utf-8") as f:
                 app.setStyleSheet(f.read())
         except Exception as exc:
-            print(f"Stil yükleme hatası: {exc}")
+            print(f"Style loading error: {exc}")
 
 
 def main():

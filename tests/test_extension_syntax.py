@@ -271,7 +271,7 @@ class TestExtensionIntegrity(unittest.TestCase):
         self.assertEqual(received[-1]["filename"], "DownloadManagerSetup.exe")
         self.assertTrue(received[-1]["url"].startswith("file://"))
 
-        print("\n[OK] Tum Asama 4 eklenti, temizleme ve iletisim testleri basariyla gecti!")
+        print("\n[OK] All Stage 4 extension, cleanup, and communication tests passed successfully!")
 
 
 if __name__ == "__main__":
