@@ -123,11 +123,13 @@ jobs:
         shell: pwsh
         run: |
           Compress-Archive -Path extension\* -DestinationPath "dist\DownloadManager-Extension-v${{ env.VERSION }}.zip" -Force
+          Copy-Item "dist\DownloadManager-Extension-v${{ env.VERSION }}.zip" "dist\DownloadManager-Extension.zip" -Force
 
       - name: Package Portable Application ZIP
         shell: pwsh
         run: |
           Compress-Archive -Path dist\DownloadManager\* -DestinationPath "dist\DownloadManager-Portable-v${{ env.VERSION }}.zip" -Force
+          Copy-Item "dist\DownloadManager-Portable-v${{ env.VERSION }}.zip" "dist\DownloadManager-Portable.zip" -Force
 
       - name: Prepare Installer Artifact
         shell: pwsh
@@ -142,8 +144,11 @@ jobs:
           name: DownloadManager-v${{ env.VERSION }}
           path: |
             dist/DownloadManagerSetup-v${{ env.VERSION }}.exe
+            dist/DownloadManagerSetup.exe
             dist/DownloadManager-Portable-v${{ env.VERSION }}.zip
+            dist/DownloadManager-Portable.zip
             dist/DownloadManager-Extension-v${{ env.VERSION }}.zip
+            dist/DownloadManager-Extension.zip
 
       - name: Publish GitHub Release
         if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_release == true)
@@ -158,4 +163,6 @@ jobs:
             dist/DownloadManagerSetup-v${{ env.VERSION }}.exe
             dist/DownloadManagerSetup.exe
             dist/DownloadManager-Portable-v${{ env.VERSION }}.zip
+            dist/DownloadManager-Portable.zip
             dist/DownloadManager-Extension-v${{ env.VERSION }}.zip
+            dist/DownloadManager-Extension.zip

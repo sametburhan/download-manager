@@ -4,6 +4,10 @@
 
 document.addEventListener("DOMContentLoaded", () => {
   const mainDownloadBtn = document.getElementById("mainDownloadBtn");
+  const portableDownloadBtn = document.getElementById("portableDownloadBtn");
+  const extensionDownloadBtn = document.getElementById("extensionDownloadBtn");
+  const portableBtnLabel = document.getElementById("portableBtnLabel");
+  const extensionBtnLabel = document.getElementById("extensionBtnLabel");
   const downloadToast = document.getElementById("downloadToast");
   const heroVersionBadge = document.getElementById("heroVersionBadge");
   const downloadMetaSize = document.getElementById("downloadMetaSize");
@@ -23,23 +27,40 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  function handleDownloadClick(e) {
-    const btn = e.currentTarget;
-    const originalLabel = btn.querySelector(".btn-label") || btn.querySelector("span");
-    const originalText = originalLabel ? originalLabel.textContent : "";
+  function triggerDownloadFeedback(btn, loadingText, defaultToastMessage) {
+    const label = btn.querySelector(".btn-label") || btn.querySelector(".sub-btn-label") || btn.querySelector("span");
+    const originalText = label ? label.textContent : "";
 
-    if (originalLabel) {
-      originalLabel.textContent = "Starting Download...";
+    if (label) {
+      label.textContent = loadingText;
       setTimeout(() => {
-        originalLabel.textContent = originalText;
+        label.textContent = originalText;
       }, 3000);
+    }
+
+    if (toastDetails && defaultToastMessage) {
+      toastDetails.textContent = defaultToastMessage;
     }
 
     showDownloadToast();
   }
 
   if (mainDownloadBtn) {
-    mainDownloadBtn.addEventListener("click", handleDownloadClick);
+    mainDownloadBtn.addEventListener("click", () => {
+      triggerDownloadFeedback(mainDownloadBtn, "Starting Download...", "DownloadManagerSetup.exe is downloading.");
+    });
+  }
+
+  if (portableDownloadBtn) {
+    portableDownloadBtn.addEventListener("click", () => {
+      triggerDownloadFeedback(portableDownloadBtn, "Starting Download...", "DownloadManager-Portable.zip is downloading.");
+    });
+  }
+
+  if (extensionDownloadBtn) {
+    extensionDownloadBtn.addEventListener("click", () => {
+      triggerDownloadFeedback(extensionDownloadBtn, "Starting Download...", "DownloadManager-Extension.zip is downloading.");
+    });
   }
 
   // --- Dynamic Latest Release Fetcher from GitHub Releases API ---
@@ -65,6 +86,16 @@ document.addEventListener("DOMContentLoaded", () => {
       // Find the Windows installer (.exe)
       const exeAsset = data.assets && data.assets.find(
         (a) => a.name && a.name.toLowerCase().endsWith(".exe")
+      );
+
+      // Find Portable zip
+      const portableAsset = data.assets && data.assets.find(
+        (a) => a.name && a.name.toLowerCase().includes("portable") && a.name.toLowerCase().endsWith(".zip")
+      );
+
+      // Find Extension zip
+      const extensionAsset = data.assets && data.assets.find(
+        (a) => a.name && a.name.toLowerCase().includes("extension") && a.name.toLowerCase().endsWith(".zip")
       );
 
       if (exeAsset) {
@@ -101,6 +132,20 @@ document.addEventListener("DOMContentLoaded", () => {
         if (toastDetails) {
           toastDetails.textContent = `${exeAsset.name} ${fileSizeFormatted ? `(${fileSizeFormatted})` : ""} is downloading.`;
         }
+      }
+
+      if (portableAsset && portableDownloadBtn) {
+        portableDownloadBtn.href = portableAsset.browser_download_url;
+        portableDownloadBtn.setAttribute("download", portableAsset.name);
+        const pSize = formatBytes(portableAsset.size);
+        if (pSize && portableBtnLabel) {
+          portableBtnLabel.textContent = `Portable (${pSize})`;
+        }
+      }
+
+      if (extensionAsset && extensionDownloadBtn) {
+        extensionDownloadBtn.href = extensionAsset.browser_download_url;
+        extensionDownloadBtn.setAttribute("download", extensionAsset.name);
       }
     } catch (err) {
       console.warn("Failed to query latest release:", err);

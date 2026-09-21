@@ -52,11 +52,9 @@
             <line x1="10.88" y1="21.94" x2="15.46" y2="14" />
           </svg>
         </a>
-        <a href="#features" class="dock-item" title="Multi-Thread Acceleration" aria-label="Speed Engine">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-            <line x1="8" y1="21" x2="16" y2="21" />
-            <line x1="12" y1="17" x2="12" y2="21" />
+        <a href="#github-community" class="dock-item" title="GitHub & Open Source Community" aria-label="Open Source & Community">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
           </svg>
         </a>
       </nav>
@@ -100,18 +98,47 @@
           Up to 16 multi-threaded connections, seamless browser integration, and intelligent video sniffing in one ultra-clean Windows application.
         </p>
 
-        <!-- Centered Main Download CTA Button -->
+        <!-- Download Actions Cluster -->
         <div class="cta-wrapper">
-          <a href="https://github.com/sametburhan/download-manager/releases/latest/download/DownloadManagerSetup.exe" class="main-download-btn" id="mainDownloadBtn">
-            <span class="btn-icon">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-            </span>
-            <span class="btn-label" id="mainDownloadBtnLabel">Download for Windows</span>
-          </a>
+          <div class="cta-buttons-cluster">
+            <!-- 1. Primary: Windows Installer (.exe) -->
+            <a href="https://github.com/sametburhan/download-manager/releases/latest/download/DownloadManagerSetup.exe" class="main-download-btn" id="mainDownloadBtn" title="Recommended setup for Windows 10 & 11">
+              <span class="btn-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+              </span>
+              <span class="btn-label" id="mainDownloadBtnLabel">Download Installer (.exe)</span>
+            </a>
+
+            <!-- 2. Secondary: Portable Package (.zip) -->
+            <a href="https://github.com/sametburhan/download-manager/releases/latest/download/DownloadManager-Portable.zip" class="secondary-download-btn" id="portableDownloadBtn" title="Portable standalone archive — No installation required">
+              <span class="sub-btn-icon">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                  <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                  <line x1="12" y1="22.08" x2="12" y2="12"/>
+                </svg>
+              </span>
+              <span class="sub-btn-label" id="portableBtnLabel">Portable (.zip)</span>
+            </a>
+
+            <!-- 3. Tertiary: Browser Extension Package (.zip) -->
+            <a href="https://github.com/sametburhan/download-manager/releases/latest/download/DownloadManager-Extension.zip" class="secondary-download-btn" id="extensionDownloadBtn" title="Browser extension folder package (ZIP)">
+              <span class="sub-btn-icon">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <circle cx="12" cy="12" r="4"/>
+                  <line x1="21.17" y1="8" x2="12" y2="8"/>
+                  <line x1="3.95" y1="6.06" x2="8.54" y2="14"/>
+                  <line x1="10.88" y1="21.94" x2="15.46" y2="14"/>
+                </svg>
+              </span>
+              <span class="sub-btn-label" id="extensionBtnLabel">Extension (.zip)</span>
+            </a>
+          </div>
           
           <div class="download-meta">
             <span>Windows 10 / 11 (64-bit)</span>
@@ -120,7 +147,7 @@
             <span class="meta-sep">•</span>
             <span id="downloadMetaVersion">v1.1.0</span>
             <span class="meta-sep">•</span>
-            <a href="https://github.com/sametburhan/download-manager/releases" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: underline; text-underline-offset: 3px;">All Releases</a>
+            <a href="https://github.com/sametburhan/download-manager/releases" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: underline; text-underline-offset: 3px;">All Releases & Checksums</a>
           </div>
         </div>
       </div>
@@ -395,6 +422,99 @@
 
     </section>
 
+    <!-- Open Source & GitHub Collaboration Section -->
+    <section class="community-section" id="github-community">
+      <div class="community-card">
+        <div class="community-header">
+          <div class="community-badge">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+            </svg>
+            <span>Open Source & Community Driven</span>
+          </div>
+          <h2 class="community-title">Built in Public. Open for Collaboration.</h2>
+          <p class="community-subtitle">
+            Download Manager is transparent, free software developed with Python 3.11, PyQt6, and native Windows APIs. We welcome open-source contributions, bug reports, feature suggestions, and pull requests!
+          </p>
+        </div>
+
+        <div class="community-grid">
+          <!-- Card 1: Source Code -->
+          <a href="https://github.com/sametburhan/download-manager" target="_blank" rel="noopener noreferrer" class="community-box">
+            <div class="box-icon-wrap">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="16 18 22 12 16 6"></polyline>
+                <polyline points="8 6 2 12 8 18"></polyline>
+              </svg>
+            </div>
+            <div class="box-content">
+              <h3>Source Code</h3>
+              <p>Explore the multi-segment chunk engine, smart media sniffer, and modern PyQt6 desktop interface.</p>
+              <span class="box-action-link">
+                <span>View Repository</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+              </span>
+            </div>
+          </a>
+
+          <!-- Card 2: Releases & Changelog -->
+          <a href="https://github.com/sametburhan/download-manager/releases" target="_blank" rel="noopener noreferrer" class="community-box">
+            <div class="box-icon-wrap">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+              </svg>
+            </div>
+            <div class="box-content">
+              <h3>Release Archive</h3>
+              <p>Inspect release notes, installer builds, standalone portable archives, and verified checksums.</p>
+              <span class="box-action-link">
+                <span>Explore Releases</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+              </span>
+            </div>
+          </a>
+
+          <!-- Card 3: Collaborate & Contribute -->
+          <a href="https://github.com/sametburhan/download-manager/issues" target="_blank" rel="noopener noreferrer" class="community-box">
+            <div class="box-icon-wrap">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="4"></circle>
+                <line x1="1.05" y1="12" x2="7" y2="12"></line>
+                <line x1="17.01" y1="12" x2="22.96" y2="12"></line>
+              </svg>
+            </div>
+            <div class="box-content">
+              <h3>Collaboration & Issues</h3>
+              <p>Have an optimization, bug report, or want to contribute? Open an Issue or submit a PR on GitHub!</p>
+              <span class="box-action-link">
+                <span>Contribute on GitHub</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+              </span>
+            </div>
+          </a>
+        </div>
+
+        <!-- Banner Bottom Strip: Tech Stack & Star CTA -->
+        <div class="community-footer-bar">
+          <div class="tech-tags">
+            <span class="tech-tag">Python 3.11</span>
+            <span class="tech-tag">PyQt6</span>
+            <span class="tech-tag">yt-dlp Engine</span>
+            <span class="tech-tag">Chrome MV3 Extension</span>
+            <span class="tech-tag">MIT License</span>
+          </div>
+          <a href="https://github.com/sametburhan/download-manager" target="_blank" rel="noopener noreferrer" class="star-gh-btn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 .587l3.668 7.431 8.2 1.192-5.934 5.784 1.399 8.163-7.333-3.856-7.333 3.856 1.399-8.163-5.934-5.784 8.2-1.192zm0 5.702l-2.217 4.492-4.957.721 3.587 3.496-.846 4.935 4.433-2.33 4.433 2.33-.846-4.935 3.587-3.496-4.957-.721z"/>
+            </svg>
+            <span>Star on GitHub</span>
+          </a>
+        </div>
+      </div>
+    </section>
+
     <!-- Clean Minimal Footer -->
     <footer class="site-footer">
       <div class="footer-inner">
@@ -405,7 +525,7 @@
         <div class="footer-right">
           <a href="https://github.com/sametburhan/download-manager/releases/latest/download/DownloadManagerSetup.exe" id="footerDownloadLink" class="footer-link">Download v1.1.0 (.exe)</a>
           <span class="footer-sep">•</span>
-          <a href="https://github.com/sametburhan/download-manager" target="_blank" rel="noopener noreferrer" class="footer-link">GitHub</a>
+          <a href="#github-community" class="footer-link">GitHub & Community</a>
           <span class="footer-sep">•</span>
           <a href="#preview" class="footer-link">App Preview</a>
           <span class="footer-sep">•</span>
