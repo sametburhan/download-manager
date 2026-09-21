@@ -96,38 +96,40 @@ class TestDeleteFeatures(unittest.TestCase):
 
     def test_04_main_window_toolbar_delete_button_and_batch_selection(self):
         """Ana penceredeki Delete butonu, onay kutusu seçimi ve toplu silme akışını test eder."""
-        bridge = ServerBridge()
-        tm = TaskManager()
-        win = MainWindow(task_manager=tm, bridge=bridge)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            bridge = ServerBridge()
+            temp_tasks_file = os.path.join(tmpdir, "tasks.json")
+            tm = TaskManager(tasks_file=temp_tasks_file)
+            win = MainWindow(task_manager=tm, bridge=bridge)
 
-        # 1. Araç çubuğunda Delete butonu var mı?
-        self.assertIsNotNone(win.btn_delete)
-        self.assertIn("Delete", win.btn_delete.text())
+            # 1. Araç çubuğunda Delete butonu var mı?
+            self.assertIsNotNone(win.btn_delete)
+            self.assertIn("Delete", win.btn_delete.text())
 
-        # 2. Görevleri ekle
-        task1 = DownloadTask(task_id="t1", url="http://a.com/1.zip", destination_folder=".", filename="1.zip")
-        task2 = DownloadTask(task_id="t2", url="http://a.com/2.zip", destination_folder=".", filename="2.zip")
-        task3 = DownloadTask(task_id="t3", url="http://a.com/3.zip", destination_folder=".", filename="3.zip")
+            # 2. Görevleri ekle
+            task1 = DownloadTask(task_id="t1", url="http://a.com/1.zip", destination_folder=".", filename="1.zip")
+            task2 = DownloadTask(task_id="t2", url="http://a.com/2.zip", destination_folder=".", filename="2.zip")
+            task3 = DownloadTask(task_id="t3", url="http://a.com/3.zip", destination_folder=".", filename="3.zip")
 
-        tm.tasks["t1"] = task1
-        tm.tasks["t2"] = task2
-        tm.tasks["t3"] = task3
+            tm.tasks["t1"] = task1
+            tm.tasks["t2"] = task2
+            tm.tasks["t3"] = task3
 
-        win._on_task_added(task1)
-        win._on_task_added(task2)
-        win._on_task_added(task3)
+            win._on_task_added(task1)
+            win._on_task_added(task2)
+            win._on_task_added(task3)
 
-        self.assertEqual(win.downloads_table.rowCount(), 3)
+            self.assertEqual(win.downloads_table.rowCount(), 3)
 
-        # 3. Checkbox işaretleme simülasyonu: 1. ve 3. görevleri işaretle
-        item_0 = win.downloads_table.item(0, 0)
-        item_2 = win.downloads_table.item(2, 0)
-        item_0.setCheckState(Qt.CheckState.Checked)
-        item_2.setCheckState(Qt.CheckState.Checked)
+            # 3. Checkbox işaretleme simülasyonu: 1. ve 3. görevleri işaretle
+            item_0 = win.downloads_table.item(0, 0)
+            item_2 = win.downloads_table.item(2, 0)
+            item_0.setCheckState(Qt.CheckState.Checked)
+            item_2.setCheckState(Qt.CheckState.Checked)
 
-        selected_ids = win._get_selected_task_ids()
-        self.assertIn("t1", selected_ids)
-        self.assertIn("t3", selected_ids)
+            selected_ids = win._get_selected_task_ids()
+            self.assertIn("t1", selected_ids)
+            self.assertIn("t3", selected_ids)
         self.assertNotIn("t2", selected_ids)
 
         # 4. Toplu silme (batch delete) çalıştır
