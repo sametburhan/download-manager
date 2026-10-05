@@ -218,6 +218,14 @@ QTableWidget#downloadsTable {
     outline: none;
 }
 
+QTableWidget#downloadsTable QWidget {
+    background: transparent;
+}
+
+QTableWidget#downloadsTable QLabel {
+    background: transparent;
+}
+
 QTableWidget#downloadsTable::item {
     padding: 6px 10px;
     border-bottom: 1px solid rgba(30, 41, 59, 0.4);

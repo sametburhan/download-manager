@@ -38,6 +38,7 @@ class FileNameCellWidget(QWidget):
 
     def __init__(self, filename: str, category: str, icon_str: str, subtitle: Optional[str] = None, parent=None):
         super().__init__(parent)
+        self.setStyleSheet("background: transparent;")
         layout = QHBoxLayout(self)
         layout.setContentsMargins(8, 4, 8, 4)
         layout.setSpacing(10)
@@ -57,13 +58,13 @@ class FileNameCellWidget(QWidget):
 
         self.name_lbl = QLabel(filename)
         self.name_lbl.setFont(QFont("Inter", 10, QFont.Weight.DemiBold))
-        self.name_lbl.setStyleSheet("color: #f1f5f9;")
+        self.name_lbl.setStyleSheet("color: #f1f5f9; background: transparent; border: none; padding: 0;")
         text_layout.addWidget(self.name_lbl)
 
         sub_text = subtitle if subtitle is not None else category
         self.cat_lbl = QLabel(sub_text)
         self.cat_lbl.setFont(QFont("Inter", 8))
-        self.cat_lbl.setStyleSheet("color: #64748b; font-weight: 500;")
+        self.cat_lbl.setStyleSheet("color: #64748b; font-weight: 500; background: transparent; border: none; padding: 0;")
         text_layout.addWidget(self.cat_lbl)
 
         layout.addLayout(text_layout)
