@@ -506,7 +506,7 @@ class MainWindow(QMainWindow):
 
         # Help Menüsü
         help_menu = menubar.addMenu("Help")
-        act_about = QAction("ℹ️ About Download Manager PRO", self)
+        act_about = QAction("ℹ️ About Download Manager", self)
         act_about.triggered.connect(self._show_about)
         help_menu.addAction(act_about)
 

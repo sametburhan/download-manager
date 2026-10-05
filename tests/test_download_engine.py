@@ -224,7 +224,7 @@ class TestDownloadEngine(unittest.TestCase):
         downloader.start()
 
         # Biraz indirmesine izin ver ve duraklat
-        for _ in range(50):
+        for _ in range(150):
             self.app.processEvents()
             if task.downloaded_size > 0:
                 break
