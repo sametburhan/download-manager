@@ -235,6 +235,8 @@ class MainWindow(QMainWindow):
 
         self.current_category_filter = "ALL"
         self.current_search_query = ""
+        self._sort_column: Optional[int] = None
+        self._sort_order: Qt.SortOrder = Qt.SortOrder.AscendingOrder
         self._client_count = 0
         self._is_forced_exit = False
         self._tray_notified = False
@@ -332,6 +334,9 @@ class MainWindow(QMainWindow):
 
         # Sütun Genişlikleri ve Responsive Davranış
         header = self.downloads_table.horizontalHeader()
+        header.setSectionsClickable(True)
+        header.setSortIndicatorShown(False)
+        header.sectionClicked.connect(self._on_header_section_clicked)
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
         self.downloads_table.setColumnWidth(0, 38)  # Checkbox sütunu
 
@@ -860,6 +865,9 @@ class MainWindow(QMainWindow):
         self._update_total_metrics()
         self._update_category_counts()
 
+        if self._sort_column is not None:
+            self._sort_table_data()
+
     @pyqtSlot(dict)
     def _on_task_progress(self, data: dict) -> None:
         """Progress bilgisini hem uyumluluk kartına hem de tablodaki hücrelere yansıtır."""
@@ -1138,6 +1146,177 @@ class MainWindow(QMainWindow):
             if tid:
                 self.task_rows[tid] = r
                 self.row_tasks[r] = tid
+
+    # ==================== Tablo Başlık Sıralama ====================
+
+    def _on_header_section_clicked(self, column: int) -> None:
+        """Kullanıcı sütun başlığına tıkladığında tabloyu sıralar."""
+        if column == 0:  # Checkbox sütununu sıralama
+            return
+
+        if self._sort_column == column:
+            # Tıklanan sütun zaten aktifse yönü tersine çevir
+            if self._sort_order == Qt.SortOrder.AscendingOrder:
+                self._sort_order = Qt.SortOrder.DescendingOrder
+            else:
+                self._sort_order = Qt.SortOrder.AscendingOrder
+        else:
+            self._sort_column = column
+            # İlk tıklama yönleri:
+            # DATE ve SIZE: Yeniden eskiye / büyükten küçüğe (Descending)
+            # FILE NAME: Alfabetik A'dan Z'ye (Ascending)
+            if column in (2, 3, 4, 6):
+                self._sort_order = Qt.SortOrder.DescendingOrder
+            else:
+                self._sort_order = Qt.SortOrder.AscendingOrder
+
+        header = self.downloads_table.horizontalHeader()
+        header.setSortIndicatorShown(True)
+        header.setSortIndicator(self._sort_column, self._sort_order)
+        self._sort_table_data()
+
+    def _get_sort_key(self, task: DownloadTask, column: int):
+        """Belirtilen sütun için sıralama anahtarı üretir."""
+        if column == 1:  # FILE NAME
+            return (task.filename or "").lower()
+        elif column == 2:  # SIZE
+            return task.total_size if task.total_size > 0 else task.downloaded_size
+        elif column == 3:  # PROGRESS & STATUS
+            return task.progress_percent
+        elif column == 4:  # SPEED
+            return task.speed_bytes_per_sec
+        elif column == 5:  # TIME LEFT
+            if task.status == DownloadStatus.COMPLETED:
+                return 0.0
+            return task.eta_seconds if task.eta_seconds > 0 else 999999999.0
+        elif column == 6:  # DATE
+            return task.created_at
+        return 0
+
+    def _sort_table_data(self) -> None:
+        """Tablodaki görev satırlarını seçilen sıralama ölçütüne göre yeniden düzenler."""
+        if self._sort_column is None:
+            return
+
+        reverse = (self._sort_order == Qt.SortOrder.DescendingOrder)
+
+        # Tabloda listelenen görevleri topla
+        task_list: List[DownloadTask] = []
+        for tid in list(self.task_rows.keys()):
+            t = self.task_manager.get_task(tid)
+            if not t and tid in self.cards:
+                t = self.cards[tid].task
+            if t and t not in task_list:
+                task_list.append(t)
+
+        task_list.sort(key=lambda t: self._get_sort_key(t, self._sort_column), reverse=reverse)
+
+        # Mevcut seçimleri ve işaretli kutuları koru
+        checked_ids = set()
+        for r in range(self.downloads_table.rowCount()):
+            item = self.downloads_table.item(r, 0)
+            if item and item.checkState() == Qt.CheckState.Checked:
+                tid = item.data(Qt.ItemDataRole.UserRole)
+                if tid:
+                    checked_ids.add(tid)
+
+        selected_ids = set(self._get_selected_task_ids())
+
+        self.task_rows.clear()
+        self.row_tasks.clear()
+
+        # Eksik satır varsa ekle, fazla satır varsa sil
+        while self.downloads_table.rowCount() < len(task_list):
+            self.downloads_table.insertRow(self.downloads_table.rowCount())
+            self.downloads_table.setRowHeight(self.downloads_table.rowCount() - 1, 52)
+        while self.downloads_table.rowCount() > len(task_list):
+            self.downloads_table.removeRow(self.downloads_table.rowCount() - 1)
+
+        for r, task in enumerate(task_list):
+            self.task_rows[task.task_id] = r
+            self.row_tasks[r] = task.task_id
+
+            # Sütun 0: Checkbox
+            chk_item = self.downloads_table.item(r, 0)
+            if not chk_item:
+                chk_item = QTableWidgetItem()
+                chk_item.setFlags(Qt.ItemFlag.ItemIsUserCheckable | Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
+                chk_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.downloads_table.setItem(r, 0, chk_item)
+            chk_item.setData(Qt.ItemDataRole.UserRole, task.task_id)
+            chk_item.setCheckState(Qt.CheckState.Checked if task.task_id in checked_ids else Qt.CheckState.Unchecked)
+
+            # Sütun 1: İsim Hücresi (FileNameCellWidget)
+            name_cell = self.downloads_table.cellWidget(r, 1)
+            if isinstance(name_cell, FileNameCellWidget):
+                name_cell.update_info(task.filename, task.category, task.category_icon, self._get_task_subtitle(task))
+            else:
+                name_cell = FileNameCellWidget(
+                    filename=task.filename,
+                    category=task.category,
+                    icon_str=task.category_icon,
+                    subtitle=self._get_task_subtitle(task)
+                )
+                self.downloads_table.setCellWidget(r, 1, name_cell)
+
+            # Sütun 2: Boyut
+            size_str = task.formatted_size_progress if task.status == DownloadStatus.DOWNLOADING and task.downloaded_size > 0 else task.formatted_total_size
+            size_item = self.downloads_table.item(r, 2)
+            if not size_item:
+                size_item = QTableWidgetItem()
+                size_item.setTextAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+                size_item.setFont(QFont("JetBrains Mono", 8))
+                self.downloads_table.setItem(r, 2, size_item)
+            size_item.setText(size_str)
+            size_item.setForeground(QColor("#cbd5e1"))
+
+            # Sütun 3: Durum Hücresi (StatusCellWidget)
+            status_cell = self.downloads_table.cellWidget(r, 3)
+            if isinstance(status_cell, StatusCellWidget):
+                status_cell.update_status(task.status.value, task.progress_percent)
+            else:
+                status_cell = StatusCellWidget(task.status, task.progress_percent)
+                self.downloads_table.setCellWidget(r, 3, status_cell)
+
+            # Sütun 4: Hız
+            speed_text = f"▲ {task.formatted_speed}" if task.status == DownloadStatus.DOWNLOADING and task.formatted_speed else "--"
+            speed_item = self.downloads_table.item(r, 4)
+            if not speed_item:
+                speed_item = QTableWidgetItem()
+                speed_item.setTextAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+                self.downloads_table.setItem(r, 4, speed_item)
+            speed_item.setText(speed_text)
+            speed_item.setForeground(QColor("#38bdf8") if task.status == DownloadStatus.DOWNLOADING else QColor("#64748b"))
+            speed_item.setFont(QFont("JetBrains Mono", 8, QFont.Weight.DemiBold if task.status == DownloadStatus.DOWNLOADING else QFont.Weight.Normal))
+
+            # Sütun 5: Kalan Süre
+            eta_text = f"{task.formatted_eta} s" if task.status == DownloadStatus.DOWNLOADING and task.formatted_eta != "--:--" else ("Finished" if task.status == DownloadStatus.COMPLETED else ("Queued" if task.status == DownloadStatus.PAUSED else "--"))
+            eta_item = self.downloads_table.item(r, 5)
+            if not eta_item:
+                eta_item = QTableWidgetItem()
+                eta_item.setTextAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+                eta_item.setFont(QFont("JetBrains Mono", 8))
+                self.downloads_table.setItem(r, 5, eta_item)
+            eta_item.setText(eta_text)
+            eta_item.setForeground(QColor("#cbd5e1") if task.status == DownloadStatus.DOWNLOADING else QColor("#64748b"))
+
+            # Sütun 6: Eklenme Tarihi
+            date_item = self.downloads_table.item(r, 6)
+            if not date_item:
+                date_item = QTableWidgetItem()
+                date_item.setTextAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+                self.downloads_table.setItem(r, 6, date_item)
+            date_item.setText(task.formatted_date_added)
+            date_item.setForeground(QColor("#64748b"))
+
+        # Seçili satırları geri yükle
+        self.downloads_table.clearSelection()
+        for r in range(self.downloads_table.rowCount()):
+            tid = self.row_tasks.get(r)
+            if tid in selected_ids:
+                self.downloads_table.selectRow(r)
+
+        self._apply_filter()
 
     def _update_total_metrics(self) -> None:
         """Toplam aktif hız ve görev sayısını durum çubuğuna yansıtır."""

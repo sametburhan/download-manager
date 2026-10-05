@@ -254,6 +254,7 @@ QHeaderView::section {
 
 QHeaderView::section:hover {
     color: #f1f5f9;
+    background-color: #172237;
 }
 
 /* Checkbox */

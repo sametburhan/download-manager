@@ -168,6 +168,54 @@ class TestAbDownloadManagerUi(unittest.TestCase):
         self.assertFalse(pix.isNull())
         self.assertEqual(pix.width(), 32)
         self.assertEqual(pix.height(), 32)
+    def test_07_table_column_sorting(self):
+        """Tablo sütun başlıklarına tıklandığında isim, boyut ve tarihe göre sıralamayı test eder."""
+        # DATE sıralaması (Sütun 6)
+        # 1. Tıklama: Yeniden eskiye (Descending)
+        self.window._on_header_section_clicked(6)
+        self.app.processEvents()
+        self.assertEqual(self.window._sort_column, 6)
+        self.assertEqual(self.window._sort_order, Qt.SortOrder.DescendingOrder)
+
+        first_tid = self.window.row_tasks.get(0)
+        last_tid = self.window.row_tasks.get(self.window.downloads_table.rowCount() - 1)
+        task_first = self.task_manager.get_task(first_tid)
+        task_last = self.task_manager.get_task(last_tid)
+        self.assertGreaterEqual(task_first.created_at, task_last.created_at)
+
+        # 2. Tıklama: Eskiden yeniye (Ascending)
+        self.window._on_header_section_clicked(6)
+        self.app.processEvents()
+        self.assertEqual(self.window._sort_order, Qt.SortOrder.AscendingOrder)
+        first_tid_asc = self.window.row_tasks.get(0)
+        last_tid_asc = self.window.row_tasks.get(self.window.downloads_table.rowCount() - 1)
+        task_first_asc = self.task_manager.get_task(first_tid_asc)
+        task_last_asc = self.task_manager.get_task(last_tid_asc)
+        self.assertLessEqual(task_first_asc.created_at, task_last_asc.created_at)
+
+        # FILE NAME sıralaması (Sütun 1)
+        # 1. Tıklama: A-Z (Ascending)
+        self.window._on_header_section_clicked(1)
+        self.app.processEvents()
+        self.assertEqual(self.window._sort_column, 1)
+        self.assertEqual(self.window._sort_order, Qt.SortOrder.AscendingOrder)
+
+        # 2. Tıklama: Z-A (Descending)
+        self.window._on_header_section_clicked(1)
+        self.app.processEvents()
+        self.assertEqual(self.window._sort_order, Qt.SortOrder.DescendingOrder)
+
+        # SIZE sıralaması (Sütun 2)
+        # 1. Tıklama: Büyükten küçüğe (Descending)
+        self.window._on_header_section_clicked(2)
+        self.app.processEvents()
+        self.assertEqual(self.window._sort_column, 2)
+        self.assertEqual(self.window._sort_order, Qt.SortOrder.DescendingOrder)
+
+        # 2. Tıklama: Küçükten büyüğe (Ascending)
+        self.window._on_header_section_clicked(2)
+        self.app.processEvents()
+        self.assertEqual(self.window._sort_order, Qt.SortOrder.AscendingOrder)
 
         print("\n[OK] All Download Manager UI and detail window tests passed successfully!")
 
