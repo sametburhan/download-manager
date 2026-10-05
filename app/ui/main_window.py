@@ -414,20 +414,20 @@ class MainWindow(QMainWindow):
         """Üst modern Cyber-Slate menü çubuğunu ve sol logo rozetini oluşturur."""
         menubar = self.menuBar()
 
-        # Sol Köşe Rozeti: Download Manager
+        # Sağ Köşe Rozeti: Download Manager (En sağa yaslı)
         logo_widget = QWidget(menubar)
         logo_widget.setObjectName("logoWidget")
-        logo_widget.setStyleSheet("background: transparent;")
+        logo_widget.setStyleSheet("background: transparent; border: none;")
         logo_layout = QHBoxLayout(logo_widget)
         logo_layout.setContentsMargins(12, 2, 16, 2)
         logo_layout.setSpacing(0)
 
         logo_text = QLabel('Download <span style="color: #38bdf8; font-weight: bold;">Manager</span>')
         logo_text.setFont(QFont("Inter", 10, QFont.Weight.DemiBold))
-        logo_text.setStyleSheet("color: #f1f5f9;")
+        logo_text.setStyleSheet("color: #f1f5f9; background: transparent; border: none;")
         logo_layout.addWidget(logo_text)
 
-        menubar.setCornerWidget(logo_widget, Qt.Corner.TopLeftCorner)
+        menubar.setCornerWidget(logo_widget, Qt.Corner.TopRightCorner)
 
         # File Menüsü
         file_menu = menubar.addMenu("File")
