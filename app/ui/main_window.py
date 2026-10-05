@@ -367,27 +367,16 @@ class MainWindow(QMainWindow):
         """Üst modern Cyber-Slate menü çubuğunu ve sol logo rozetini oluşturur."""
         menubar = self.menuBar()
 
-        # Sol Köşe Rozeti: İkon + Download Manager PRO
+        # Sol Köşe Rozeti: Download Manager
         logo_widget = QWidget(menubar)
         logo_widget.setObjectName("logoWidget")
         logo_widget.setStyleSheet("background: transparent;")
         logo_layout = QHBoxLayout(logo_widget)
-        logo_layout.setContentsMargins(8, 2, 14, 2)
-        logo_layout.setSpacing(8)
+        logo_layout.setContentsMargins(12, 2, 16, 2)
+        logo_layout.setSpacing(0)
 
-        logo_icon = QLabel(" ↓ ")
-        logo_icon.setFixedSize(22, 22)
-        logo_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        logo_icon.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-        logo_icon.setStyleSheet("""
-            background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #38bdf8, stop:1 #2563eb);
-            color: #ffffff;
-            border-radius: 6px;
-        """)
-        logo_layout.addWidget(logo_icon)
-
-        logo_text = QLabel('Download Manager <span style="color: #38bdf8; font-weight: bold;">PRO</span>')
-        logo_text.setFont(QFont("Inter", 9, QFont.Weight.DemiBold))
+        logo_text = QLabel('Download <span style="color: #38bdf8; font-weight: bold;">Manager</span>')
+        logo_text.setFont(QFont("Inter", 10, QFont.Weight.DemiBold))
         logo_text.setStyleSheet("color: #f1f5f9;")
         logo_layout.addWidget(logo_text)
 
