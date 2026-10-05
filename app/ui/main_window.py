@@ -17,8 +17,8 @@ from PyQt6.QtWidgets import (
     QMenu, QStatusBar, QToolBar, QMessageBox, QInputDialog,
     QCheckBox, QSplitter, QFrame, QSizePolicy, QApplication
 )
-from PyQt6.QtCore import Qt, QSize, pyqtSlot, QPoint
-from PyQt6.QtGui import QFont, QIcon, QAction, QColor, QKeySequence, QShortcut
+from PyQt6.QtCore import Qt, QSize, pyqtSlot, QPoint, QRectF
+from PyQt6.QtGui import QFont, QIcon, QAction, QColor, QKeySequence, QShortcut, QPainter, QPen, QBrush
 
 from app.core.models import DownloadTask, DownloadStatus, TaskType
 from app.core.task_manager import TaskManager
@@ -33,6 +33,60 @@ from app.core.autostart import is_autostart_enabled, set_autostart
 from app.utils.icon_utils import get_app_icon, get_app_pixmap, get_search_icon
 
 
+class CategoryBadgeWidget(QLabel):
+    """Pürüzsüz (anti-aliased) kenarlı ve renkli kategori rozeti."""
+
+    def __init__(self, icon_str: str, category: str, parent=None):
+        super().__init__(icon_str, parent)
+        self.setFixedSize(32, 32)
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setFont(QFont("Segoe UI Emoji", 13))
+        self.setStyleSheet("background: transparent; border: none;")
+        self.bg_color = QColor(244, 63, 94, 38)
+        self.border_color = QColor(244, 63, 94, 90)
+        self.set_category(category)
+
+    def set_category(self, category: str) -> None:
+        cat_lower = (category or "").lower()
+        if "video" in cat_lower:
+            self.bg_color = QColor(239, 68, 68, 38)
+            self.border_color = QColor(239, 68, 68, 90)
+        elif "app" in cat_lower or "program" in cat_lower:
+            self.bg_color = QColor(249, 115, 22, 38)
+            self.border_color = QColor(249, 115, 22, 90)
+        elif "music" in cat_lower or "audio" in cat_lower:
+            self.bg_color = QColor(59, 130, 246, 38)
+            self.border_color = QColor(59, 130, 246, 90)
+        elif "compress" in cat_lower or "zip" in cat_lower:
+            self.bg_color = QColor(245, 158, 11, 38)
+            self.border_color = QColor(245, 158, 11, 90)
+        elif "document" in cat_lower:
+            self.bg_color = QColor(14, 165, 233, 38)
+            self.border_color = QColor(14, 165, 233, 90)
+        elif "image" in cat_lower:
+            self.bg_color = QColor(16, 185, 129, 38)
+            self.border_color = QColor(16, 185, 129, 90)
+        else:
+            self.bg_color = QColor(244, 63, 94, 38)
+            self.border_color = QColor(244, 63, 94, 90)
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.TextAntialiasing)
+
+        rect = QRectF(0.5, 0.5, float(self.width() - 1), float(self.height() - 1))
+        painter.setBrush(QBrush(self.bg_color))
+        painter.setPen(QPen(self.border_color, 1.0))
+        painter.drawRoundedRect(rect, 8.0, 8.0)
+
+        painter.setFont(self.font())
+        text_rect = QRectF(0, 0.5, float(self.width()), float(self.height()))
+        painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, self.text())
+        painter.end()
+
+
 class FileNameCellWidget(QWidget):
     """Tablo için solunda özel renkli kategori kutusu, üstünde kalın dosya adı ve altında alt bilgi olan hücre."""
 
@@ -43,12 +97,8 @@ class FileNameCellWidget(QWidget):
         layout.setContentsMargins(8, 4, 8, 4)
         layout.setSpacing(10)
 
-        # Kategori İkonu Kutusu (32x32 rounded)
-        self.icon_lbl = QLabel(icon_str)
-        self.icon_lbl.setFont(QFont("Segoe UI Emoji", 13))
-        self.icon_lbl.setFixedSize(32, 32)
-        self.icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._apply_icon_style(category)
+        # Kategori İkonu Rozeti (32x32 Anti-aliased rounded)
+        self.icon_lbl = CategoryBadgeWidget(icon_str, category)
         layout.addWidget(self.icon_lbl)
 
         # Başlık ve Kategori / Subtitle (Dikey Düzen)
@@ -71,21 +121,8 @@ class FileNameCellWidget(QWidget):
         layout.addStretch()
 
     def _apply_icon_style(self, category: str) -> None:
-        cat_lower = (category or "").lower()
-        if "video" in cat_lower:
-            self.icon_lbl.setStyleSheet("background-color: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 8px; color: #f87171;")
-        elif "app" in cat_lower or "program" in cat_lower:
-            self.icon_lbl.setStyleSheet("background-color: rgba(249, 115, 22, 0.15); border: 1px solid rgba(249, 115, 22, 0.35); border-radius: 8px; color: #fb923c;")
-        elif "music" in cat_lower or "audio" in cat_lower:
-            self.icon_lbl.setStyleSheet("background-color: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.35); border-radius: 8px; color: #38bdf8;")
-        elif "compress" in cat_lower or "zip" in cat_lower:
-            self.icon_lbl.setStyleSheet("background-color: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 8px; color: #fbbf24;")
-        elif "document" in cat_lower:
-            self.icon_lbl.setStyleSheet("background-color: rgba(14, 165, 233, 0.15); border: 1px solid rgba(14, 165, 233, 0.35); border-radius: 8px; color: #38bdf8;")
-        elif "image" in cat_lower:
-            self.icon_lbl.setStyleSheet("background-color: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 8px; color: #34d399;")
-        else:
-            self.icon_lbl.setStyleSheet("background-color: rgba(244, 63, 94, 0.15); border: 1px solid rgba(244, 63, 94, 0.35); border-radius: 8px; color: #fb7185;")
+        if isinstance(self.icon_lbl, CategoryBadgeWidget):
+            self.icon_lbl.set_category(category)
 
     def update_info(self, filename: str, category: str, icon_str: str, subtitle: Optional[str] = None) -> None:
         """Dosya adı, kategori, alt başlık ve ikonunu dinamik olarak günceller."""
