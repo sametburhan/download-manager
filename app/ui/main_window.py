@@ -367,6 +367,8 @@ class MainWindow(QMainWindow):
 
         # Sol Köşe Rozeti: İkon + Download Manager PRO
         logo_widget = QWidget(menubar)
+        logo_widget.setObjectName("logoWidget")
+        logo_widget.setStyleSheet("background: transparent;")
         logo_layout = QHBoxLayout(logo_widget)
         logo_layout.setContentsMargins(8, 2, 14, 2)
         logo_layout.setSpacing(8)
@@ -533,6 +535,8 @@ class MainWindow(QMainWindow):
 
         # Arama Kutusunu Sağa Yaslamak İçin Esnek Boşluk
         spacer = QWidget()
+        spacer.setObjectName("toolbarSpacer")
+        spacer.setStyleSheet("background: transparent; border: none;")
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         toolbar.addWidget(spacer)
 
@@ -790,8 +794,9 @@ class MainWindow(QMainWindow):
         """Yeni görev eklendiğinde tabloya satır ve uyumluluk kartını ekler."""
         self.empty_label.setVisible(False)
 
-        # Geriye dönük uyumluluk ve testler için card nesnesi
-        card = DownloadCardWidget(task, parent=self)
+        # Geriye dönük uyumluluk ve testler için card nesnesi (MainWindow'a parent bağlanmaz)
+        card = DownloadCardWidget(task, parent=None)
+        card.hide()  # Layoutsuz kartın (0, 0) koordinatında menü logosunun üzerine oturmasını önle
         card.pause_requested.connect(self.task_manager.pause_task)
         card.resume_requested.connect(self.task_manager.resume_task)
         card.cancel_requested.connect(self._remove_task)

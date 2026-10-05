@@ -65,6 +65,12 @@ QToolBar {
     spacing: 8px;
 }
 
+QWidget#logoWidget,
+QWidget#toolbarSpacer {
+    background: transparent;
+    border: none;
+}
+
 /* + Add URL Primary Accent Button */
 QPushButton#addUrlBtn {
     background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #2563eb, stop:0.5 #0284c7, stop:1 #06b6d4);
