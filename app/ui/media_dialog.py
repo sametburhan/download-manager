@@ -627,8 +627,8 @@ class MediaQualityDialog(QDialog):
 
         self.format_combo.clear()
 
-        # En üst kalite seçeneği
-        self.format_combo.addItem("🏆 Best Video + Audio (Auto Highest Resolution)", "best")
+        # En üst kalite seçeneği (MP4)
+        self.format_combo.addItem("🏆 Best Video + Audio (MP4 - Highest Quality)", "best")
 
         formats = info.get("formats", [])
         added_labels = set()

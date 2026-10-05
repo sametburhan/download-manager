@@ -177,9 +177,13 @@ class MediaInfoExtractor(QThread):
                     if height and vcodec != "none":
                         video_candidates.append(fmt)
 
-                # Yüksekliğe ve dosya boyutuna göre sırala
+                # Yüksekliğe ve MP4 format önceliğine göre sırala
                 video_candidates.sort(
-                    key=lambda f: (f.get("height", 0) or 0, f.get("filesize") or f.get("filesize_approx") or 0),
+                    key=lambda f: (
+                        f.get("height", 0) or 0,
+                        1 if f.get("ext") == "mp4" else 0,
+                        f.get("filesize") or f.get("filesize_approx") or 0
+                    ),
                     reverse=True
                 )
 
@@ -189,7 +193,6 @@ class MediaInfoExtractor(QThread):
                         continue
                     seen_heights.add(h)
 
-                    ext = fmt.get("ext", "mp4")
                     format_id = fmt.get("format_id", "")
                     filesize = fmt.get("filesize") or fmt.get("filesize_approx") or 0
 
@@ -209,14 +212,15 @@ class MediaInfoExtractor(QThread):
                         size_mb = filesize / (1024 * 1024)
                         size_str = f" (~{size_mb:.1f} MB)"
 
-                    label = f"{res_title} - {ext.upper()}{size_str}"
+                    # Kullanıcı talebi: Tüm video çözünürlükleri (720p, 480p, 360p, 240p vb.) daima MP4 olarak sunulur
+                    label = f"{res_title} - MP4{size_str}"
 
                     formats_summary.append({
                         "format_id": f"height_{h}",
                         "raw_format_id": format_id,
                         "label": label,
                         "height": h,
-                        "ext": ext,
+                        "ext": "mp4",
                         "filesize": filesize,
                         "is_video": True
                     })
@@ -344,17 +348,22 @@ class MediaDownloader(QThread):
             if self.format_id.startswith("height_"):
                 h = self.format_id.replace("height_", "")
                 if has_ffmpeg:
-                    ydl_opts["format"] = f"bestvideo[height<={h}]+bestaudio/best[height<={h}]/best"
+                    ydl_opts["format"] = (
+                        f"bestvideo[height<={h}][ext=mp4]+bestaudio[ext=m4a]/"
+                        f"bestvideo[height<={h}]+bestaudio/"
+                        f"best[height<={h}][ext=mp4]/"
+                        f"best[height<={h}]/best"
+                    )
                 else:
-                    ydl_opts["format"] = f"best[height<={h}]/best"
+                    ydl_opts["format"] = f"best[height<={h}][ext=mp4]/best[height<={h}]/best"
             else:
                 if has_ffmpeg:
-                    ydl_opts["format"] = f"{self.format_id}+bestaudio/best"
+                    ydl_opts["format"] = f"{self.format_id}+bestaudio[ext=m4a]/{self.format_id}+bestaudio/best"
                 else:
                     ydl_opts["format"] = f"{self.format_id}/best"
         else:
             if has_ffmpeg:
-                ydl_opts["format"] = "bestvideo+bestaudio/best"
+                ydl_opts["format"] = "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best"
             else:
                 ydl_opts["format"] = "best[ext=mp4]/best"
 
