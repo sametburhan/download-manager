@@ -1,28 +1,182 @@
 """
-Download Manager - Bağımsız Medya Kalite Seçim ve IDM Tarzı Canlı İlerleme Penceresi (media_dialog.py)
+Download Manager - Modern Stitch Tasarımlı Medya Kalite Seçim ve Canlı İndirme Penceresi (media_dialog.py)
 
 Ana uygulama penceresinden bağımsız çalışır. İki aşamalıdır:
-1. Aşama: yt-dlp ile çözünürlük, kalite ve ses formatı seçimi.
+1. Aşama: yt-dlp ile çözünürlük, kalite ve ses formatı seçimi (Stitch Desktop Modal tasarımı).
 2. Aşama: 'Start Download' tıklandığında AYNI PENCEREDE IDM tarzı canlı ilerleme,
    anlık hız, kalan süre ve dosya boyutu izleme görünümü.
 """
 
 import os
+import shutil
 import subprocess
 from typing import Optional, Dict, Any, List
 
 from PyQt6.QtWidgets import (
     QDialog, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QLineEdit, QPushButton, QComboBox, QProgressBar, QFileDialog,
-    QStackedWidget, QGridLayout, QFrame, QSizePolicy
+    QStackedWidget, QGridLayout, QFrame, QCheckBox, QSizePolicy
 )
-from PyQt6.QtCore import Qt, pyqtSlot
-from PyQt6.QtGui import QFont
+from PyQt6.QtCore import Qt, pyqtSlot, pyqtSignal, QThread
+from PyQt6.QtGui import QFont, QPixmap, QImage
 
 from app.core.media_downloader import MediaInfoExtractor
 from app.core.models import DownloadStatus
 from app.core.task_manager import TaskManager
 from app.utils.icon_utils import get_app_icon, get_app_pixmap
+
+
+class ThumbnailLoaderThread(QThread):
+    """Küçük resmi arka planda indirip arayüze aktaran iş parçacığı."""
+    loaded = pyqtSignal(bytes)
+
+    def __init__(self, url: str, parent=None):
+        super().__init__(parent)
+        self.url = url
+
+    def run(self):
+        try:
+            import urllib.request
+            req = urllib.request.Request(self.url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=6) as resp:
+                data = resp.read()
+                self.loaded.emit(data)
+        except Exception:
+            pass
+
+
+class QualityOptionCard(QFrame):
+    """Modern Stitch tarzı interaktif kalite seçim kartı."""
+    clicked = pyqtSignal(str)
+
+    def __init__(self, key: str, icon_text: str, title: str, subtitle: str, tag: str, size: str, parent=None):
+        super().__init__(parent)
+        self.key = key
+        self._is_selected = False
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setObjectName("qualityOptionCard")
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(14, 12, 14, 12)
+        layout.setSpacing(6)
+
+        # Üst Satır: İkon Rozeti ve Radyo Gösterge Noktası
+        top_row = QHBoxLayout()
+        top_row.setContentsMargins(0, 0, 0, 0)
+
+        self.icon_badge = QLabel(icon_text)
+        self.icon_badge.setFixedSize(30, 30)
+        self.icon_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.icon_badge.setFont(QFont("Segoe UI Emoji", 12))
+        top_row.addWidget(self.icon_badge)
+
+        top_row.addStretch()
+
+        self.indicator_dot = QLabel()
+        self.indicator_dot.setFixedSize(12, 12)
+        top_row.addWidget(self.indicator_dot)
+
+        layout.addLayout(top_row)
+
+        # Başlık ve Alt Başlık
+        self.title_lbl = QLabel(title)
+        self.title_lbl.setFont(QFont("Inter", 10, QFont.Weight.Bold))
+        layout.addWidget(self.title_lbl)
+
+        self.sub_lbl = QLabel(subtitle)
+        self.sub_lbl.setFont(QFont("Inter", 8))
+        layout.addWidget(self.sub_lbl)
+
+        layout.addSpacing(2)
+
+        # Ayırıcı Çizgi
+        div = QFrame()
+        div.setFrameShape(QFrame.Shape.HLine)
+        div.setStyleSheet("background-color: rgba(255, 255, 255, 0.08); height: 1px; border: none;")
+        layout.addWidget(div)
+
+        # Alt Satır: Etiket ve Dosya Boyutu
+        footer_row = QHBoxLayout()
+        footer_row.setContentsMargins(0, 2, 0, 0)
+        self.tag_lbl = QLabel(tag)
+        self.tag_lbl.setFont(QFont("Inter", 8))
+        footer_row.addWidget(self.tag_lbl)
+
+        footer_row.addStretch()
+
+        self.size_lbl = QLabel(size)
+        self.size_lbl.setFont(QFont("Inter", 8, QFont.Weight.DemiBold))
+        footer_row.addWidget(self.size_lbl)
+
+        layout.addLayout(footer_row)
+        self.update_style()
+
+    def set_selected(self, selected: bool):
+        self._is_selected = selected
+        self.update_style()
+
+    def update_info(self, tag: Optional[str] = None, size: Optional[str] = None):
+        if tag is not None:
+            self.tag_lbl.setText(tag)
+        if size is not None:
+            self.size_lbl.setText(size)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.clicked.emit(self.key)
+        super().mousePressEvent(event)
+
+    def update_style(self):
+        if self._is_selected:
+            self.setStyleSheet("""
+                QFrame#qualityOptionCard {
+                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #0f2c4c, stop:1 #0a1728);
+                    border: 1.5px solid #0ea5e9;
+                    border-radius: 12px;
+                }
+            """)
+            self.icon_badge.setStyleSheet("""
+                background: rgba(14, 165, 233, 0.25);
+                border: 1px solid rgba(14, 165, 233, 0.5);
+                border-radius: 6px;
+                color: #38bdf8;
+            """)
+            self.indicator_dot.setStyleSheet("""
+                background-color: #38bdf8;
+                border: none;
+                border-radius: 6px;
+            """)
+            self.title_lbl.setStyleSheet("color: #ffffff; font-weight: bold; background: transparent;")
+            self.sub_lbl.setStyleSheet("color: #94a3b8; background: transparent;")
+            self.tag_lbl.setStyleSheet("color: #38bdf8; background: transparent; font-weight: 500;")
+            self.size_lbl.setStyleSheet("color: #ffffff; background: transparent; font-weight: bold;")
+        else:
+            self.setStyleSheet("""
+                QFrame#qualityOptionCard {
+                    background-color: #0d1527;
+                    border: 1px solid rgba(255, 255, 255, 0.08);
+                    border-radius: 12px;
+                }
+                QFrame#qualityOptionCard:hover {
+                    background-color: #131e36;
+                    border: 1px solid rgba(255, 255, 255, 0.18);
+                }
+            """)
+            self.icon_badge.setStyleSheet("""
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 6px;
+                color: #cbd5e1;
+            """)
+            self.indicator_dot.setStyleSheet("""
+                background-color: transparent;
+                border: 1.5px solid #475569;
+                border-radius: 6px;
+            """)
+            self.title_lbl.setStyleSheet("color: #e2e8f0; font-weight: 600; background: transparent;")
+            self.sub_lbl.setStyleSheet("color: #64748b; background: transparent;")
+            self.tag_lbl.setStyleSheet("color: #94a3b8; background: transparent;")
+            self.size_lbl.setStyleSheet("color: #cbd5e1; background: transparent;")
 
 
 class MediaQualityDialog(QDialog):
@@ -48,6 +202,7 @@ class MediaQualityDialog(QDialog):
         self.extracted_info: Optional[Dict[str, Any]] = None
         self._fallback_tried = False
         self.extractor: Optional[MediaInfoExtractor] = None
+        self._thumb_thread: Optional[ThumbnailLoaderThread] = None
 
         self.current_task_id: Optional[str] = None
         self.final_title: str = initial_title or "Media Download"
@@ -61,16 +216,16 @@ class MediaQualityDialog(QDialog):
             Qt.WindowType.WindowCloseButtonHint |
             Qt.WindowType.WindowMinimizeButtonHint
         )
-        self.setWindowTitle("Media Download - Quality Selection")
+        self.setWindowTitle("Media Download · Quality & Format Selection")
         self.setWindowIcon(get_app_icon())
-        self.resize(600, 390)
-        self.setMinimumWidth(560)
+        self.resize(680, 530)
+        self.setMinimumWidth(620)
         self.setStyleSheet(self._get_styles())
 
         # QStackedWidget ile iki aşama: 0 -> Kalite Seçimi, 1 -> IDM İlerleme Görünümü
         self.stack = QStackedWidget(self)
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(16, 16, 16, 16)
+        main_layout.setContentsMargins(18, 16, 18, 16)
         main_layout.addWidget(self.stack)
 
         self.selection_page = self._create_selection_page(initial_title)
@@ -80,20 +235,28 @@ class MediaQualityDialog(QDialog):
         self.stack.addWidget(self.progress_page)
         self.stack.setCurrentIndex(0)
 
+        self._update_free_space()
+
         if auto_start_analysis:
             self._start_analysis(self.url)
 
     def _get_styles(self) -> str:
-        """Koyu Fluent tasarım stili."""
+        """Stitch Modern Cyber-Slate koyu tasarım stili."""
         return """
             QDialog {
-                background-color: #0b0f19;
+                background-color: #0b1220;
                 color: #f8fafc;
+                font-family: "Inter", "Segoe UI", -apple-system, sans-serif;
+            }
+            QFrame#mediaSummaryCard {
+                background-color: #0d1527;
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                border-radius: 14px;
             }
             QFrame#idmCard {
-                background-color: #131b2e;
-                border: 1px solid #1e293b;
-                border-radius: 10px;
+                background-color: #0d1527;
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                border-radius: 12px;
                 padding: 12px;
             }
             QLabel {
@@ -105,54 +268,103 @@ class MediaQualityDialog(QDialog):
                 background: transparent;
                 border: none;
             }
-            QLineEdit, QComboBox {
-                background-color: #1e293b;
+            QFrame#saveFolderBox {
+                background-color: #0d1527;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 10px;
+                padding: 2px 6px;
+            }
+            QFrame#saveFolderBox:hover {
+                border: 1px solid rgba(255, 255, 255, 0.2);
+            }
+            QLineEdit {
+                background-color: transparent;
                 color: #f8fafc;
-                border: 1px solid #334155;
-                border-radius: 6px;
-                padding: 7px 10px;
+                border: none;
+                padding: 6px 4px;
                 font-size: 12px;
             }
-            QLineEdit:focus, QComboBox:focus {
-                border-color: #0078d4;
+            QComboBox {
+                background-color: #0d1527;
+                color: #38bdf8;
+                border: 1px solid rgba(56, 189, 248, 0.35);
+                border-radius: 8px;
+                padding: 4px 10px;
+                font-size: 11px;
+                font-weight: 600;
+                min-width: 140px;
+            }
+            QComboBox:hover {
+                border-color: #38bdf8;
+                background-color: #131e36;
             }
             QComboBox::drop-down {
                 border: none;
-                width: 24px;
+                width: 20px;
             }
             QComboBox QAbstractItemView {
-                background-color: #1e293b;
+                background-color: #0d1527;
                 color: #f8fafc;
-                selection-background-color: #0078d4;
-                border: 1px solid #334155;
+                selection-background-color: #0284c7;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                padding: 4px;
+            }
+            QCheckBox {
+                color: #94a3b8;
+                font-size: 12px;
+                spacing: 8px;
+                background: transparent;
+            }
+            QCheckBox:hover {
+                color: #cbd5e1;
+            }
+            QCheckBox::indicator {
+                width: 16px;
+                height: 16px;
+                border-radius: 4px;
+                border: 1px solid #3b4256;
+                background-color: #0d1527;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #0284c7;
+                border-color: #38bdf8;
             }
             QPushButton {
-                border-radius: 6px;
+                border-radius: 8px;
                 font-size: 12px;
                 font-weight: 600;
                 padding: 7px 16px;
             }
             QPushButton#primaryBtn {
-                background-color: #0078d4;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #0284c7, stop:1 #0ea5e9);
                 color: #ffffff;
-                border: none;
+                border: 1px solid rgba(56, 189, 248, 0.4);
+                border-radius: 10px;
+                padding: 8px 22px;
+                font-weight: 600;
+                font-size: 13px;
             }
             QPushButton#primaryBtn:hover {
-                background-color: #1084d8;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #0369a1, stop:1 #38bdf8);
+                border-color: #38bdf8;
             }
             QPushButton#primaryBtn:disabled {
-                background-color: #334155;
+                background: #1e293b;
                 color: #64748b;
+                border-color: rgba(255, 255, 255, 0.05);
             }
             QPushButton.secondaryBtn {
                 background-color: #1e293b;
                 color: #cbd5e1;
-                border: 1px solid #334155;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 10px;
+                padding: 8px 18px;
+                font-size: 12px;
             }
             QPushButton.secondaryBtn:hover {
                 background-color: #334155;
                 color: #ffffff;
-                border-color: #475569;
+                border-color: rgba(255, 255, 255, 0.2);
             }
             QPushButton.dangerBtn {
                 background-color: #381b1b;
@@ -164,8 +376,8 @@ class MediaQualityDialog(QDialog):
                 color: #ffffff;
             }
             QProgressBar#neonProgress {
-                background-color: #0f172a;
-                border: 1px solid #334155;
+                background-color: #070b14;
+                border: 1px solid #1e293b;
                 border-radius: 8px;
                 text-align: center;
                 color: #ffffff;
@@ -174,7 +386,7 @@ class MediaQualityDialog(QDialog):
             }
             QProgressBar#neonProgress::chunk {
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #0284c7, stop:0.5 #6366f1, stop:1 #a855f7);
+                    stop:0 #0284c7, stop:0.5 #38bdf8, stop:1 #06b6d4);
                 border-radius: 7px;
             }
         """
@@ -182,76 +394,233 @@ class MediaQualityDialog(QDialog):
     # ==================== 1. AŞAMA: Format & Kalite Seçimi ====================
 
     def _create_selection_page(self, initial_title: str) -> QWidget:
-        """Kullanıcının çözünürlük/ses seçtiği 1. aşama sayfası."""
+        """Kullanıcının çözünürlük/ses seçtiği 1. aşama sayfası (Stitch UI)."""
         widget = QWidget()
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(4, 4, 4, 4)
-        layout.setSpacing(12)
+        layout.setSpacing(14)
 
-        # Başlık Satırı
-        title_row = QHBoxLayout()
-        icon_lbl = QLabel()
-        icon_lbl.setPixmap(get_app_pixmap(22))
-        title_row.addWidget(icon_lbl)
+        # 1. Medya Özet Kartı (Media Summary Card)
+        summary_card = QFrame()
+        summary_card.setObjectName("mediaSummaryCard")
+        sum_layout = QHBoxLayout(summary_card)
+        sum_layout.setContentsMargins(14, 12, 14, 12)
+        sum_layout.setSpacing(16)
 
-        title_lbl = QLabel("🎬 Download Video & Media")
-        title_lbl.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
-        title_row.addWidget(title_lbl)
-        title_row.addStretch()
-        layout.addLayout(title_row)
+        # Sol: Küçük Resim / Video İkon Kutusu
+        self.thumb_container = QFrame()
+        self.thumb_container.setFixedSize(124, 76)
+        self.thumb_container.setStyleSheet("""
+            QFrame {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #0c1a30, stop:1 #050811);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 8px;
+            }
+        """)
+        thumb_box_layout = QVBoxLayout(self.thumb_container)
+        thumb_box_layout.setContentsMargins(4, 4, 4, 4)
 
-        # URL Satırı
-        display_url = self.url if len(self.url) <= 70 else f"{self.url[:67]}..."
-        self.url_label = QLabel(f"🔗 URL: {display_url}")
-        self.url_label.setStyleSheet("color: #00b4d8; font-size: 11px;")
-        self.url_label.setToolTip(self.url)
-        layout.addWidget(self.url_label)
+        # Üst badge satırı (Platform)
+        thumb_top = QHBoxLayout()
+        self.platform_badge = QLabel("VIDEO")
+        self.platform_badge.setStyleSheet("""
+            background-color: rgba(225, 29, 72, 0.9);
+            color: #ffffff;
+            font-size: 9px;
+            font-weight: bold;
+            border-radius: 3px;
+            padding: 1px 4px;
+        """)
+        thumb_top.addWidget(self.platform_badge)
+        thumb_top.addStretch()
+        thumb_box_layout.addLayout(thumb_top)
 
-        # Medya Başlığı
+        # Merkez ikon / resim
+        self.thumb_img_lbl = QLabel("▶")
+        self.thumb_img_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.thumb_img_lbl.setStyleSheet("color: #38bdf8; font-size: 20px; font-weight: bold; background: transparent;")
+        thumb_box_layout.addWidget(self.thumb_img_lbl, 1)
+
+        # Alt badge satırı (Süre)
+        thumb_bot = QHBoxLayout()
+        thumb_bot.addStretch()
+        self.duration_badge = QLabel("--:--")
+        self.duration_badge.setStyleSheet("""
+            background-color: rgba(0, 0, 0, 0.8);
+            color: #ffffff;
+            font-size: 10px;
+            font-weight: 600;
+            border-radius: 3px;
+            padding: 1px 4px;
+        """)
+        thumb_bot.addWidget(self.duration_badge)
+        thumb_box_layout.addLayout(thumb_bot)
+
+        sum_layout.addWidget(self.thumb_container)
+
+        # Sağ: Video Başlığı, Durum Pili ve Link
+        info_layout = QVBoxLayout()
+        info_layout.setSpacing(4)
+
+        status_row = QHBoxLayout()
+        status_row.setSpacing(8)
+
+        self.status_pill = QLabel("● Link Verified")
+        self.status_pill.setStyleSheet("""
+            background: rgba(16, 185, 129, 0.12);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            border-radius: 10px;
+            padding: 2px 8px;
+            font-size: 11px;
+            font-weight: 600;
+        """)
+        status_row.addWidget(self.status_pill)
+
+        self.avail_lbl = QLabel("1080p MP4 Available")
+        self.avail_lbl.setStyleSheet("color: #94a3b8; font-size: 11px; font-weight: 500;")
+        status_row.addWidget(self.avail_lbl)
+        status_row.addStretch()
+        info_layout.addLayout(status_row)
+
         self.title_label = QLabel(initial_title or "Resolving media streams...")
-        self.title_label.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
-        self.title_label.setStyleSheet("color: #f1f5f9;")
+        self.title_label.setFont(QFont("Inter", 11, QFont.Weight.Bold))
+        self.title_label.setStyleSheet("color: #f8fafc;")
         self.title_label.setWordWrap(True)
-        layout.addWidget(self.title_label)
+        info_layout.addWidget(self.title_label)
+
+        display_url = self.url if len(self.url) <= 65 else f"{self.url[:62]}..."
+        self.url_label = QLabel(f"🔗 {display_url}")
+        self.url_label.setStyleSheet("color: #38bdf8; font-size: 11px;")
+        self.url_label.setToolTip(self.url)
+        info_layout.addWidget(self.url_label)
 
         # Analiz Durumu Çubuğu
         self.status_bar = QProgressBar()
         self.status_bar.setRange(0, 0)
-        self.status_bar.setFixedHeight(6)
+        self.status_bar.setFixedHeight(4)
         self.status_bar.setStyleSheet("""
             QProgressBar {
                 background-color: #1e293b;
                 border: none;
-                border-radius: 3px;
+                border-radius: 2px;
             }
             QProgressBar::chunk {
-                background-color: #00b4d8;
-                border-radius: 3px;
+                background-color: #0284c7;
+                border-radius: 2px;
             }
         """)
-        layout.addWidget(self.status_bar)
+        info_layout.addWidget(self.status_bar)
 
-        # Format ve Kalite Seçimi
-        layout.addWidget(QLabel("Select Download Quality & Format:", styleSheet="font-weight: 500; font-size: 12px; color: #cbd5e1;"))
+        sum_layout.addLayout(info_layout, 1)
+        layout.addWidget(summary_card)
+
+        # 2. Kalite Seçim Başlığı ve Custom Formats Dropdown
+        format_hdr = QHBoxLayout()
+        hdr_lbl = QLabel("DOWNLOAD QUALITY & FORMAT")
+        hdr_lbl.setFont(QFont("Inter", 9, QFont.Weight.Bold))
+        hdr_lbl.setStyleSheet("color: #94a3b8; letter-spacing: 0.5px;")
+        format_hdr.addWidget(hdr_lbl)
+
+        format_hdr.addStretch()
+
         self.format_combo = QComboBox()
         self.format_combo.setEnabled(False)
-        layout.addWidget(self.format_combo)
+        self.format_combo.currentIndexChanged.connect(self._on_format_combo_changed)
+        format_hdr.addWidget(self.format_combo)
+        layout.addLayout(format_hdr)
 
-        # Kayıt Yeri
-        layout.addWidget(QLabel("Save Folder:", styleSheet="font-weight: 500; font-size: 12px; color: #cbd5e1;"))
-        dest_layout = QHBoxLayout()
+        # 3. Üçlü Kalite Kartları (1x3 Grid)
+        cards_layout = QHBoxLayout()
+        cards_layout.setSpacing(12)
+
+        self.card_best = QualityOptionCard(
+            key="best",
+            icon_text="⭐",
+            title="Best Quality",
+            subtitle="Auto Highest Resolution",
+            tag="1080p FHD - MP4",
+            size="Estimating..."
+        )
+        self.card_best.clicked.connect(self._select_card)
+        cards_layout.addWidget(self.card_best)
+
+        self.card_hd = QualityOptionCard(
+            key="height_720",
+            icon_text="🎬",
+            title="Standard HD",
+            subtitle="Balanced Size & Speed",
+            tag="720p HD - MP4",
+            size="Estimating..."
+        )
+        self.card_hd.clicked.connect(self._select_card)
+        cards_layout.addWidget(self.card_hd)
+
+        self.card_audio = QualityOptionCard(
+            key="audio_mp3",
+            icon_text="🎵",
+            title="Audio Only",
+            subtitle="MP3 / High Quality",
+            tag="192 kbps",
+            size="Estimating..."
+        )
+        self.card_audio.clicked.connect(self._select_card)
+        cards_layout.addWidget(self.card_audio)
+
+        layout.addLayout(cards_layout)
+        self.card_best.set_selected(True)
+
+        # 4. Kayıt Klasörü Bölümü
+        save_hdr = QHBoxLayout()
+        save_lbl = QLabel("SAVE FOLDER")
+        save_lbl.setFont(QFont("Inter", 9, QFont.Weight.Bold))
+        save_lbl.setStyleSheet("color: #94a3b8; letter-spacing: 0.5px;")
+        save_hdr.addWidget(save_lbl)
+
+        save_hdr.addStretch()
+
+        self.free_space_lbl = QLabel("Free Space: -- GB")
+        self.free_space_lbl.setStyleSheet("color: #94a3b8; font-size: 11px;")
+        save_hdr.addWidget(self.free_space_lbl)
+        layout.addLayout(save_hdr)
+
+        save_box = QFrame()
+        save_box.setObjectName("saveFolderBox")
+        save_box_layout = QHBoxLayout(save_box)
+        save_box_layout.setContentsMargins(8, 2, 4, 2)
+        save_box_layout.setSpacing(8)
+
+        folder_icon = QLabel("📁")
+        folder_icon.setFont(QFont("Segoe UI Emoji", 11))
+        save_box_layout.addWidget(folder_icon)
+
         self.dest_input = QLineEdit(self.default_save_dir)
-        dest_layout.addWidget(self.dest_input)
+        self.dest_input.textChanged.connect(lambda: self._update_free_space())
+        save_box_layout.addWidget(self.dest_input, 1)
 
         browse_btn = QPushButton("Browse...")
         browse_btn.setProperty("class", "secondaryBtn")
         browse_btn.clicked.connect(self._browse_folder)
-        dest_layout.addWidget(browse_btn)
-        layout.addLayout(dest_layout)
+        save_box_layout.addWidget(browse_btn)
+
+        layout.addWidget(save_box)
+
+        # 5. Ek Seçenekler Satırı
+        options_row = QHBoxLayout()
+        self.open_folder_chk = QCheckBox("Show file in folder when download is complete")
+        self.open_folder_chk.setChecked(True)
+        options_row.addWidget(self.open_folder_chk)
+
+        options_row.addStretch()
+
+        engine_lbl = QLabel("Engine: yt-dlp + FFmpeg")
+        engine_lbl.setStyleSheet("color: #64748b; font-size: 11px;")
+        options_row.addWidget(engine_lbl)
+        layout.addLayout(options_row)
 
         layout.addStretch()
 
-        # Butonlar
+        # 6. Alt Eylem Butonları (Cancel / Start Download)
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
 
@@ -260,7 +629,7 @@ class MediaQualityDialog(QDialog):
         cancel_btn.clicked.connect(self.reject)
         btn_layout.addWidget(cancel_btn)
 
-        self.download_btn = QPushButton("⬇️ Start Download")
+        self.download_btn = QPushButton("⬇ Start Download")
         self.download_btn.setObjectName("primaryBtn")
         self.download_btn.setEnabled(False)
         self.download_btn.clicked.connect(self._on_start_download_clicked)
@@ -268,6 +637,38 @@ class MediaQualityDialog(QDialog):
 
         layout.addLayout(btn_layout)
         return widget
+
+    def _update_free_space(self, folder_path: Optional[str] = None) -> None:
+        """Kayıt klasörünün bulunduğu diskteki boş alanı hesaplar."""
+        path = folder_path or (self.dest_input.text() if hasattr(self, "dest_input") else self.default_save_dir)
+        try:
+            drive = os.path.splitdrive(os.path.abspath(path))[0] or path
+            usage = shutil.disk_usage(drive)
+            free_gb = usage.free / (1024 ** 3)
+            self.free_space_lbl.setText(f"Free Space: <b style='color: #cbd5e1;'>{free_gb:.1f} GB</b>")
+        except Exception:
+            self.free_space_lbl.setText("Free Space: <b style='color: #cbd5e1;'>-- GB</b>")
+
+    def _select_card(self, key: str) -> None:
+        """Kullanıcı 3 ana karttan birine tıkladığında seçim durumunu günceller."""
+        self.card_best.set_selected(key == "best")
+        self.card_hd.set_selected(key == "height_720")
+        self.card_audio.set_selected(key == "audio_mp3")
+
+        # format_combo ile senkronize et
+        for idx in range(self.format_combo.count()):
+            if self.format_combo.itemData(idx) == key:
+                self.format_combo.blockSignals(True)
+                self.format_combo.setCurrentIndex(idx)
+                self.format_combo.blockSignals(False)
+                break
+
+    def _on_format_combo_changed(self, index: int) -> None:
+        """Custom Formats açılır menüsünden seçim yapıldığında kartları günceller."""
+        data = self.format_combo.currentData()
+        self.card_best.set_selected(data == "best")
+        self.card_hd.set_selected(data == "height_720")
+        self.card_audio.set_selected(data == "audio_mp3")
 
     # ==================== 2. AŞAMA: IDM Tarzı Canlı İlerleme Görünümü ====================
 
@@ -374,14 +775,14 @@ class MediaQualityDialog(QDialog):
 
         # Butonlar Satırı
         btn_row = QHBoxLayout()
+        btn_row.setSpacing(10)
 
-        # Sol Butonlar (Klasörü Aç / Videoyu Oynat)
         self.open_folder_btn = QPushButton("📁 Open Folder")
         self.open_folder_btn.setProperty("class", "secondaryBtn")
         self.open_folder_btn.clicked.connect(self._open_folder)
         btn_row.addWidget(self.open_folder_btn)
 
-        self.play_video_btn = QPushButton("▶️ Play Video")
+        self.play_video_btn = QPushButton("▶ Play Video")
         self.play_video_btn.setProperty("class", "secondaryBtn")
         self.play_video_btn.setEnabled(False)
         self.play_video_btn.clicked.connect(self._play_video)
@@ -389,29 +790,188 @@ class MediaQualityDialog(QDialog):
 
         btn_row.addStretch()
 
-        # Sağ Butonlar (Duraklat / İptal)
-        self.pause_btn = QPushButton("⏸️ Pause")
+        self.pause_btn = QPushButton("⏸ Pause")
         self.pause_btn.setProperty("class", "secondaryBtn")
-        self.pause_btn.clicked.connect(self._toggle_pause_resume)
+        self.pause_btn.clicked.connect(self._toggle_pause)
         btn_row.addWidget(self.pause_btn)
 
-        self.cancel_btn = QPushButton("❌ Cancel")
+        self.cancel_btn = QPushButton("✕ Cancel")
         self.cancel_btn.setProperty("class", "dangerBtn")
-        self.cancel_btn.clicked.connect(self._cancel_or_close)
+        self.cancel_btn.clicked.connect(self._cancel_download)
         btn_row.addWidget(self.cancel_btn)
 
         layout.addLayout(btn_row)
         return widget
 
-    # ==================== Olay ve Aksiyon Mantıkları ====================
+    # ==================== Olay ve Durum İşleyicileri ====================
+
+    def _browse_folder(self) -> None:
+        chosen = QFileDialog.getExistingDirectory(self, "Select Destination Folder", self.dest_input.text())
+        if chosen:
+            self.dest_input.setText(chosen)
+            self._update_free_space(chosen)
+
+    def _start_analysis(self, target_url: str) -> None:
+        """Arka planda yt-dlp ile medya bilgilerini çekmeye başlar."""
+        self.status_bar.setVisible(True)
+        self.extractor = MediaInfoExtractor(target_url, headers=self.headers)
+        self.extractor.metadata_ready.connect(self._on_metadata_ready)
+        self.extractor.error_occurred.connect(self._on_metadata_error)
+        self.extractor.start()
+
+    def _on_metadata_ready(self, info: Dict[str, Any]) -> None:
+        """Meta veriler alındığında arayüzü günceller."""
+        self.extracted_info = info
+        self.status_bar.setVisible(False)
+        self.title_label.setText(info.get("title", "Video Stream"))
+
+        # Süre ve Platform Rozeti
+        dur = info.get("duration", 0)
+        if dur and dur > 0:
+            h, rem = divmod(int(dur), 3600)
+            m, s = divmod(rem, 60)
+            self.duration_badge.setText(f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}")
+        else:
+            self.duration_badge.setText("--:--")
+
+        u_low = self.url.lower()
+        if "youtube" in u_low or "youtu.be" in u_low:
+            self.platform_badge.setText("YouTube")
+        elif "vimeo" in u_low:
+            self.platform_badge.setText("Vimeo")
+        else:
+            self.platform_badge.setText("VIDEO")
+
+        # Küçük resim (thumbnail) yükleme
+        thumb_url = info.get("thumbnail")
+        if thumb_url:
+            self._thumb_thread = ThumbnailLoaderThread(thumb_url, parent=self)
+            self._thumb_thread.loaded.connect(self._on_thumbnail_loaded)
+            self._thumb_thread.start()
+
+        # Format seçeneklerini topla
+        formats = info.get("formats", [])
+        self.format_combo.blockSignals(True)
+        self.format_combo.clear()
+
+        # En üst kalite seçeneği (MP4)
+        self.format_combo.addItem("🏆 Best Video + Audio (MP4 - Highest Quality)", "best")
+
+        best_fmt = None
+        hd_fmt = None
+        audio_fmt = None
+        added_labels = set()
+
+        # Çözünürlük formatlarını ekle (4K ve 2K extractor içinde filtrelendi)
+        for f in formats:
+            if f.get("is_video"):
+                h = f.get("height", 0)
+                lbl = f.get("label")
+                fid = f.get("format_id")
+                if lbl and lbl not in added_labels:
+                    added_labels.add(lbl)
+                    self.format_combo.addItem(f"🎬 {lbl}", fid)
+                    if not best_fmt:
+                        best_fmt = f
+                    if h == 720 and not hd_fmt:
+                        hd_fmt = f
+            else:
+                if not audio_fmt:
+                    audio_fmt = f
+
+        # Ses seçeneği
+        self.format_combo.addItem("🎵 Audio Only (MP3 192kbps)", "audio_mp3")
+
+        for f in formats:
+            if not f.get("is_video"):
+                lbl = f.get("label")
+                fid = f.get("format_id")
+                if lbl and lbl not in added_labels:
+                    added_labels.add(lbl)
+                    self.format_combo.addItem(f"🎵 {lbl}", fid)
+
+        self.format_combo.blockSignals(False)
+        self.format_combo.setEnabled(True)
+        self.download_btn.setEnabled(True)
+
+        # Kart bilgilerini güncelle
+        if best_fmt:
+            h = best_fmt.get("height", 1080)
+            sz = best_fmt.get("filesize") or 0
+            sz_str = f"~{sz / (1024*1024):.1f} MB" if sz > 0 else "Best"
+            self.card_best.update_info(f"{h}p FHD - MP4", sz_str)
+            self.avail_lbl.setText(f"{h}p Available")
+
+        if hd_fmt:
+            sz = hd_fmt.get("filesize") or 0
+            sz_str = f"~{sz / (1024*1024):.1f} MB" if sz > 0 else "HD"
+            self.card_hd.update_info("720p HD - MP4", sz_str)
+        else:
+            self.card_hd.update_info("720p HD - MP4", "Auto")
+
+        if audio_fmt:
+            sz = audio_fmt.get("filesize") or 0
+            sz_str = f"~{sz / (1024*1024):.1f} MB" if sz > 0 else "Audio"
+            self.card_audio.update_info("MP3 / 192 kbps", sz_str)
+
+    def _on_thumbnail_loaded(self, data: bytes) -> None:
+        """İndirilen küçük resmi arayüze ölçekleyip yerleştirir."""
+        try:
+            pixmap = QPixmap()
+            if pixmap.loadFromData(data):
+                scaled = pixmap.scaled(
+                    self.thumb_container.width(),
+                    self.thumb_container.height(),
+                    Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                    Qt.TransformationMode.SmoothTransformation
+                )
+                self.thumb_img_lbl.setPixmap(scaled)
+        except Exception:
+            pass
+
+    def _on_metadata_error(self, err_msg: str) -> None:
+        """Analiz hatası durumunda kullanıcıyı bilgilendirir veya fallback dener."""
+        if not self._fallback_tried and self.page_url and self.page_url != self.url:
+            self._fallback_tried = True
+            self.title_label.setText("Trying page URL extractor fallback...")
+            self._start_analysis(self.page_url)
+            return
+
+        self.status_bar.setVisible(False)
+        self.status_pill.setText("❌ Extraction Failed")
+        self.status_pill.setStyleSheet("""
+            background: rgba(239, 68, 68, 0.12);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            border-radius: 10px;
+            padding: 2px 8px;
+            font-size: 11px;
+            font-weight: 600;
+        """)
+        self.title_label.setText(f"❌ Error: {err_msg}")
+        self.title_label.setStyleSheet("color: #f87171;")
+
+    def get_data(self) -> Dict[str, Any]:
+        """Seçilen indirme yapılandırmasını döndürür."""
+        selected_data = self.format_combo.currentData()
+        is_audio = (selected_data == "audio_mp3")
+        format_id = None if selected_data in ("best", "audio_mp3") else selected_data
+
+        title = self.extracted_info.get("title") if self.extracted_info else self.final_title
+
+        return {
+            "url": self.url,
+            "title": title,
+            "destination": self.dest_input.text().strip(),
+            "format_id": format_id,
+            "audio_only": is_audio,
+            "headers": self.headers
+        }
 
     def _on_start_download_clicked(self) -> None:
-        """'Start Download' tıklandığında görevi başlatır ve 2. aşama ilerleme görünümüne geçer."""
+        """'Start Download' tıklandığında indirmeyi başlatır ve 2. aşama IDM görünümüne geçer."""
         data = self.get_data()
-
-        if self.task_manager is None:
-            # TaskManager verilmediyse standart QDialog davranışı
-            self.accept()
+        if not self.task_manager:
             return
 
         # 1. Görevi TaskManager üzerinden başlat
@@ -453,50 +1013,39 @@ class MediaQualityDialog(QDialog):
         if data.get("task_id") != self.current_task_id:
             return
 
-        pct = data.get("percent", 0.0)
+        pct = float(data.get("percent", 0.0))
+        speed_str = data.get("speed_str", "--")
+        eta_str = data.get("eta_str", "--:--")
+        downloaded = data.get("downloaded_bytes", 0)
+        total = data.get("total_bytes", 0)
+
         self.progress_bar.setValue(int(pct))
         self.setWindowTitle(f"[{int(pct)}%] {self.final_title}")
 
-        down_bytes = data.get("downloaded_bytes", 0)
-        tot_bytes = data.get("total_bytes", 0)
-        speed_str = data.get("speed_str", "0 B/s")
-        eta_str = data.get("eta_str", "--:--")
-
-        self.status_val.setText(f"Receiving data ({pct:.1f}%)...")
-        self.status_val.setStyleSheet("color: #38bdf8; font-weight: bold; font-size: 12px;")
-
-        if tot_bytes > 0:
-            self.size_val.setText(self._format_bytes(tot_bytes))
-            self.downloaded_val.setText(f"{self._format_bytes(down_bytes)} ( {pct:.1f}% )")
-        else:
-            self.downloaded_val.setText(self._format_bytes(down_bytes))
-
+        self.status_val.setText(f"Downloading ( {pct:.1f}% )...")
         self.speed_val.setText(speed_str)
-        self.eta_val.setText(f"{eta_str} left" if eta_str and eta_str != "--:--" else "--:--")
+        self.eta_val.setText(eta_str)
+        self.downloaded_val.setText(f"{self._format_bytes(downloaded)} ( {pct:.1f}% )")
+
+        if total > 0:
+            self.size_val.setText(self._format_bytes(total))
 
     @pyqtSlot(str, str)
-    def _on_status_changed(self, task_id: str, status_str: str) -> None:
-        """Durum değişimlerini günceller."""
+    def _on_status_changed(self, task_id: str, new_status: str) -> None:
+        """Durum değişimlerini yansıtır."""
         if task_id != self.current_task_id:
             return
 
-        status_upper = status_str.upper()
-        if status_upper == DownloadStatus.MERGING.value:
-            self.status_val.setText("Merging video & audio streams (FFmpeg)...")
-            self.status_val.setStyleSheet("color: #c084fc; font-weight: bold; font-size: 12px;")
-            self.pause_btn.setEnabled(False)
-        elif status_upper == DownloadStatus.PAUSED.value:
-            self.status_val.setText("Paused")
-            self.status_val.setStyleSheet("color: #fbbf24; font-weight: bold; font-size: 12px;")
-            self.pause_btn.setText("▶️ Resume")
-            self.pause_btn.setEnabled(True)
-        elif status_upper == DownloadStatus.DOWNLOADING.value:
-            self.status_val.setText("Downloading...")
+        if new_status == DownloadStatus.PAUSED.value:
+            self.status_val.setText("⏸ Paused")
+            self.status_val.setStyleSheet("color: #f59e0b; font-weight: bold; font-size: 12px;")
+            self.pause_btn.setText("▶ Resume")
+        elif new_status == DownloadStatus.DOWNLOADING.value:
+            self.status_val.setText("⬇ Downloading...")
             self.status_val.setStyleSheet("color: #38bdf8; font-weight: bold; font-size: 12px;")
-            self.pause_btn.setText("⏸️ Pause")
-            self.pause_btn.setEnabled(True)
-        elif status_upper == DownloadStatus.FAILED.value:
-            self.status_val.setText("Download Failed")
+            self.pause_btn.setText("⏸ Pause")
+        elif new_status == DownloadStatus.CANCELLED.value:
+            self.status_val.setText("✕ Cancelled")
             self.status_val.setStyleSheet("color: #f87171; font-weight: bold; font-size: 12px;")
             self.pause_btn.setEnabled(False)
 
@@ -528,6 +1077,13 @@ class MediaQualityDialog(QDialog):
         self.cancel_btn.setProperty("class", "secondaryBtn")
         self.cancel_btn.setStyleSheet("background-color: #107c41; color: #ffffff; border: none;")
 
+        # Eğer kullanıcı "Show file in folder" kutusunu işaretlediyse dosyayı klasörde göster
+        if hasattr(self, "open_folder_chk") and self.open_folder_chk.isChecked() and final_path and os.path.exists(final_path):
+            try:
+                subprocess.Popen(f'explorer /select,"{os.path.normpath(final_path)}"')
+            except Exception:
+                pass
+
     @pyqtSlot(str, str)
     def _on_error(self, task_id: str, err_msg: str) -> None:
         """Hata durumunu yansıtır."""
@@ -539,9 +1095,9 @@ class MediaQualityDialog(QDialog):
         self.status_val.setToolTip(err_msg)
         self.pause_btn.setEnabled(False)
 
-    def _toggle_pause_resume(self) -> None:
-        """Duraklat / Devam Et butonuna tıklandığında çalışır."""
-        if not self.current_task_id or not self.task_manager:
+    def _toggle_pause(self) -> None:
+        """Duraklat / Devam Et eylemi."""
+        if not self.task_manager or not self.current_task_id:
             return
         task = self.task_manager.get_task(self.current_task_id)
         if not task:
@@ -549,143 +1105,41 @@ class MediaQualityDialog(QDialog):
 
         if task.status == DownloadStatus.DOWNLOADING:
             self.task_manager.pause_task(self.current_task_id)
-            self.pause_btn.setText("▶️ Resume")
-            self.status_val.setText("Paused")
-            self.status_val.setStyleSheet("color: #fbbf24; font-weight: bold; font-size: 12px;")
-        elif task.status in (DownloadStatus.PAUSED, DownloadStatus.FAILED):
+        elif task.status == DownloadStatus.PAUSED:
             self.task_manager.resume_task(self.current_task_id)
-            self.pause_btn.setText("⏸️ Pause")
-            self.status_val.setText("Resuming download...")
-            self.status_val.setStyleSheet("color: #38bdf8; font-weight: bold; font-size: 12px;")
 
-    def _open_folder(self) -> None:
-        """İndirilenler klasörünü açar."""
-        path = self.final_downloaded_path or os.path.join(self.final_dest, self.final_title)
-        folder = self.final_dest if os.path.isdir(self.final_dest) else os.path.dirname(path)
-
-        if os.path.exists(path) and not os.path.isdir(path):
-            subprocess.Popen(f'explorer /select,"{os.path.normpath(path)}"')
-        elif os.path.exists(folder):
-            subprocess.Popen(f'explorer "{os.path.normpath(folder)}"')
-
-    def _play_video(self) -> None:
-        """İndirilen videoyu varsayılan medya oynatıcıda açar."""
-        path = self.final_downloaded_path
-        if path and os.path.exists(path):
-            try:
-                os.startfile(path)
-            except Exception:
-                subprocess.Popen(f'explorer "{os.path.normpath(path)}"')
-
-    def closeEvent(self, event) -> None:
-        """Pencere kapatılırken arkaplan extractor thread'ini güvenle sonlandırır."""
-        if hasattr(self, "extractor") and self.extractor is not None:
-            if self.extractor.isRunning():
-                try:
-                    self.extractor.terminate()
-                    self.extractor.wait(500)
-                except Exception:
-                    pass
-        super().closeEvent(event)
-
-    def _cancel_or_close(self) -> None:
-        """Kapat veya iptal et."""
-        if not self.is_completed and self.current_task_id and self.task_manager:
-            task = self.task_manager.get_task(self.current_task_id)
-            if task and task.status in (DownloadStatus.DOWNLOADING, DownloadStatus.QUEUED, DownloadStatus.MERGING):
-                self.task_manager.cancel_task(self.current_task_id)
-        self.close()
-
-    def _format_bytes(self, num_bytes: int) -> str:
-        """Byte miktarını insan tarafından okunabilir birime çevirir."""
-        if num_bytes <= 0:
-            return "0 B"
-        elif num_bytes < 1024:
-            return f"{num_bytes} B"
-        elif num_bytes < 1024 * 1024:
-            return f"{num_bytes / 1024:.2f} KB"
-        elif num_bytes < 1024 * 1024 * 1024:
-            return f"{num_bytes / (1024 * 1024):.2f} MB"
-        else:
-            return f"{num_bytes / (1024 * 1024 * 1024):.2f} GB"
-
-    # ==================== Analiz ve Metadata Çekme ====================
-
-    def _start_analysis(self, target_url: str) -> None:
-        """Arka planda yt-dlp ile medya bilgilerini çekmeye başlar."""
-        self.status_bar.setVisible(True)
-        self.extractor = MediaInfoExtractor(target_url, headers=self.headers)
-        self.extractor.metadata_ready.connect(self._on_metadata_ready)
-        self.extractor.error_occurred.connect(self._on_metadata_error)
-        self.extractor.start()
-
-    def _on_metadata_ready(self, info: Dict[str, Any]) -> None:
-        """Meta veriler alındığında arayüzü günceller."""
-        self.extracted_info = info
-        self.status_bar.setVisible(False)
-        self.title_label.setText(info.get("title", "Video Stream"))
-
-        self.format_combo.clear()
-
-        # En üst kalite seçeneği (MP4)
-        self.format_combo.addItem("🏆 Best Video + Audio (MP4 - Highest Quality)", "best")
-
-        formats = info.get("formats", [])
-        added_labels = set()
-
-        # Çözünürlük formatlarını ekle
-        for f in formats:
-            if f.get("is_video"):
-                lbl = f.get("label")
-                fid = f.get("format_id")
-                if lbl and lbl not in added_labels:
-                    added_labels.add(lbl)
-                    self.format_combo.addItem(f"🎬 {lbl}", fid)
-
-        # Ses seçeneklerini ekle
-        self.format_combo.addItem("🎵 Audio Only (MP3 192kbps)", "audio_mp3")
-
-        for f in formats:
-            if not f.get("is_video"):
-                lbl = f.get("label")
-                fid = f.get("format_id")
-                if lbl and lbl not in added_labels:
-                    added_labels.add(lbl)
-                    self.format_combo.addItem(f"🎵 {lbl}", fid)
-
-        self.format_combo.setEnabled(True)
-        self.download_btn.setEnabled(True)
-
-    def _on_metadata_error(self, err_msg: str) -> None:
-        """Analiz hatası durumunda kullanıcıyı bilgilendirir veya fallback dener."""
-        if not self._fallback_tried and self.page_url and self.page_url != self.url:
-            self._fallback_tried = True
-            self.title_label.setText("Trying page URL extractor fallback...")
-            self._start_analysis(self.page_url)
+    def _cancel_download(self) -> None:
+        """İndirmeyi iptal eder veya pencereyi kapatır."""
+        if self.is_completed:
+            self.accept()
             return
 
-        self.status_bar.setVisible(False)
-        self.title_label.setText(f"❌ Error: {err_msg}")
-        self.title_label.setStyleSheet("color: #f87171;")
+        if self.task_manager and self.current_task_id:
+            self.task_manager.cancel_task(self.current_task_id)
+        self.reject()
 
-    def _browse_folder(self) -> None:
-        chosen = QFileDialog.getExistingDirectory(self, "Select Destination Folder", self.dest_input.text())
-        if chosen:
-            self.dest_input.setText(chosen)
+    def _open_folder(self) -> None:
+        """Dosyanın indirildiği hedef klasörü açar."""
+        target = self.final_downloaded_path if (self.final_downloaded_path and os.path.exists(self.final_downloaded_path)) else self.final_dest
+        if os.path.isfile(target):
+            subprocess.Popen(f'explorer /select,"{os.path.normpath(target)}"')
+        else:
+            os.makedirs(target, exist_ok=True)
+            subprocess.Popen(f'explorer "{os.path.normpath(target)}"')
 
-    def get_data(self) -> Dict[str, Any]:
-        """Seçilen indirme yapılandırmasını döndürür."""
-        selected_data = self.format_combo.currentData()
-        is_audio = (selected_data == "audio_mp3")
-        format_id = None if selected_data in ("best", "audio_mp3") else selected_data
+    def _play_video(self) -> None:
+        """İndirilen medyayı sistemin varsayılan oynatıcısında açar."""
+        if self.final_downloaded_path and os.path.exists(self.final_downloaded_path):
+            os.startfile(os.path.normpath(self.final_downloaded_path))
 
-        title = self.extracted_info.get("title") if self.extracted_info else "media"
-
-        return {
-            "url": self.url,
-            "title": title,
-            "destination": self.dest_input.text().strip(),
-            "format_id": format_id,
-            "audio_only": is_audio,
-            "headers": self.headers
-        }
+    @staticmethod
+    def _format_bytes(bytes_count: int) -> str:
+        """Bayt miktarını insan tarafından okunabilir formata dönüştürür."""
+        if bytes_count <= 0:
+            return "0 B"
+        elif bytes_count < 1024 * 1024:
+            return f"{bytes_count / 1024:.1f} KB"
+        elif bytes_count < 1024 * 1024 * 1024:
+            return f"{bytes_count / (1024 * 1024):.2f} MB"
+        else:
+            return f"{bytes_count / (1024 * 1024 * 1024):.2f} GB"

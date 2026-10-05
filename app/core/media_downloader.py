@@ -191,16 +191,15 @@ class MediaInfoExtractor(QThread):
                     h = fmt.get("height")
                     if not h or h in seen_heights:
                         continue
+                    # Kullanıcı talebi: 4K (2160p) ve 2K (1440p) seçenekleri eklenmez
+                    if h > 1080:
+                        continue
                     seen_heights.add(h)
 
                     format_id = fmt.get("format_id", "")
                     filesize = fmt.get("filesize") or fmt.get("filesize_approx") or 0
 
-                    if h >= 2160:
-                        res_title = f"4K UHD ({h}p)"
-                    elif h >= 1440:
-                        res_title = f"2K QHD ({h}p)"
-                    elif h >= 1080:
+                    if h >= 1080:
                         res_title = f"1080p Full HD"
                     elif h >= 720:
                         res_title = f"720p HD"
