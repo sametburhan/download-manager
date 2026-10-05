@@ -717,7 +717,7 @@ class MainWindow(QMainWindow):
         self.setStatusBar(status_bar)
 
         # Sunucu Durum Rozeti (Yeşil canlı sinyal)
-        self.status_server_lbl = QLabel("🟢 Server Listening (ws://127.0.0.1:6800)")
+        self.status_server_lbl = QLabel('<span style="font-size: 10px;">●</span> Server Connected')
         self.status_server_lbl.setStyleSheet("color: #34d399; margin-left: 8px; font-weight: 600; font-size: 11px;")
         status_bar.addWidget(self.status_server_lbl)
 
@@ -1463,16 +1463,16 @@ class MainWindow(QMainWindow):
 
     def _on_ws_status_changed(self, is_running: bool, msg: str) -> None:
         if is_running:
-            self.status_server_lbl.setText("🟢 Server Listening (ws://127.0.0.1:6800)")
-            self.status_server_lbl.setStyleSheet("color: #38ef7d; margin-left: 8px; font-weight: bold;")
+            self.status_server_lbl.setText('<span style="font-size: 10px;">●</span> Server Connected')
+            self.status_server_lbl.setStyleSheet("color: #34d399; margin-left: 8px; font-weight: 600; font-size: 11px;")
         else:
-            self.status_server_lbl.setText("🔴 Server Stopped")
-            self.status_server_lbl.setStyleSheet("color: #f87171; margin-left: 8px; font-weight: bold;")
+            self.status_server_lbl.setText('<span style="font-size: 10px;">●</span> Server Stopped')
+            self.status_server_lbl.setStyleSheet("color: #f87171; margin-left: 8px; font-weight: 600; font-size: 11px;")
 
     def _on_ws_client_connected(self, client_id: str) -> None:
         self._client_count += 1
         self.status_clients_lbl.setText(f"🌐 Browser Extension: {self._client_count} Connected")
-        self.status_server_lbl.setText("🟢 Server Listening (ws://127.0.0.1:6800)")
+        self.status_server_lbl.setText('<span style="font-size: 10px;">●</span> Server Connected')
 
     def _on_ws_client_disconnected(self, client_id: str) -> None:
         self._client_count = max(0, self._client_count - 1)

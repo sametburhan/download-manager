@@ -374,3 +374,14 @@ QTabBar::tab:selected {
     color: #38bdf8;
     border-bottom: 2px solid #38bdf8;
 }
+
+/* ==================== Status Bar ==================== */
+QStatusBar {
+    background-color: #070a11;
+    min-height: 24px;
+    border-top: 1px solid #1e293b;
+}
+
+QStatusBar::item {
+    border: none;
+}
