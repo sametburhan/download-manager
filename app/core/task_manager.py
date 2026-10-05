@@ -359,6 +359,14 @@ class TaskManager(QObject):
                     except Exception as e:
                         print(f"[WARN] Failed to delete file from disk {path}: {e}")
 
+            # Göreve ait geçici parçaların bulunduğu temp dizinini tamamen temizle
+            if hasattr(task, "temp_dir") and task.temp_dir and os.path.exists(task.temp_dir):
+                import shutil
+                try:
+                    shutil.rmtree(task.temp_dir, ignore_errors=True)
+                except Exception as e:
+                    print(f"[WARN] Failed to delete task temp dir {task.temp_dir}: {e}")
+
         # 3. Bellekten / görev havuzundan tamamen çıkar
         self.tasks.pop(task_id, None)
         self.save_tasks(force=True)

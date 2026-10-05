@@ -75,10 +75,17 @@ def merge_chunks(
     return True
 
 
-def cleanup_temp_files(chunk_paths: List[str], meta_file_path: Optional[str] = None) -> None:
+def cleanup_temp_files(
+    chunk_paths: List[str],
+    meta_file_path: Optional[str] = None,
+    temp_dir: Optional[str] = None
+) -> None:
     """
-    Birleştirme sonrasında veya iptal durumunda geçici .part ve .meta dosyalarını siler.
+    Birleştirme sonrasında veya iptal durumunda geçici .part, .meta dosyalarını ve
+    varsa göreve ait geçici dizini siler.
     """
+    import shutil
+
     for path in chunk_paths:
         try:
             if os.path.exists(path):
@@ -90,6 +97,12 @@ def cleanup_temp_files(chunk_paths: List[str], meta_file_path: Optional[str] = N
         try:
             if os.path.exists(meta_file_path):
                 os.remove(meta_file_path)
+        except OSError:
+            pass
+
+    if temp_dir and os.path.exists(temp_dir):
+        try:
+            shutil.rmtree(temp_dir, ignore_errors=True)
         except OSError:
             pass
 

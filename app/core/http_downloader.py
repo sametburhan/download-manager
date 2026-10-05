@@ -155,8 +155,8 @@ class HttpChunkDownloader(QThread):
             chunk_paths = [chunk.temp_file for chunk in self.task.chunks]
             merge_chunks(chunk_paths, self.task.final_file_path)
 
-            # Geçici dosyaları temizle
-            cleanup_temp_files(chunk_paths, self.task.meta_file_path)
+            # Geçici dosyaları ve görevin geçici dizinini temizle
+            cleanup_temp_files(chunk_paths, self.task.meta_file_path, self.task.temp_dir)
 
             # 5. Başarıyla tamamlandı
             self.task.status = DownloadStatus.COMPLETED
@@ -244,10 +244,11 @@ class HttpChunkDownloader(QThread):
 
         # 2. Yeni parça yapılandırması
         self.task.chunks.clear()
+        os.makedirs(self.task.temp_dir, exist_ok=True)
 
         # Eğer Range desteklenmiyorsa veya dosya boyutu bilinmiyorsa TEK parça çalıştır
         if not self.task.is_resumable or self.task.total_size <= 0:
-            part_file = f"{self.task.final_file_path}.part0"
+            part_file = os.path.join(self.task.temp_dir, f"{self.task.filename}.part0")
             chunk = ChunkInfo(
                 chunk_id=0,
                 start_byte=0,
@@ -264,7 +265,7 @@ class HttpChunkDownloader(QThread):
             start = i * chunk_size
             # Son parça dosyanın son byte'ına kadar kapsar
             end = self.task.total_size - 1 if i == self.num_chunks - 1 else (i + 1) * chunk_size - 1
-            part_file = f"{self.task.final_file_path}.part{i}"
+            part_file = os.path.join(self.task.temp_dir, f"{self.task.filename}.part{i}")
 
             chunk = ChunkInfo(
                 chunk_id=i,
@@ -312,6 +313,7 @@ class HttpChunkDownloader(QThread):
                 if response.status_code not in (200, 206):
                     raise RuntimeError(f"Parça #{chunk.chunk_id} indirilemedi. HTTP Kodu: {response.status_code}")
 
+                os.makedirs(os.path.dirname(chunk.temp_file), exist_ok=True)
                 with open(chunk.temp_file, mode) as f:
                     for data_block in response.iter_bytes(chunk_size=self.chunk_buffer_size):
                         # Duraklatıldı veya iptal edildiyse derhal çık
@@ -388,6 +390,7 @@ class HttpChunkDownloader(QThread):
                 "is_resumable": self.task.is_resumable,
                 "chunks": [c.to_dict() for c in self.task.chunks]
             }
+            os.makedirs(os.path.dirname(self.task.meta_file_path), exist_ok=True)
             with open(self.task.meta_file_path, "w", encoding="utf-8") as f:
                 json.dump(meta_data, f, indent=2)
         except Exception:
@@ -396,7 +399,7 @@ class HttpChunkDownloader(QThread):
     def _cleanup_all(self) -> None:
         """İptal edilen görevin tüm artık dosyalarını siler."""
         chunk_paths = [c.temp_file for c in self.task.chunks]
-        cleanup_temp_files(chunk_paths, self.task.meta_file_path)
+        cleanup_temp_files(chunk_paths, self.task.meta_file_path, self.task.temp_dir)
         if os.path.exists(self.task.final_file_path):
             try:
                 os.remove(self.task.final_file_path)

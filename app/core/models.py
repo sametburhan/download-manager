@@ -103,9 +103,19 @@ class DownloadTask:
         return os.path.join(self.destination_folder, self.filename)
 
     @property
+    def temp_dir(self) -> str:
+        """Göreve özel geçici indirme parçalarının saklandığı dizin."""
+        from app.core.config import get_temp_dir
+        return os.path.join(get_temp_dir(), self.task_id)
+
+    @property
     def meta_file_path(self) -> str:
         """Pause/Resume durumunu saklayan meta veri dosyasının yolu."""
-        return f"{self.final_file_path}.meta.json"
+        temp_meta = os.path.join(self.temp_dir, f"{self.filename}.meta.json")
+        legacy_meta = f"{self.final_file_path}.meta.json"
+        if not os.path.exists(temp_meta) and os.path.exists(legacy_meta):
+            return legacy_meta
+        return temp_meta
 
     @property
     def progress_percent(self) -> float:

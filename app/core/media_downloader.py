@@ -301,6 +301,12 @@ class MediaDownloader(QThread):
         self._is_cancelled = True
         self.task.status = DownloadStatus.CANCELLED
         self.status_changed.emit(self.task.task_id, DownloadStatus.CANCELLED.value)
+        try:
+            import shutil
+            if hasattr(self.task, "temp_dir") and os.path.exists(self.task.temp_dir):
+                shutil.rmtree(self.task.temp_dir, ignore_errors=True)
+        except Exception:
+            pass
 
     def run(self) -> None:
         """yt-dlp ile indirmeyi başlatan ana iş parçacığı fonksiyonu."""
@@ -309,11 +315,14 @@ class MediaDownloader(QThread):
 
         # Hedef şablon ve indirme seçeneklerini hazırla
         base_name = os.path.splitext(self.task.filename)[0] if self.task.filename else "%(title)s"
-        out_template = os.path.join(self.task.destination_folder, f"{base_name}.%(ext)s")
 
         ydl_opts: Dict[str, Any] = get_ytdl_base_opts(self.task.headers)
         ydl_opts.update({
-            "outtmpl": out_template,
+            "paths": {
+                "home": self.task.destination_folder,
+                "temp": self.task.temp_dir,
+            },
+            "outtmpl": f"{base_name}.%(ext)s",
             "progress_hooks": [self._progress_hook],
             "merge_output_format": "mp4",
         })
@@ -413,6 +422,13 @@ class MediaDownloader(QThread):
             self.task.error_message = err_msg
             self.status_changed.emit(self.task.task_id, DownloadStatus.FAILED.value)
             self.error_occurred.emit(self.task.task_id, err_msg)
+        finally:
+            try:
+                import shutil
+                if hasattr(self.task, "temp_dir") and os.path.exists(self.task.temp_dir):
+                    shutil.rmtree(self.task.temp_dir, ignore_errors=True)
+            except Exception:
+                pass
 
     def _progress_hook(self, d: Dict[str, Any]) -> None:
         """yt-dlp'den gelen anlık verileri PyQt sinyaline dönüştürür."""

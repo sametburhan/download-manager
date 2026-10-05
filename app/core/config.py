@@ -43,6 +43,13 @@ def get_tasks_file_path() -> str:
     return os.path.join(get_config_dir(), "tasks.json")
 
 
+def get_temp_dir() -> str:
+    """Geçici parça (.part) ve meta dosyalarının tutulacağı sistem dizinini döndürür ve yoksa oluşturur."""
+    temp_dir = os.path.join(get_config_dir(), "temp")
+    os.makedirs(temp_dir, exist_ok=True)
+    return temp_dir
+
+
 def load_network_settings() -> NetworkSettings:
     """settings.json dosyasından ayarları yükler, dosya yoksa varsayılanı döndürür."""
     file_path = get_config_file_path()

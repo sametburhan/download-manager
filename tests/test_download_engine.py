@@ -210,6 +210,60 @@ class TestDownloadEngine(unittest.TestCase):
         self.assertTrue(os.path.exists(final_file))
         self.assertEqual(calculate_file_hash(final_file), TEST_HASH)
 
+    def test_05_temp_dir_isolation_and_no_destination_pollution(self):
+        """Parçaların kullanıcının hedef klasöründe değil, arka plan temp dizininde tutulduğunu test eder."""
+        target_filename = "clean_dest_2mb.bin"
+        task = DownloadTask(
+            task_id="task_test_isolation",
+            url=f"http://127.0.0.1:{self.port}/file.bin",
+            destination_folder=self.test_dir,
+            filename=target_filename
+        )
+
+        downloader = HttpChunkDownloader(task=task, num_chunks=4)
+        downloader.start()
+
+        # Biraz indirmesine izin ver ve duraklat
+        for _ in range(50):
+            self.app.processEvents()
+            if task.downloaded_size > 0:
+                break
+            time.sleep(0.02)
+
+        downloader.pause()
+        downloader.wait(2000)
+
+        # 1. Hedef klasörde .part veya .meta dosyası OLMAMALI!
+        dest_files = os.listdir(self.test_dir)
+        for f in dest_files:
+            self.assertFalse(f.endswith(".part0") or f.endswith(".part1") or f.endswith(".part2") or f.endswith(".part3"))
+            self.assertFalse(f.endswith(".meta.json"))
+
+        # 2. Geçici parçalar ve meta dosyası görevin özel temp dizininde bulunmalı!
+        self.assertTrue(os.path.exists(task.temp_dir))
+        temp_files = os.listdir(task.temp_dir)
+        self.assertTrue(any(f.endswith(".meta.json") for f in temp_files))
+        self.assertTrue(any(".part" in f for f in temp_files))
+
+        # 3. İndirmeyi tamamla
+        resume_finished = []
+        resume_downloader = HttpChunkDownloader(task=task, num_chunks=4)
+        resume_downloader.finished.connect(lambda tid, path: resume_finished.append((tid, path)))
+        resume_downloader.start()
+
+        start_time = time.time()
+        while not resume_finished and time.time() - start_time < 10:
+            self.app.processEvents()
+            time.sleep(0.05)
+
+        resume_downloader.wait(2000)
+
+        # 4. Tamamlanınca asıl dosya hedefte olmalı, temp klasörü tamamen temizlenmiş olmalı!
+        final_file = os.path.join(self.test_dir, target_filename)
+        self.assertTrue(os.path.exists(final_file))
+        self.assertEqual(calculate_file_hash(final_file), TEST_HASH)
+        self.assertFalse(os.path.exists(task.temp_dir))
+
         print("\n[OK] All Stage 2 download engine tests passed successfully!")
 
 
