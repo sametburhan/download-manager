@@ -1231,17 +1231,19 @@ class MainWindow(QMainWindow):
         if column == 1:  # FILE NAME
             return (task.filename or "").lower()
         elif column == 2:  # SIZE
-            return task.total_size if task.total_size > 0 else task.downloaded_size
+            total = task.total_size if (task.total_size is not None and task.total_size > 0) else (task.downloaded_size or 0)
+            return total
         elif column == 3:  # PROGRESS & STATUS
-            return task.progress_percent
+            return task.progress_percent if task.progress_percent is not None else 0.0
         elif column == 4:  # SPEED
-            return task.speed_bytes_per_sec
+            return float(task.speed_bytes_per_sec or 0.0)
         elif column == 5:  # TIME LEFT
             if task.status == DownloadStatus.COMPLETED:
                 return 0.0
-            return task.eta_seconds if task.eta_seconds > 0 else 999999999.0
+            eta = getattr(task, "eta_seconds", None)
+            return float(eta) if (eta is not None and eta > 0) else 999999999.0
         elif column == 6:  # DATE
-            return task.created_at
+            return float(task.created_at or 0.0)
         return 0
 
     def _sort_table_data(self) -> None:
