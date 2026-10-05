@@ -98,6 +98,12 @@ class MediaQualityDialog(QDialog):
             }
             QLabel {
                 color: #e2e8f0;
+                background: transparent;
+                border: none;
+            }
+            QFrame#idmCard QLabel {
+                background: transparent;
+                border: none;
             }
             QLineEdit, QComboBox {
                 background-color: #1e293b;
@@ -301,8 +307,8 @@ class MediaQualityDialog(QDialog):
         grid.setHorizontalSpacing(16)
         grid.setVerticalSpacing(7)
 
-        lbl_style = "color: #94a3b8; font-weight: 500; font-size: 12px;"
-        val_style = "color: #f1f5f9; font-weight: 600; font-size: 12px;"
+        lbl_style = "color: #94a3b8; font-weight: 500; font-size: 12px; background: transparent; border: none;"
+        val_style = "color: #f1f5f9; font-weight: 600; font-size: 12px; background: transparent; border: none;"
 
         row = 0
         # Status
