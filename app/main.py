@@ -46,9 +46,10 @@ def main():
         pass
 
     # 1. PyQt6 Uygulamasını Başlat
+    from app import __version__
     app = QApplication(sys.argv)
     app.setApplicationName("Download Manager")
-    app.setApplicationVersion("1.0.0")
+    app.setApplicationVersion(__version__)
 
     # Uygulama ve tüm pencereler için resmi logoyu ata
     app.setWindowIcon(get_app_icon())

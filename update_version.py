@@ -88,6 +88,19 @@ VSVersionInfo(
         f.write(version_info_content)
     print(f"[OK] file_version_info.txt olusturuldu (Versiyon: {version_str})")
 
+    # 5. installer/setup.iss guncelle
+    setup_iss_path = os.path.join(root, "installer", "setup.iss")
+    if os.path.exists(setup_iss_path):
+        try:
+            with open(setup_iss_path, "r", encoding="utf-8") as f:
+                iss_content = f.read()
+            new_iss = re.sub(r'#define MyAppVersion\s+["\'][^"\']+["\']', f'#define MyAppVersion "{version_str}"', iss_content)
+            with open(setup_iss_path, "w", encoding="utf-8") as f:
+                f.write(new_iss)
+            print(f"[OK] installer/setup.iss -> MyAppVersion = \"{version_str}\"")
+        except Exception as e:
+            print(f"[UYARI] setup.iss guncellenirken hata: {e}")
+
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         update_version(sys.argv[1])

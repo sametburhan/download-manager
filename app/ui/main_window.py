@@ -1445,7 +1445,7 @@ class MainWindow(QMainWindow):
             "About Download Manager",
             "<h3>Download Manager</h3>"
             "<p>Advanced Multi-Segment Download Manager & Media Sniffer</p>"
-            f"<p>Version {__version__} Pro</p>"
+            f"<p>Version {__version__}</p>"
         )
 
     def _exit_app(self) -> None:
