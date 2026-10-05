@@ -335,6 +335,12 @@ QDialog {
     color: #f1f5f9;
 }
 
+QDialog QLabel,
+QDialog QCheckBox {
+    background: transparent;
+    border: none;
+}
+
 QLineEdit, QTextEdit, QPlainTextEdit {
     background-color: #141b2a;
     border: 1px solid #1e293b;

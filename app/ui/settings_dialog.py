@@ -45,7 +45,7 @@ class NetworkSettingsDialog(QDialog):
         # 1. Başlık
         title_lbl = QLabel("Network settings")
         title_lbl.setFont(QFont("Segoe UI Variable Display", 15, QFont.Weight.Bold))
-        title_lbl.setStyleSheet("color: #f1f5f9; margin-bottom: 4px;")
+        title_lbl.setStyleSheet("color: #f1f5f9; margin-bottom: 4px; background: transparent; border: none;")
         main_layout.addWidget(title_lbl)
 
         # 2. Üst Parametreler Izgarası (Timeout, Segments, Retries)
@@ -53,7 +53,7 @@ class NetworkSettingsDialog(QDialog):
         top_grid.setHorizontalSpacing(16)
         top_grid.setVerticalSpacing(14)
 
-        lbl_style = "color: #cbd5e1; font-size: 13px; font-weight: 400;"
+        lbl_style = "color: #cbd5e1; font-size: 13px; font-weight: 400; background: transparent; border: none;"
 
         # Connection timeout in seconds
         lbl_timeout = QLabel("Connection timeout in seconds")
@@ -91,7 +91,7 @@ class NetworkSettingsDialog(QDialog):
         # Download speed limit [KB/Sec ](0 unlimited)
         speed_row = QHBoxLayout()
         self.chk_speed_limit = QCheckBox("Download speed limit [KB/Sec ](0 unlimited)")
-        self.chk_speed_limit.setStyleSheet(lbl_style)
+        self.chk_speed_limit.setStyleSheet("color: #cbd5e1; font-size: 13px; font-weight: 400; background: transparent; border: none;")
         self.chk_speed_limit.toggled.connect(self._on_speed_limit_toggled)
         speed_row.addWidget(self.chk_speed_limit)
 
@@ -270,12 +270,14 @@ class NetworkSettingsDialog(QDialog):
     def _apply_styles(self) -> None:
         """Kullanıcı görseline sadık kalan modern Fluent Obsidian stilini uygular."""
         self.setStyleSheet("""
-            QDialog {
+            QDialog, NetworkSettingsDialog {
                 background-color: #171920;
                 color: #e2e8f0;
             }
             QLabel {
                 color: #cbd5e1;
+                background: transparent;
+                border: none;
             }
             QLineEdit, QComboBox {
                 background-color: #212530;
@@ -316,6 +318,10 @@ class NetworkSettingsDialog(QDialog):
             }
             QCheckBox {
                 spacing: 8px;
+                color: #cbd5e1;
+                font-size: 13px;
+                background: transparent;
+                border: none;
             }
             QCheckBox::indicator {
                 width: 16px;
