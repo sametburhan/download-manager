@@ -155,7 +155,7 @@ QLineEdit#searchBar {
     border: 1px solid #1e293b;
     border-radius: 8px;
     color: #f1f5f9;
-    padding: 6px 12px;
+    padding: 6px 10px 6px 8px;
     font-size: 12px;
     min-width: 240px;
 }

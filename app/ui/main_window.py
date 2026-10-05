@@ -30,7 +30,7 @@ from app.ui.media_dialog import MediaQualityDialog
 from app.ui.settings_dialog import NetworkSettingsDialog
 from app.ui.delete_dialog import DeleteDownloadsDialog
 from app.core.autostart import is_autostart_enabled, set_autostart
-from app.utils.icon_utils import get_app_icon, get_app_pixmap
+from app.utils.icon_utils import get_app_icon, get_app_pixmap, get_search_icon
 
 
 class FileNameCellWidget(QWidget):
@@ -544,9 +544,19 @@ class MainWindow(QMainWindow):
         self.search_bar.setClearButtonEnabled(True)
         self.search_bar.textChanged.connect(self._on_search_text_changed)
 
+        # Ufak büyüteç simgesi (Leading icon)
+        search_icon = get_search_icon(size=14, color="#94a3b8")
+        if not search_icon.isNull():
+            self.search_bar.addAction(search_icon, QLineEdit.ActionPosition.LeadingPosition)
+
         # Ctrl+F Kısayol Rozeti
         act_shortcut = QAction("Ctrl+F", self.search_bar)
+        act_shortcut.triggered.connect(self.search_bar.setFocus)
         self.search_bar.addAction(act_shortcut, QLineEdit.ActionPosition.TrailingPosition)
+
+        # Ctrl+F Global Kısayolu
+        self.shortcut_find = QShortcut(QKeySequence("Ctrl+F"), self)
+        self.shortcut_find.activated.connect(lambda: (self.search_bar.setFocus(), self.search_bar.selectAll()))
 
         toolbar.addWidget(self.search_bar)
 
