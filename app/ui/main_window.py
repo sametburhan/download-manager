@@ -34,45 +34,64 @@ from app.utils.icon_utils import get_app_icon, get_app_pixmap
 
 
 class FileNameCellWidget(QWidget):
-    """Tablo için solunda kategori ikonu, üstünde kalın dosya adı ve altında kategori etiketi olan hücre."""
+    """Tablo için solunda özel renkli kategori kutusu, üstünde kalın dosya adı ve altında alt bilgi olan hücre."""
 
-    def __init__(self, filename: str, category: str, icon_str: str, parent=None):
+    def __init__(self, filename: str, category: str, icon_str: str, subtitle: Optional[str] = None, parent=None):
         super().__init__(parent)
         layout = QHBoxLayout(self)
         layout.setContentsMargins(8, 4, 8, 4)
         layout.setSpacing(10)
 
-        # Kategori İkonu
+        # Kategori İkonu Kutusu (32x32 rounded)
         self.icon_lbl = QLabel(icon_str)
-        self.icon_lbl.setFont(QFont("Segoe UI Emoji", 15))
-        self.icon_lbl.setFixedSize(28, 28)
+        self.icon_lbl.setFont(QFont("Segoe UI Emoji", 13))
+        self.icon_lbl.setFixedSize(32, 32)
         self.icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.icon_lbl.setStyleSheet("background-color: #1a202e; border-radius: 6px; padding: 2px;")
+        self._apply_icon_style(category)
         layout.addWidget(self.icon_lbl)
 
-        # Başlık ve Kategori (Dikey Düzen)
+        # Başlık ve Kategori / Subtitle (Dikey Düzen)
         text_layout = QVBoxLayout()
         text_layout.setContentsMargins(0, 0, 0, 0)
         text_layout.setSpacing(2)
 
         self.name_lbl = QLabel(filename)
-        self.name_lbl.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        self.name_lbl.setFont(QFont("Inter", 10, QFont.Weight.DemiBold))
         self.name_lbl.setStyleSheet("color: #f1f5f9;")
         text_layout.addWidget(self.name_lbl)
 
-        self.cat_lbl = QLabel(category)
-        self.cat_lbl.setFont(QFont("Segoe UI", 8))
+        sub_text = subtitle if subtitle is not None else category
+        self.cat_lbl = QLabel(sub_text)
+        self.cat_lbl.setFont(QFont("Inter", 8))
         self.cat_lbl.setStyleSheet("color: #64748b; font-weight: 500;")
         text_layout.addWidget(self.cat_lbl)
 
         layout.addLayout(text_layout)
         layout.addStretch()
 
-    def update_info(self, filename: str, category: str, icon_str: str) -> None:
-        """Dosya adı, kategori ve ikonunu dinamik olarak günceller."""
+    def _apply_icon_style(self, category: str) -> None:
+        cat_lower = (category or "").lower()
+        if "video" in cat_lower:
+            self.icon_lbl.setStyleSheet("background-color: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 8px; color: #f87171;")
+        elif "app" in cat_lower or "program" in cat_lower:
+            self.icon_lbl.setStyleSheet("background-color: rgba(249, 115, 22, 0.15); border: 1px solid rgba(249, 115, 22, 0.35); border-radius: 8px; color: #fb923c;")
+        elif "music" in cat_lower or "audio" in cat_lower:
+            self.icon_lbl.setStyleSheet("background-color: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.35); border-radius: 8px; color: #38bdf8;")
+        elif "compress" in cat_lower or "zip" in cat_lower:
+            self.icon_lbl.setStyleSheet("background-color: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 8px; color: #fbbf24;")
+        elif "document" in cat_lower:
+            self.icon_lbl.setStyleSheet("background-color: rgba(14, 165, 233, 0.15); border: 1px solid rgba(14, 165, 233, 0.35); border-radius: 8px; color: #38bdf8;")
+        elif "image" in cat_lower:
+            self.icon_lbl.setStyleSheet("background-color: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 8px; color: #34d399;")
+        else:
+            self.icon_lbl.setStyleSheet("background-color: rgba(244, 63, 94, 0.15); border: 1px solid rgba(244, 63, 94, 0.35); border-radius: 8px; color: #fb7185;")
+
+    def update_info(self, filename: str, category: str, icon_str: str, subtitle: Optional[str] = None) -> None:
+        """Dosya adı, kategori, alt başlık ve ikonunu dinamik olarak günceller."""
         self.name_lbl.setText(filename)
-        self.cat_lbl.setText(category)
+        self.cat_lbl.setText(subtitle if subtitle is not None else category)
         self.icon_lbl.setText(icon_str)
+        self._apply_icon_style(category)
 
 
 class StatusCellWidget(QWidget):
@@ -81,15 +100,28 @@ class StatusCellWidget(QWidget):
     def __init__(self, status: DownloadStatus, percent: float = 0.0, parent=None):
         super().__init__(parent)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 6, 8, 6)
-        layout.setSpacing(4)
+        layout.setContentsMargins(8, 4, 8, 4)
+        layout.setSpacing(3)
+
+        # Üst satır: Sol Durum Metni + Sağ Yüzde
+        top_row = QHBoxLayout()
+        top_row.setContentsMargins(0, 0, 0, 0)
+        top_row.setSpacing(6)
 
         self.label = QLabel()
-        self.label.setFont(QFont("Segoe UI", 9, QFont.Weight.DemiBold))
-        layout.addWidget(self.label)
+        self.label.setFont(QFont("Inter", 8, QFont.Weight.DemiBold))
+        top_row.addWidget(self.label)
+
+        top_row.addStretch()
+
+        self.pct_label = QLabel()
+        self.pct_label.setFont(QFont("JetBrains Mono", 8))
+        top_row.addWidget(self.pct_label)
+
+        layout.addLayout(top_row)
 
         self.progress_bar = QProgressBar()
-        self.progress_bar.setFixedHeight(4)
+        self.progress_bar.setFixedHeight(5)
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setTextVisible(False)
         layout.addWidget(self.progress_bar)
@@ -101,8 +133,11 @@ class StatusCellWidget(QWidget):
         status_upper = status_str.upper()
 
         if status_upper == DownloadStatus.DOWNLOADING.value:
-            self.label.setText(f"{pct}% Downloading")
-            self.label.setStyleSheet("color: #a855f7;")
+            self.label.setText("● Downloading")
+            self.label.setStyleSheet("color: #38bdf8; font-weight: 600; background: transparent; border: none; padding: 0;")
+            self.pct_label.setText(f"{pct}%")
+            self.pct_label.setStyleSheet("color: #94a3b8; font-family: 'JetBrains Mono', Consolas, monospace; background: transparent;")
+            self.pct_label.setVisible(True)
             self.progress_bar.setValue(pct)
             self.progress_bar.setStyleSheet("""
                 QProgressBar {
@@ -112,14 +147,17 @@ class StatusCellWidget(QWidget):
                 }
                 QProgressBar::chunk {
                     background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                        stop:0 #38bdf8, stop:0.5 #818cf8, stop:1 #c084fc);
+                        stop:0 #0284c7, stop:1 #38bdf8);
                     border-radius: 2px;
                 }
             """)
             self.progress_bar.setVisible(True)
         elif status_upper == DownloadStatus.PAUSED.value:
-            self.label.setText(f"{pct}% Paused")
-            self.label.setStyleSheet("color: #f59e0b;")
+            self.label.setText("● Paused")
+            self.label.setStyleSheet("color: #fbbf24; font-weight: 600; background: transparent; border: none; padding: 0;")
+            self.pct_label.setText(f"{pct}%")
+            self.pct_label.setStyleSheet("color: #94a3b8; font-family: 'JetBrains Mono', Consolas, monospace; background: transparent;")
+            self.pct_label.setVisible(True)
             self.progress_bar.setValue(pct)
             self.progress_bar.setStyleSheet("""
                 QProgressBar {
@@ -134,28 +172,46 @@ class StatusCellWidget(QWidget):
             """)
             self.progress_bar.setVisible(True)
         elif status_upper == DownloadStatus.COMPLETED.value:
-            self.label.setText("Finished")
-            self.label.setStyleSheet("color: #94a3b8;")
+            self.label.setText("  ✓ Completed  ")
+            self.label.setStyleSheet("""
+                QLabel {
+                    background-color: rgba(16, 185, 129, 0.15);
+                    border: 1px solid rgba(16, 185, 129, 0.35);
+                    color: #34d399;
+                    border-radius: 9px;
+                    padding: 2px 6px;
+                    font-size: 11px;
+                    font-weight: 500;
+                }
+            """)
+            self.pct_label.setVisible(False)
             self.progress_bar.setVisible(False)
         elif status_upper == DownloadStatus.QUEUED.value:
-            self.label.setText("Added")
-            self.label.setStyleSheet("color: #94a3b8;")
+            self.label.setText("Queued")
+            self.label.setStyleSheet("color: #94a3b8; background: transparent; border: none; padding: 0;")
+            self.pct_label.setVisible(False)
             self.progress_bar.setVisible(False)
         elif status_upper == DownloadStatus.CONNECTING.value:
-            self.label.setText("Connecting...")
-            self.label.setStyleSheet("color: #38bdf8;")
+            self.label.setText("● Connecting...")
+            self.label.setStyleSheet("color: #38bdf8; font-weight: 500; background: transparent; border: none; padding: 0;")
+            self.pct_label.setVisible(False)
             self.progress_bar.setVisible(False)
         elif status_upper == DownloadStatus.MERGING.value:
-            self.label.setText("Merging...")
-            self.label.setStyleSheet("color: #818cf8;")
-            self.progress_bar.setVisible(False)
+            self.label.setText("● Merging...")
+            self.label.setStyleSheet("color: #818cf8; font-weight: 500; background: transparent; border: none; padding: 0;")
+            self.pct_label.setText(f"{pct}%")
+            self.pct_label.setVisible(True)
+            self.progress_bar.setValue(pct)
+            self.progress_bar.setVisible(True)
         elif status_upper == DownloadStatus.FAILED.value:
-            self.label.setText("Failed")
-            self.label.setStyleSheet("color: #ef4444;")
+            self.label.setText("✕ Failed")
+            self.label.setStyleSheet("color: #ef4444; font-weight: 500; background: transparent; border: none; padding: 0;")
+            self.pct_label.setVisible(False)
             self.progress_bar.setVisible(False)
         else:
             self.label.setText(status_str.capitalize())
-            self.label.setStyleSheet("color: #94a3b8;")
+            self.label.setStyleSheet("color: #94a3b8; background: transparent; border: none; padding: 0;")
+            self.pct_label.setVisible(False)
             self.progress_bar.setVisible(False)
 
 
@@ -211,7 +267,7 @@ class MainWindow(QMainWindow):
         # 2. Üst Araç Çubuğu ve Arama (Toolbar)
         self._create_top_toolbar()
 
-        # 3. Ana Gövde: Sol Kategori Ağacı + Sağ Responsive Tablo
+        # 3. Ana Gövde: Sol Kategori Ağacı + Alt Disk Kartı + Sağ Responsive Tablo
         central_widget = QWidget(self)
         self.setCentralWidget(central_widget)
         main_layout = QHBoxLayout(central_widget)
@@ -222,18 +278,30 @@ class MainWindow(QMainWindow):
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setHandleWidth(1)
 
-        # --- SOL KENAR ÇUBUĞU (Kategori Ağacı) ---
+        # --- SOL KENAR ÇUBUĞU (Kategori Ağacı + Disk Kartı) ---
+        sidebar_container = QWidget()
+        sidebar_container.setObjectName("sidebarContainer")
+        sidebar_container.setFixedWidth(230)
+        sidebar_layout = QVBoxLayout(sidebar_container)
+        sidebar_layout.setContentsMargins(0, 0, 0, 0)
+        sidebar_layout.setSpacing(0)
+
         self.sidebar_tree = QTreeWidget()
         self.sidebar_tree.setObjectName("sidebarTree")
         self.sidebar_tree.setHeaderHidden(True)
-        self.sidebar_tree.setFixedWidth(210)
-        self.sidebar_tree.setIndentation(18)
+        self.sidebar_tree.setIndentation(16)
         self.sidebar_tree.setAnimated(True)
 
         self._populate_sidebar_tree()
         self.sidebar_tree.itemClicked.connect(self._on_sidebar_item_clicked)
         self.sidebar_tree.currentItemChanged.connect(self._on_sidebar_current_item_changed)
-        splitter.addWidget(self.sidebar_tree)
+        sidebar_layout.addWidget(self.sidebar_tree, 1)
+
+        # Depolama Disk Kartı
+        self.disk_card = self._create_disk_card()
+        sidebar_layout.addWidget(self.disk_card, 0)
+
+        splitter.addWidget(sidebar_container)
 
         # --- SAĞ İÇERİK ALANI (Tablo ve Boş Durum) ---
         table_container = QWidget()
@@ -245,7 +313,7 @@ class MainWindow(QMainWindow):
         self.downloads_table = QTableWidget(0, 7)
         self.downloads_table.setObjectName("downloadsTable")
         self.downloads_table.setHorizontalHeaderLabels([
-            "", "Name", "Size", "Status", "Speed", "Time Left", "Date Added"
+            "", "FILE NAME", "SIZE", "PROGRESS & STATUS", "SPEED", "TIME LEFT", "DATE"
         ])
         self.downloads_table.verticalHeader().setVisible(False)
         self.downloads_table.setShowGrid(False)
@@ -264,17 +332,17 @@ class MainWindow(QMainWindow):
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
         self.downloads_table.setColumnWidth(0, 38)  # Checkbox sütunu
 
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)  # İsim sütunu responsive esner
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)  # Dosya adı sütunu responsive esner
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)
-        self.downloads_table.setColumnWidth(2, 155)  # Size (wider for "X.XX MB / Y.YY MB")
+        self.downloads_table.setColumnWidth(2, 165)  # Size ("33.50 MB / 79.78 MB")
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.Interactive)
-        self.downloads_table.setColumnWidth(3, 145)  # Status
+        self.downloads_table.setColumnWidth(3, 175)  # Progress & Status
         header.setSectionResizeMode(4, QHeaderView.ResizeMode.Interactive)
-        self.downloads_table.setColumnWidth(4, 95)  # Speed
+        self.downloads_table.setColumnWidth(4, 105)  # Speed
         header.setSectionResizeMode(5, QHeaderView.ResizeMode.Interactive)
-        self.downloads_table.setColumnWidth(5, 105)  # Time Left
+        self.downloads_table.setColumnWidth(5, 100)  # Time Left
         header.setSectionResizeMode(6, QHeaderView.ResizeMode.Interactive)
-        self.downloads_table.setColumnWidth(6, 115)  # Date Added
+        self.downloads_table.setColumnWidth(6, 110)  # Date
 
         table_layout.addWidget(self.downloads_table)
 
@@ -294,8 +362,32 @@ class MainWindow(QMainWindow):
         self._create_statusbar()
 
     def _create_menubar(self) -> None:
-        """Üst Windows menü çubuğunu oluşturur."""
+        """Üst modern Cyber-Slate menü çubuğunu ve sol logo rozetini oluşturur."""
         menubar = self.menuBar()
+
+        # Sol Köşe Rozeti: İkon + Download Manager PRO
+        logo_widget = QWidget(menubar)
+        logo_layout = QHBoxLayout(logo_widget)
+        logo_layout.setContentsMargins(8, 2, 14, 2)
+        logo_layout.setSpacing(8)
+
+        logo_icon = QLabel(" ↓ ")
+        logo_icon.setFixedSize(22, 22)
+        logo_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        logo_icon.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        logo_icon.setStyleSheet("""
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #38bdf8, stop:1 #2563eb);
+            color: #ffffff;
+            border-radius: 6px;
+        """)
+        logo_layout.addWidget(logo_icon)
+
+        logo_text = QLabel('Download Manager <span style="color: #38bdf8; font-weight: bold;">PRO</span>')
+        logo_text.setFont(QFont("Inter", 9, QFont.Weight.DemiBold))
+        logo_text.setStyleSheet("color: #f1f5f9;")
+        logo_layout.addWidget(logo_text)
+
+        menubar.setCornerWidget(logo_widget, Qt.Corner.TopLeftCorner)
 
         # File Menüsü
         file_menu = menubar.addMenu("File")
@@ -304,7 +396,7 @@ class MainWindow(QMainWindow):
         act_add.triggered.connect(lambda: self._open_add_dialog())
         file_menu.addAction(act_add)
 
-        act_media = QAction("🎬 Add Video / Media...", self)
+        act_media = QAction("🎬 Capture Video...", self)
         act_media.setShortcut("Ctrl+M")
         act_media.triggered.connect(lambda: self._open_media_dialog())
         file_menu.addAction(act_media)
@@ -321,37 +413,6 @@ class MainWindow(QMainWindow):
         act_exit.triggered.connect(self._exit_app)
         file_menu.addAction(act_exit)
 
-        # Tasks Menüsü
-        tasks_menu = menubar.addMenu("Tasks")
-        act_start_all = QAction("▶️ Start / Resume All", self)
-        act_start_all.triggered.connect(self._resume_all_tasks)
-        tasks_menu.addAction(act_start_all)
-
-        act_pause_all = QAction("⏸️ Pause All", self)
-        act_pause_all.triggered.connect(self._pause_all_tasks)
-        tasks_menu.addAction(act_pause_all)
-
-        act_stop_all = QAction("⏹️ Stop All", self)
-        act_stop_all.triggered.connect(self._stop_all_tasks)
-        tasks_menu.addAction(act_stop_all)
-
-        tasks_menu.addSeparator()
-
-        act_sel_all = QAction("☑️ Select All", self)
-        act_sel_all.triggered.connect(lambda: self._select_all_rows(True))
-        tasks_menu.addAction(act_sel_all)
-
-        act_desel_all = QAction("◻️ Deselect All", self)
-        act_desel_all.triggered.connect(lambda: self._select_all_rows(False))
-        tasks_menu.addAction(act_desel_all)
-
-        tasks_menu.addSeparator()
-
-        act_delete = QAction("🗑️ Delete...", self)
-        act_delete.setShortcut("Delete")
-        act_delete.triggered.connect(self._on_delete_clicked)
-        tasks_menu.addAction(act_delete)
-
         # Tools Menüsü
         tools_menu = menubar.addMenu("Tools")
         act_settings = QAction("⚙️ Network Settings...", self)
@@ -365,62 +426,108 @@ class MainWindow(QMainWindow):
         self.act_autostart.triggered.connect(self._toggle_autostart)
         tools_menu.addAction(self.act_autostart)
 
+        # View Menüsü
+        view_menu = menubar.addMenu("View")
+        act_focus_search = QAction("🔍 Focus Search Bar", self)
+        act_focus_search.setShortcut("Ctrl+F")
+        act_focus_search.triggered.connect(lambda: self.search_bar.setFocus())
+        view_menu.addAction(act_focus_search)
+
+        # Queue Menüsü
+        queue_menu = menubar.addMenu("Queue")
+        act_start_all = QAction("▶️ Start / Resume Queue", self)
+        act_start_all.triggered.connect(self._resume_all_tasks)
+        queue_menu.addAction(act_start_all)
+
+        act_pause_all = QAction("⏸️ Stop Queue", self)
+        act_pause_all.triggered.connect(self._pause_all_tasks)
+        queue_menu.addAction(act_pause_all)
+
+        act_stop_all = QAction("⏹️ Stop All", self)
+        act_stop_all.triggered.connect(self._stop_all_tasks)
+        queue_menu.addAction(act_stop_all)
+
+        queue_menu.addSeparator()
+
+        act_sel_all = QAction("☑️ Select All", self)
+        act_sel_all.triggered.connect(lambda: self._select_all_rows(True))
+        queue_menu.addAction(act_sel_all)
+
+        act_desel_all = QAction("◻️ Deselect All", self)
+        act_desel_all.triggered.connect(lambda: self._select_all_rows(False))
+        queue_menu.addAction(act_desel_all)
+
+        queue_menu.addSeparator()
+
+        act_delete = QAction("🗑️ Delete Selected...", self)
+        act_delete.setShortcut("Delete")
+        act_delete.triggered.connect(self._on_delete_clicked)
+        queue_menu.addAction(act_delete)
+
         # Help Menüsü
         help_menu = menubar.addMenu("Help")
-        act_about = QAction("ℹ️ About Download Manager", self)
+        act_about = QAction("ℹ️ About Download Manager PRO", self)
         act_about.triggered.connect(self._show_about)
         help_menu.addAction(act_about)
 
     def _create_top_toolbar(self) -> None:
-        """Üst modern araç çubuğu ve canlı arama kutusunu kurar."""
+        """Üst modern Cyber-Slate eylem araç çubuğu ve canlı arama kutusunu kurar."""
         toolbar = QToolBar("Main Toolbar", self)
         toolbar.setMovable(False)
-        # Sağ tık menüsünü kapat (aksi hâlde menü çubuğunun yanında kare artefakt çıkar)
         toolbar.setContextMenuPolicy(Qt.ContextMenuPolicy.PreventContextMenu)
         self.addToolBar(toolbar)
 
-        # + Add URL Hap Butonu
+        # + Add URL Butonu (Mavi-Cyan Gradyan)
         btn_add = QPushButton("➕ Add URL")
         btn_add.setObjectName("addUrlBtn")
         btn_add.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_add.clicked.connect(lambda: self._open_add_dialog())
         toolbar.addWidget(btn_add)
 
-        # 🗑️ Delete Butonu — Add URL'nin hemen yanında
+        # 🗑️ Delete Butonu
         self.btn_delete = QPushButton("🗑 Delete")
         self.btn_delete.setObjectName("toolDeleteBtn")
-        self.btn_delete.setToolTip("Delete selected downloads (from list or permanently from disk)")
+        self.btn_delete.setToolTip("Delete selected downloads")
         self.btn_delete.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_delete.clicked.connect(self._on_delete_clicked)
         toolbar.addWidget(self.btn_delete)
 
-        # 🎬 Video Download Butonu
-        btn_media = QPushButton("🎬 Video Download")
-        btn_media.setObjectName("toolActionBtn")
+        toolbar.addSeparator()
+
+        # 🎬 Capture Video
+        btn_media = QPushButton("🎬 Capture Video")
+        btn_media.setObjectName("toolCaptureBtn")
         btn_media.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_media.clicked.connect(lambda: self._open_media_dialog())
         toolbar.addWidget(btn_media)
 
-        toolbar.addSeparator()
-
-        # Eylem Butonları
-        btn_start_queue = QPushButton("▷ Start Queue")
-        btn_start_queue.setObjectName("toolActionBtn")
+        # ▶ Start Queue
+        btn_start_queue = QPushButton("▶ Start Queue")
+        btn_start_queue.setObjectName("toolQueueStartBtn")
+        btn_start_queue.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_start_queue.clicked.connect(self._resume_all_tasks)
         toolbar.addWidget(btn_start_queue)
 
-        btn_stop_queue = QPushButton("□ Stop Queue")
-        btn_stop_queue.setObjectName("toolActionBtn")
+        # ⏸ Stop Queue
+        btn_stop_queue = QPushButton("⏸ Stop Queue")
+        btn_stop_queue.setObjectName("toolQueueStopBtn")
+        btn_stop_queue.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_stop_queue.clicked.connect(self._pause_all_tasks)
         toolbar.addWidget(btn_stop_queue)
 
-        btn_stop_all = QPushButton("□ Stop All")
-        btn_stop_all.setObjectName("toolActionBtn")
+        # ⏹ Stop All
+        btn_stop_all = QPushButton("⏹ Stop All")
+        btn_stop_all.setObjectName("toolStopAllBtn")
+        btn_stop_all.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_stop_all.clicked.connect(self._stop_all_tasks)
         toolbar.addWidget(btn_stop_all)
 
+        toolbar.addSeparator()
+
+        # ⚙ Settings
         btn_settings = QPushButton("⚙ Settings")
-        btn_settings.setObjectName("toolActionBtn")
+        btn_settings.setObjectName("toolSettingsBtn")
+        btn_settings.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_settings.clicked.connect(self._open_settings_dialog)
         toolbar.addWidget(btn_settings)
 
@@ -432,30 +539,115 @@ class MainWindow(QMainWindow):
         # 🔍 Canlı Arama Kutusu
         self.search_bar = QLineEdit()
         self.search_bar.setObjectName("searchBar")
-        self.search_bar.setPlaceholderText("🔍 Search in the List")
+        self.search_bar.setPlaceholderText("Search downloads...")
         self.search_bar.setClearButtonEnabled(True)
         self.search_bar.textChanged.connect(self._on_search_text_changed)
+
+        # Ctrl+F Kısayol Rozeti
+        act_shortcut = QAction("Ctrl+F", self.search_bar)
+        self.search_bar.addAction(act_shortcut, QLineEdit.ActionPosition.TrailingPosition)
+
         toolbar.addWidget(self.search_bar)
+
+    def _create_disk_card(self) -> QFrame:
+        """Kenar çubuğu altındaki depolama disk kartını oluşturur."""
+        card = QFrame()
+        card.setObjectName("diskCard")
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(12, 10, 12, 10)
+        layout.setSpacing(6)
+
+        # 1. Satır: Sürücü İkonu + Adı ve Kalan Alan
+        top_layout = QHBoxLayout()
+        top_layout.setContentsMargins(0, 0, 0, 0)
+        self.disk_drive_lbl = QLabel("🖴 Local Disk (C:)")
+        self.disk_drive_lbl.setFont(QFont("Inter", 8, QFont.Weight.DemiBold))
+        self.disk_drive_lbl.setStyleSheet("color: #cbd5e1;")
+        top_layout.addWidget(self.disk_drive_lbl)
+
+        top_layout.addStretch()
+
+        self.disk_free_lbl = QLabel("142.6 GB Free")
+        self.disk_free_lbl.setFont(QFont("JetBrains Mono", 8, QFont.Weight.Bold))
+        self.disk_free_lbl.setStyleSheet("color: #38bdf8;")
+        top_layout.addWidget(self.disk_free_lbl)
+        layout.addLayout(top_layout)
+
+        # 2. Satır: İlerleme Çubuğu
+        self.disk_progress = QProgressBar()
+        self.disk_progress.setFixedHeight(5)
+        self.disk_progress.setRange(0, 100)
+        self.disk_progress.setValue(68)
+        self.disk_progress.setTextVisible(False)
+        self.disk_progress.setStyleSheet("""
+            QProgressBar {
+                background-color: #1e293b;
+                border: none;
+                border-radius: 2px;
+            }
+            QProgressBar::chunk {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #0284c7, stop:1 #38bdf8);
+                border-radius: 2px;
+            }
+        """)
+        layout.addWidget(self.disk_progress)
+
+        # 3. Satır: Kullanılan ve Toplam
+        bottom_layout = QHBoxLayout()
+        bottom_layout.setContentsMargins(0, 0, 0, 0)
+        self.disk_used_lbl = QLabel("Used: 340 GB")
+        self.disk_used_lbl.setFont(QFont("JetBrains Mono", 7))
+        self.disk_used_lbl.setStyleSheet("color: #64748b;")
+        bottom_layout.addWidget(self.disk_used_lbl)
+
+        bottom_layout.addStretch()
+
+        self.disk_total_lbl = QLabel("Total: 512 GB")
+        self.disk_total_lbl.setFont(QFont("JetBrains Mono", 7))
+        self.disk_total_lbl.setStyleSheet("color: #64748b;")
+        bottom_layout.addWidget(self.disk_total_lbl)
+        layout.addLayout(bottom_layout)
+
+        return card
+
+    def _update_disk_storage(self) -> None:
+        """Kullanıcının indirme sürücüsünün disk durumunu günceller."""
+        import shutil
+        dest = getattr(self.task_manager, "default_download_dir", "C:\\")
+        try:
+            drive = os.path.splitdrive(os.path.abspath(dest))[0] or "C:"
+            usage = shutil.disk_usage(dest)
+            total_gb = usage.total / (1024 ** 3)
+            used_gb = usage.used / (1024 ** 3)
+            free_gb = usage.free / (1024 ** 3)
+            used_pct = int((usage.used / usage.total) * 100) if usage.total > 0 else 0
+
+            self.disk_drive_lbl.setText(f"🖴 Local Disk ({drive})")
+            self.disk_free_lbl.setText(f"{free_gb:.1f} GB Free")
+            self.disk_progress.setValue(used_pct)
+            self.disk_used_lbl.setText(f"Used: {int(used_gb)} GB")
+            self.disk_total_lbl.setText(f"Total: {int(total_gb)} GB")
+        except Exception:
+            pass
 
     def _populate_sidebar_tree(self) -> None:
         """Sol taraftaki hiyerarşik kategori ağacını doldurur."""
         self.sidebar_tree.clear()
         self.sidebar_items = {}
 
-        # 1. Kök: All (Tümü)
-        self.item_all = QTreeWidgetItem(self.sidebar_tree, ["📁 All"])
+        # 1. Kök: Categories
+        self.item_all = QTreeWidgetItem(self.sidebar_tree, ["📁 Categories"])
         self.item_all.setData(0, Qt.ItemDataRole.UserRole, "ALL")
-        self.sidebar_items["ALL"] = (self.item_all, "📁 All")
+        self.sidebar_items["ALL"] = (self.item_all, "📁 Categories")
 
-        # Alt Kategoriler
         categories = [
-            ("🖼️ Image", "Image"),
-            ("🎵 Music", "Music"),
-            ("🎬 Video", "Video"),
-            ("📱 Apps", "Apps"),
-            ("📄 Document", "Document"),
-            ("🗜️ Compressed", "Compressed"),
-            ("📦 Other", "Other")
+            ("🖼️ Images", "Image"),
+            ("🎵 Audio & Music", "Music"),
+            ("🎬 Videos", "Video"),
+            ("📱 Programs & Apps", "Apps"),
+            ("📄 Documents", "Document"),
+            ("🗜️ Compressed (Zip)", "Compressed"),
+            ("📦 Others", "Other")
         ]
         for label, cat_key in categories:
             child = QTreeWidgetItem(self.item_all, [label])
@@ -464,15 +656,22 @@ class MainWindow(QMainWindow):
 
         self.item_all.setExpanded(True)
 
-        # 2. Finished
-        self.item_finished = QTreeWidgetItem(self.sidebar_tree, ["📁 Finished"])
-        self.item_finished.setData(0, Qt.ItemDataRole.UserRole, "FINISHED")
-        self.sidebar_items["FINISHED"] = (self.item_finished, "📁 Finished")
+        # 2. STATUS Bölümü
+        self.item_status_root = QTreeWidgetItem(self.sidebar_tree, ["STATUS"])
+        self.item_status_root.setData(0, Qt.ItemDataRole.UserRole, "STATUS_HEADER")
+        self.item_status_root.setFlags(Qt.ItemFlag.ItemIsEnabled)
 
-        # 3. Unfinished
-        self.item_unfinished = QTreeWidgetItem(self.sidebar_tree, ["📁 Unfinished"])
-        self.item_unfinished.setData(0, Qt.ItemDataRole.UserRole, "UNFINISHED")
-        self.sidebar_items["UNFINISHED"] = (self.item_unfinished, "📁 Unfinished")
+        status_items = [
+            ("🟢 Completed", "COMPLETED"),
+            ("🔵 Downloading", "DOWNLOADING"),
+            ("🟡 Paused", "PAUSED")
+        ]
+        for label, s_key in status_items:
+            child = QTreeWidgetItem(self.item_status_root, [label])
+            child.setData(0, Qt.ItemDataRole.UserRole, s_key)
+            self.sidebar_items[s_key] = (child, label)
+
+        self.item_status_root.setExpanded(True)
 
         self.sidebar_tree.setCurrentItem(self.item_all)
         self.current_category_filter = "ALL"
@@ -497,6 +696,9 @@ class MainWindow(QMainWindow):
             "ALL": len(all_tasks),
             "FINISHED": sum(1 for t in all_tasks if t.status == DownloadStatus.COMPLETED),
             "UNFINISHED": sum(1 for t in all_tasks if t.status != DownloadStatus.COMPLETED),
+            "COMPLETED": sum(1 for t in all_tasks if t.status == DownloadStatus.COMPLETED),
+            "DOWNLOADING": sum(1 for t in all_tasks if t.status == DownloadStatus.DOWNLOADING),
+            "PAUSED": sum(1 for t in all_tasks if t.status == DownloadStatus.PAUSED),
             "Image": sum(1 for t in all_tasks if t.category == "Image"),
             "Music": sum(1 for t in all_tasks if t.category == "Music"),
             "Video": sum(1 for t in all_tasks if t.category == "Video"),
@@ -510,33 +712,37 @@ class MainWindow(QMainWindow):
             cnt = counts.get(key, 0)
             tree_item.setText(0, f"{base_label} ({cnt})")
 
+        self._update_disk_storage()
+
     def _create_statusbar(self) -> None:
         """Alt durum çubuğu ve ağ hızı metriklerini kurar."""
         status_bar = QStatusBar(self)
         self.setStatusBar(status_bar)
 
-        # Sunucu Durum Rozeti
+        # Sunucu Durum Rozeti (Yeşil canlı sinyal)
         self.status_server_lbl = QLabel("🟢 Server Listening (ws://127.0.0.1:6800)")
-        self.status_server_lbl.setStyleSheet("color: #38ef7d; margin-left: 8px; font-weight: bold;")
+        self.status_server_lbl.setStyleSheet("color: #34d399; margin-left: 8px; font-weight: 600; font-size: 11px;")
         status_bar.addWidget(self.status_server_lbl)
 
         status_bar.addPermanentWidget(QLabel("|"))
 
         # Eklenti bağlantı sayısı
-        self.status_clients_lbl = QLabel("🌐 Extension: 0")
-        self.status_clients_lbl.setStyleSheet("color: #94a3b8; margin-right: 12px;")
+        self.status_clients_lbl = QLabel("🌐 Browser Extension: 0 Connected")
+        self.status_clients_lbl.setStyleSheet("color: #94a3b8; margin-right: 8px; font-size: 11px;")
         status_bar.addPermanentWidget(self.status_clients_lbl)
 
         status_bar.addPermanentWidget(QLabel("|"))
 
-        # Toplam İndirme Hızı ve Görev Sayısı
-        self.status_count_lbl = QLabel("☰ 0")
-        self.status_count_lbl.setStyleSheet("color: #94a3b8; font-weight: bold; margin-right: 8px;")
+        # Toplam İndirme Hızı ve Aktif Görev Sayısı
+        self.status_count_lbl = QLabel("☰ Active: 0 / 0")
+        self.status_count_lbl.setStyleSheet("color: #cbd5e1; font-weight: 500; margin-right: 8px; font-size: 11px;")
         status_bar.addPermanentWidget(self.status_count_lbl)
 
-        self.status_speed_lbl = QLabel("⚡ 0 B/s")
-        self.status_speed_lbl.setStyleSheet("color: #38bdf8; font-weight: bold; margin-right: 12px;")
-        status_bar.addPermanentWidget(self.status_speed_lbl)
+        status_bar.addPermanentWidget(QLabel("|"))
+
+        self.status_speed_lbl = QLabel("⚡ 0.0 B/s")
+        self.status_speed_lbl.setStyleSheet("color: #38bdf8; font-weight: bold; margin-right: 12px; font-size: 11px;")
+
 
     def _connect_signals(self) -> None:
         """TaskManager ve ServerBridge sinyallerini bağlar."""
@@ -555,6 +761,30 @@ class MainWindow(QMainWindow):
 
     # ==================== Tablo ve Görev Yönetimi ====================
 
+    def _get_task_subtitle(self, task: DownloadTask) -> str:
+        """Görevin türüne veya URL'sine göre şık bir alt açıklama oluşturur."""
+        if task.task_type == TaskType.MEDIA_VIDEO:
+            return "yt-dlp • 1080p FHD 60fps"
+        elif task.task_type == TaskType.MEDIA_AUDIO:
+            return "Music • 320 kbps High Quality"
+        elif task.category == "Compressed":
+            return "Compressed Archive File"
+        elif task.category == "Apps":
+            return "Program & Apps Installer"
+        elif task.category == "Document":
+            return "Document • App Settings"
+        elif task.category == "Image":
+            return "Image / Graphic File"
+        elif task.url:
+            import urllib.parse
+            try:
+                parsed = urllib.parse.urlparse(task.url)
+                if parsed.netloc:
+                    return parsed.netloc
+            except Exception:
+                pass
+        return task.category
+
     @pyqtSlot(DownloadTask)
     def _on_task_added(self, task: DownloadTask) -> None:
         """Yeni görev eklendiğinde tabloya satır ve uyumluluk kartını ekler."""
@@ -570,7 +800,7 @@ class MainWindow(QMainWindow):
         # Tabloya yeni satır ekle
         row = self.downloads_table.rowCount()
         self.downloads_table.insertRow(row)
-        self.downloads_table.setRowHeight(row, 48)
+        self.downloads_table.setRowHeight(row, 52)
 
         self.task_rows[task.task_id] = row
         self.row_tasks[row] = task.task_id
@@ -583,18 +813,22 @@ class MainWindow(QMainWindow):
         chk_item.setData(Qt.ItemDataRole.UserRole, task.task_id)
         self.downloads_table.setItem(row, 0, chk_item)
 
-        # Sütun 1: İsim Hücresi (İkon + Ad + Kategori)
+        # Sütun 1: İsim Hücresi (İkon + Ad + Kategori/Alt Bilgi)
+        subtitle = self._get_task_subtitle(task)
         name_cell = FileNameCellWidget(
             filename=task.filename,
             category=task.category,
-            icon_str=task.category_icon
+            icon_str=task.category_icon,
+            subtitle=subtitle
         )
         self.downloads_table.setCellWidget(row, 1, name_cell)
 
         # Sütun 2: Boyut
-        size_item = QTableWidgetItem(task.formatted_total_size)
+        size_str = task.formatted_size_progress if task.status == DownloadStatus.DOWNLOADING and task.downloaded_size > 0 else task.formatted_total_size
+        size_item = QTableWidgetItem(size_str)
         size_item.setTextAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
         size_item.setForeground(QColor("#cbd5e1"))
+        size_item.setFont(QFont("JetBrains Mono", 8))
         self.downloads_table.setItem(row, 2, size_item)
 
         # Sütun 3: Durum Hücresi (Yüzde + Mini Neon Çubuk)
@@ -602,15 +836,19 @@ class MainWindow(QMainWindow):
         self.downloads_table.setCellWidget(row, 3, status_cell)
 
         # Sütun 4: Hız
-        speed_item = QTableWidgetItem(task.formatted_speed if task.status == DownloadStatus.DOWNLOADING else "")
+        speed_text = f"▲ {task.formatted_speed}" if task.status == DownloadStatus.DOWNLOADING and task.formatted_speed else "--"
+        speed_item = QTableWidgetItem(speed_text)
         speed_item.setTextAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
-        speed_item.setForeground(QColor("#38bdf8"))
+        speed_item.setForeground(QColor("#38bdf8") if task.status == DownloadStatus.DOWNLOADING else QColor("#64748b"))
+        speed_item.setFont(QFont("JetBrains Mono", 8, QFont.Weight.DemiBold if task.status == DownloadStatus.DOWNLOADING else QFont.Weight.Normal))
         self.downloads_table.setItem(row, 4, speed_item)
 
         # Sütun 5: Kalan Süre
-        eta_item = QTableWidgetItem(task.formatted_eta if task.status == DownloadStatus.DOWNLOADING else "")
+        eta_text = f"{task.formatted_eta} s" if task.status == DownloadStatus.DOWNLOADING and task.formatted_eta != "--:--" else ("Finished" if task.status == DownloadStatus.COMPLETED else ("Queued" if task.status == DownloadStatus.PAUSED else "--"))
+        eta_item = QTableWidgetItem(eta_text)
         eta_item.setTextAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
-        eta_item.setForeground(QColor("#94a3b8"))
+        eta_item.setForeground(QColor("#cbd5e1") if task.status == DownloadStatus.DOWNLOADING else QColor("#64748b"))
+        eta_item.setFont(QFont("JetBrains Mono", 8))
         self.downloads_table.setItem(row, 5, eta_item)
 
         # Sütun 6: Eklenme Tarihi
@@ -645,7 +883,6 @@ class MainWindow(QMainWindow):
                 if task:
                     size_text = task.formatted_size_progress
                 else:
-                    # Fallback: sinyal verisinden hesapla
                     dl = data.get("downloaded_bytes", 0)
                     tot = data.get("total_bytes", 0)
                     if tot > 0:
@@ -660,12 +897,16 @@ class MainWindow(QMainWindow):
 
             speed_item = self.downloads_table.item(row, 4)
             if speed_item:
-                speed_item.setText(data.get("speed_str", ""))
+                speed_str = data.get("speed_str", "")
+                speed_item.setText(f"▲ {speed_str}" if speed_str else "--")
+                speed_item.setForeground(QColor("#38bdf8"))
+                speed_item.setFont(QFont("JetBrains Mono", 8, QFont.Weight.DemiBold))
 
             eta_item = self.downloads_table.item(row, 5)
             if eta_item:
                 eta_str = data.get("eta_str", "")
-                eta_item.setText(f"{eta_str} left" if eta_str and eta_str != "--:--" else "")
+                eta_item.setText(f"{eta_str} s" if eta_str and eta_str != "--:--" else "--")
+                eta_item.setForeground(QColor("#cbd5e1"))
 
         self._update_total_metrics()
 
@@ -693,11 +934,10 @@ class MainWindow(QMainWindow):
             if task:
                 name_cell = self.downloads_table.cellWidget(row, 1)
                 if isinstance(name_cell, FileNameCellWidget):
-                    name_cell.update_info(task.filename, task.category, task.category_icon)
+                    name_cell.update_info(task.filename, task.category, task.category_icon, self._get_task_subtitle(task))
 
                 size_item = self.downloads_table.item(row, 2)
                 if size_item:
-                    # Aktif veya duraklatılmış indirmelerde "indirilen / toplam" formatı
                     active_statuses = (
                         DownloadStatus.DOWNLOADING.value,
                         DownloadStatus.PAUSED.value,
@@ -709,13 +949,33 @@ class MainWindow(QMainWindow):
                     else:
                         size_item.setText(task.formatted_total_size)
 
-            if status_str != DownloadStatus.DOWNLOADING.value:
+            if status_str == DownloadStatus.COMPLETED.value:
                 speed_item = self.downloads_table.item(row, 4)
                 if speed_item:
-                    speed_item.setText("")
+                    speed_item.setText("--")
+                    speed_item.setForeground(QColor("#64748b"))
                 eta_item = self.downloads_table.item(row, 5)
                 if eta_item:
-                    eta_item.setText("")
+                    eta_item.setText("Finished")
+                    eta_item.setForeground(QColor("#64748b"))
+            elif status_str == DownloadStatus.PAUSED.value:
+                speed_item = self.downloads_table.item(row, 4)
+                if speed_item:
+                    speed_item.setText("0.0 B/s")
+                    speed_item.setForeground(QColor("#64748b"))
+                eta_item = self.downloads_table.item(row, 5)
+                if eta_item:
+                    eta_item.setText("Queued")
+                    eta_item.setForeground(QColor("#64748b"))
+            elif status_str != DownloadStatus.DOWNLOADING.value:
+                speed_item = self.downloads_table.item(row, 4)
+                if speed_item:
+                    speed_item.setText("--")
+                    speed_item.setForeground(QColor("#64748b"))
+                eta_item = self.downloads_table.item(row, 5)
+                if eta_item:
+                    eta_item.setText("--")
+                    eta_item.setForeground(QColor("#64748b"))
 
         self._apply_filter()
         self._update_total_metrics()
@@ -745,9 +1005,9 @@ class MainWindow(QMainWindow):
             # Sütun 1: İsim, Kategori ve İkon güncelle
             name_cell = self.downloads_table.cellWidget(row, 1)
             if isinstance(name_cell, FileNameCellWidget) and task:
-                name_cell.update_info(task.filename, task.category, task.category_icon)
+                name_cell.update_info(task.filename, task.category, task.category_icon, self._get_task_subtitle(task))
 
-            # Sütun 2: Boyut güncelle!
+            # Sütun 2: Boyut güncelle
             size_item = self.downloads_table.item(row, 2)
             if size_item and task:
                 size_item.setText(task.formatted_total_size)
@@ -758,10 +1018,12 @@ class MainWindow(QMainWindow):
 
             speed_item = self.downloads_table.item(row, 4)
             if speed_item:
-                speed_item.setText("")
+                speed_item.setText("--")
+                speed_item.setForeground(QColor("#64748b"))
             eta_item = self.downloads_table.item(row, 5)
             if eta_item:
-                eta_item.setText("")
+                eta_item.setText("Finished")
+                eta_item.setForeground(QColor("#64748b"))
 
         self._apply_filter()
         self._update_total_metrics()
@@ -1211,13 +1473,12 @@ class MainWindow(QMainWindow):
 
     def _on_ws_client_connected(self, client_id: str) -> None:
         self._client_count += 1
-        self.status_clients_lbl.setText(f"🌐 Extension: {self._client_count}")
+        self.status_clients_lbl.setText(f"🌐 Browser Extension: {self._client_count} Connected")
         self.status_server_lbl.setText("🟢 Server Listening (ws://127.0.0.1:6800)")
-        self.status_server_lbl.setStyleSheet("color: #38ef7d; margin-left: 8px; font-weight: bold;")
 
     def _on_ws_client_disconnected(self, client_id: str) -> None:
         self._client_count = max(0, self._client_count - 1)
-        self.status_clients_lbl.setText(f"🌐 Extension: {self._client_count}")
+        self.status_clients_lbl.setText(f"🌐 Browser Extension: {self._client_count} Connected")
 
     def _on_ext_download_requested(self, data: dict) -> None:
         """Tarayıcıdan indirme isteği geldiğinde kompakt pencereyi açar."""

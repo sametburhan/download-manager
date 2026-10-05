@@ -260,18 +260,26 @@ class DownloadTask:
     @property
     def formatted_date_added(self) -> str:
         """Görevin eklendiği zamandan bugüne geçen göreceli süreyi verir."""
-        diff = time.time() - self.created_at
+        from datetime import datetime
+        now = time.time()
+        diff = max(0.0, now - self.created_at)
         if diff < 60:
             return "Just now"
         elif diff < 3600:
             mins = int(diff // 60)
-            return f"{mins} mins ago"
-        elif diff < 86400:
-            hours = int(diff // 3600)
-            return f"{hours} hours ago"
+            return "1 min ago" if mins == 1 else f"{mins} mins ago"
+
+        task_dt = datetime.fromtimestamp(self.created_at)
+        now_dt = datetime.now()
+        if task_dt.date() == now_dt.date():
+            return f"Today {task_dt.strftime('%H:%M')}"
+        elif (now_dt.date() - task_dt.date()).days == 1:
+            return f"Yesterday {task_dt.strftime('%H:%M')}"
         else:
-            days = int(diff // 86400)
-            return f"{days} days ago"
+            days = (now_dt.date() - task_dt.date()).days
+            if days < 7:
+                return f"{days} days ago"
+            return task_dt.strftime("%Y-%m-%d %H:%M")
 
     def to_dict(self) -> Dict[str, Any]:
         """Görev bilgilerini JSON serileştirme için sözlüğe çevirir."""

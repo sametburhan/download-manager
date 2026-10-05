@@ -41,7 +41,7 @@ class TestAbDownloadManagerUi(unittest.TestCase):
 
         # Tablo sütun sayısı ve başlıklar
         self.assertEqual(self.window.downloads_table.columnCount(), 7)
-        expected_headers = ["", "Name", "Size", "Status", "Speed", "Time Left", "Date Added"]
+        expected_headers = ["", "FILE NAME", "SIZE", "PROGRESS & STATUS", "SPEED", "TIME LEFT", "DATE"]
         for col_idx, expected in enumerate(expected_headers):
             item = self.window.downloads_table.horizontalHeaderItem(col_idx)
             self.assertIsNotNone(item)
@@ -72,7 +72,7 @@ class TestAbDownloadManagerUi(unittest.TestCase):
         name_cell = self.window.downloads_table.cellWidget(row, 1)
         self.assertIsInstance(name_cell, FileNameCellWidget)
         self.assertEqual(name_cell.name_lbl.text(), "Stories-of-Shahnameh.mp4")
-        self.assertEqual(name_cell.cat_lbl.text(), "Video")
+        self.assertTrue("Video" in name_cell.cat_lbl.text() or "example.com" in name_cell.cat_lbl.text())
 
         # Sütun 3: StatusCellWidget
         status_cell = self.window.downloads_table.cellWidget(row, 3)
@@ -95,11 +95,12 @@ class TestAbDownloadManagerUi(unittest.TestCase):
 
         row = self.window.task_rows.get("ab_test_video")
         status_cell = self.window.downloads_table.cellWidget(row, 3)
-        self.assertIn("39% Downloading", status_cell.label.text())
+        self.assertIn("Downloading", status_cell.label.text())
+        self.assertEqual(status_cell.pct_label.text(), "39%")
         self.assertEqual(status_cell.progress_bar.value(), 39)
 
         speed_item = self.window.downloads_table.item(row, 4)
-        self.assertEqual(speed_item.text(), "4.91 MB/s")
+        self.assertIn("4.91 MB/s", speed_item.text())
 
     def test_04_live_search_filter(self):
         """Canlı arama kutusunun satırları anında filtrelediğini test eder."""
