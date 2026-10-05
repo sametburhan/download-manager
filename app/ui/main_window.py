@@ -289,7 +289,9 @@ class MainWindow(QMainWindow):
         self.sidebar_tree = QTreeWidget()
         self.sidebar_tree.setObjectName("sidebarTree")
         self.sidebar_tree.setHeaderHidden(True)
-        self.sidebar_tree.setIndentation(16)
+        self.sidebar_tree.setIndentation(0)
+        self.sidebar_tree.setRootIsDecorated(False)
+        self.sidebar_tree.setItemsExpandable(False)
         self.sidebar_tree.setAnimated(True)
 
         self._populate_sidebar_tree()
@@ -654,9 +656,10 @@ class MainWindow(QMainWindow):
             ("📦 Others", "Other")
         ]
         for label, cat_key in categories:
-            child = QTreeWidgetItem(self.item_all, [label])
+            sub_label = f"   {label}"
+            child = QTreeWidgetItem(self.item_all, [sub_label])
             child.setData(0, Qt.ItemDataRole.UserRole, cat_key)
-            self.sidebar_items[cat_key] = (child, label)
+            self.sidebar_items[cat_key] = (child, sub_label)
 
         self.item_all.setExpanded(True)
 
@@ -671,9 +674,10 @@ class MainWindow(QMainWindow):
             ("🟡 Paused", "PAUSED")
         ]
         for label, s_key in status_items:
-            child = QTreeWidgetItem(self.item_status_root, [label])
+            sub_label = f"   {label}"
+            child = QTreeWidgetItem(self.item_status_root, [sub_label])
             child.setData(0, Qt.ItemDataRole.UserRole, s_key)
-            self.sidebar_items[s_key] = (child, label)
+            self.sidebar_items[s_key] = (child, sub_label)
 
         self.item_status_root.setExpanded(True)
 
