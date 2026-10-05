@@ -263,6 +263,10 @@ class MainWindow(QMainWindow):
 
         # Geriye dönük uyumluluk ve testler için kart referansları
         self.cards: Dict[str, DownloadCardWidget] = {}
+        # Gizli kart konteyneri: Kartların bağımsız pencere olarak fırlamasını önler
+        self._cards_container = QWidget(self)
+        self._cards_container.setObjectName("dummyCardsContainer")
+        self._cards_container.hide()
         # task_id -> row_index eşlemesi
         self.task_rows: Dict[str, int] = {}
         # row_index -> task_id eşlemesi
@@ -840,9 +844,9 @@ class MainWindow(QMainWindow):
         """Yeni görev eklendiğinde tabloya satır ve uyumluluk kartını ekler."""
         self.empty_label.setVisible(False)
 
-        # Geriye dönük uyumluluk ve testler için card nesnesi (MainWindow'a parent bağlanmaz)
-        card = DownloadCardWidget(task, parent=None)
-        card.hide()  # Layoutsuz kartın (0, 0) koordinatında menü logosunun üzerine oturmasını önle
+        # Geriye dönük uyumluluk ve testler için card nesnesi (Gizli dummy container'a bağlanır)
+        card = DownloadCardWidget(task, parent=self._cards_container)
+        card.hide()  # Kartın bağımsız pencere olarak fırlamasını veya ekranda görünmesini önle
         card.pause_requested.connect(self.task_manager.pause_task)
         card.resume_requested.connect(self.task_manager.resume_task)
         card.cancel_requested.connect(self._remove_task)
