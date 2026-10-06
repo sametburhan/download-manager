@@ -13,6 +13,7 @@ import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional, List, Dict, Any
 
+import urllib.request
 from PyQt6.QtCore import QThread, pyqtSignal
 import httpx
 
@@ -83,7 +84,6 @@ class HttpChunkDownloader(QThread):
             self.status_changed.emit(self.task.task_id, DownloadStatus.CONNECTING.value)
 
             if self.task.url.startswith("file://"):
-                import urllib.request
                 local_path = urllib.request.url2pathname(self.task.url.replace("file://", ""))
                 if local_path.startswith("/") and len(local_path) > 2 and local_path[2] == ":":
                     local_path = local_path[1:]
@@ -191,23 +191,41 @@ class HttpChunkDownloader(QThread):
 
     @staticmethod
     def _get_proxy_url() -> Optional[str]:
-        """Ayarlardan proxy yapılandırmasını okur ve httpx uyumlu URL döndürür."""
+        """Ayarlardan proxy yapılandırmasını okur ve httpx / httpx-socks uyumlu URL döndürür."""
         try:
             from app.core.config import load_network_settings
             net_settings = load_network_settings()
             if net_settings.proxy_mode == "manual" and net_settings.proxy_host:
                 pwd = getattr(net_settings, "proxy_pass", getattr(net_settings, "proxy_password", ""))
                 auth = f"{net_settings.proxy_user}:{pwd}@" if net_settings.proxy_user else ""
-                return f"http://{auth}{net_settings.proxy_host}:{net_settings.proxy_port}"
+                proto = (getattr(net_settings, "proxy_type", "HTTP") or "HTTP").lower()
+                return f"{proto}://{auth}{net_settings.proxy_host}:{net_settings.proxy_port}"
             elif net_settings.proxy_mode == "none":
                 return None
             elif net_settings.proxy_mode == "system":
-                import urllib.request
                 sys_proxies = urllib.request.getproxies()
                 return sys_proxies.get("https") or sys_proxies.get("http")
         except Exception:
             pass
         return None
+
+    @classmethod
+    def _create_http_client(cls, timeout: float = 30.0) -> httpx.Client:
+        """
+        Proxy yapılandırmasına göre uygun httpx.Client nesnesi üretir.
+        SOCKS4 ve SOCKS5 proxy'leri için SyncProxyTransport kullanır.
+        """
+        proxy_url = cls._get_proxy_url()
+        if proxy_url:
+            lower_proxy = proxy_url.lower()
+            if lower_proxy.startswith(("socks4://", "socks4a://", "socks5://", "socks5h://")):
+                try:
+                    from httpx_socks import SyncProxyTransport
+                    transport = SyncProxyTransport.from_url(proxy_url)
+                    return httpx.Client(transport=transport, follow_redirects=True, timeout=timeout)
+                except Exception:
+                    pass
+        return httpx.Client(proxy=proxy_url, follow_redirects=True, timeout=timeout)
 
     def _inspect_server(self) -> None:
         """Sunucuya HEAD veya test GET isteği atarak boyut ve Range desteğini belirler."""
@@ -215,8 +233,7 @@ class HttpChunkDownloader(QThread):
         # Bazı sunucular HEAD isteğini engellediği için Range: bytes=0-0 ile GET deniyoruz
         req_headers["Range"] = "bytes=0-0"
 
-        proxy_url = self._get_proxy_url()
-        with httpx.Client(proxy=proxy_url, follow_redirects=True, timeout=15.0) as client:
+        with self._create_http_client(timeout=15.0) as client:
             try:
                 response = client.get(self.task.url, headers=req_headers)
             except httpx.RequestError as err:
@@ -358,8 +375,7 @@ class HttpChunkDownloader(QThread):
         # Dosyayı varsa kaldığı yerden devam modunda ("ab"), yoksa "wb" modunda aç
         mode = "ab" if chunk.downloaded_bytes > 0 and os.path.exists(chunk.temp_file) else "wb"
 
-        proxy_url = self._get_proxy_url()
-        with httpx.Client(proxy=proxy_url, follow_redirects=True, timeout=30.0) as client:
+        with self._create_http_client(timeout=30.0) as client:
             with client.stream("GET", self.task.url, headers=req_headers) as response:
                 if response.status_code not in (200, 206):
                     raise RuntimeError(f"Parça #{chunk.chunk_id} indirilemedi. HTTP Kodu: {response.status_code}")

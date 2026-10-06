@@ -81,16 +81,79 @@ class TestNetworkSettings(unittest.TestCase):
         self.assertTrue(dialog.spin_speed_limit.isEnabled())
 
         # Proxy Modu Değişimi
-        # System Proxy -> Host pasif
+        # System Proxy -> Host ve Type pasif
         dialog.combo_proxy.setCurrentIndex(0)
+        self.assertFalse(dialog.combo_proxy_type.isEnabled())
         self.assertFalse(dialog.input_host.isEnabled())
 
-        # Manual Proxy -> Host aktif
+        # Manual Proxy -> Host ve Type aktif
         dialog.combo_proxy.setCurrentIndex(2)
+        self.assertTrue(dialog.combo_proxy_type.isEnabled())
         self.assertTrue(dialog.input_host.isEnabled())
         self.assertTrue(dialog.spin_port.isEnabled())
 
+        # Proxy Type seçenekleri
+        types = [dialog.combo_proxy_type.itemText(i) for i in range(dialog.combo_proxy_type.count())]
+        self.assertIn("HTTP", types)
+        self.assertIn("HTTPS", types)
+        self.assertIn("SOCKS4", types)
+        self.assertIn("SOCKS5", types)
+
         dialog.close()
+
+    def test_04_socks_proxy_settings_and_urls(self):
+        """SOCKS4 ve SOCKS5 proxy ayarlarının kaydedilmesi, URL üretimi ve transport oluşturulmasını test eder."""
+        from app.core.http_downloader import HttpChunkDownloader
+        from app.core.media_downloader import get_ytdl_base_opts
+        from httpx_socks import SyncProxyTransport
+
+        # SOCKS5 Testi
+        s5 = NetworkSettings(
+            proxy_mode="manual",
+            proxy_type="SOCKS5",
+            proxy_host="127.0.0.1",
+            proxy_port=1080,
+            proxy_user="user",
+            proxy_pass="pass"
+        )
+        save_network_settings(s5)
+        loaded5 = load_network_settings()
+        self.assertEqual(loaded5.proxy_type, "SOCKS5")
+        self.assertEqual(loaded5.proxy_mode, "manual")
+
+        proxy_url_5 = HttpChunkDownloader._get_proxy_url()
+        self.assertEqual(proxy_url_5, "socks5://user:pass@127.0.0.1:1080")
+
+        client5 = HttpChunkDownloader._create_http_client()
+        self.assertIsInstance(client5._transport, SyncProxyTransport)
+        client5.close()
+
+        opts5 = get_ytdl_base_opts()
+        self.assertEqual(opts5.get("proxy"), "socks5://user:pass@127.0.0.1:1080")
+
+        # SOCKS4 Testi
+        s4 = NetworkSettings(
+            proxy_mode="manual",
+            proxy_type="SOCKS4",
+            proxy_host="127.0.0.1",
+            proxy_port=1080
+        )
+        save_network_settings(s4)
+        loaded4 = load_network_settings()
+        self.assertEqual(loaded4.proxy_type, "SOCKS4")
+
+        proxy_url_4 = HttpChunkDownloader._get_proxy_url()
+        self.assertEqual(proxy_url_4, "socks4://127.0.0.1:1080")
+
+        client4 = HttpChunkDownloader._create_http_client()
+        self.assertIsInstance(client4._transport, SyncProxyTransport)
+        client4.close()
+
+        opts4 = get_ytdl_base_opts()
+        self.assertEqual(opts4.get("proxy"), "socks4://127.0.0.1:1080")
+
+        # Varsayılana geri al
+        save_network_settings(NetworkSettings())
         print("\n[OK] All Network Settings and UI tests passed successfully!")
 
 

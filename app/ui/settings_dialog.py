@@ -132,40 +132,49 @@ class NetworkSettingsDialog(QDialog):
         self.combo_proxy.currentIndexChanged.connect(self._on_proxy_mode_changed)
         proxy_grid.addWidget(self.combo_proxy, 0, 1)
 
+        # Proxy Type (Protocol)
+        lbl_type = QLabel("Proxy Type")
+        lbl_type.setStyleSheet(lbl_style)
+        proxy_grid.addWidget(lbl_type, 1, 0)
+
+        self.combo_proxy_type = QComboBox()
+        self.combo_proxy_type.addItems(["HTTP", "HTTPS", "SOCKS4", "SOCKS5"])
+        proxy_grid.addWidget(self.combo_proxy_type, 1, 1)
+
         # Proxy Host
         lbl_host = QLabel("Proxy Host")
         lbl_host.setStyleSheet(lbl_style)
-        proxy_grid.addWidget(lbl_host, 1, 0)
+        proxy_grid.addWidget(lbl_host, 2, 0)
 
         self.input_host = QLineEdit()
         self.input_host.setPlaceholderText("127.0.0.1")
-        proxy_grid.addWidget(self.input_host, 1, 1)
+        proxy_grid.addWidget(self.input_host, 2, 1)
 
         # Proxy Port
         lbl_port = QLabel("Proxy Port")
         lbl_port.setStyleSheet(lbl_style)
-        proxy_grid.addWidget(lbl_port, 2, 0)
+        proxy_grid.addWidget(lbl_port, 3, 0)
 
         self.spin_port = QSpinBox()
         self.spin_port.setRange(0, 65535)
-        proxy_grid.addWidget(self.spin_port, 2, 1)
+        proxy_grid.addWidget(self.spin_port, 3, 1)
 
         # Proxy username
         lbl_user = QLabel("Proxy username")
         lbl_user.setStyleSheet(lbl_style)
-        proxy_grid.addWidget(lbl_user, 3, 0)
+        proxy_grid.addWidget(lbl_user, 4, 0)
 
         self.input_user = QLineEdit()
-        proxy_grid.addWidget(self.input_user, 3, 1)
+        proxy_grid.addWidget(self.input_user, 4, 1)
 
         # Proxy password
         lbl_pass = QLabel("Proxy password")
         lbl_pass.setStyleSheet(lbl_style)
-        proxy_grid.addWidget(lbl_pass, 4, 0)
+        proxy_grid.addWidget(lbl_pass, 5, 0)
 
         self.input_pass = QLineEdit()
         self.input_pass.setEchoMode(QLineEdit.EchoMode.Password)
-        proxy_grid.addWidget(self.input_pass, 4, 1)
+        proxy_grid.addWidget(self.input_pass, 5, 1)
 
         main_layout.addLayout(proxy_grid)
 
@@ -216,6 +225,13 @@ class NetworkSettingsDialog(QDialog):
             "manual": 2
         }
         self.combo_proxy.setCurrentIndex(mode_map.get(s.proxy_mode, 0))
+        pt = getattr(s, "proxy_type", "HTTP").upper()
+        pt_idx = self.combo_proxy_type.findText(pt)
+        if pt_idx >= 0:
+            self.combo_proxy_type.setCurrentIndex(pt_idx)
+        else:
+            self.combo_proxy_type.setCurrentIndex(0)
+
         self.input_host.setText(s.proxy_host)
         self.spin_port.setValue(s.proxy_port)
         self.input_user.setText(s.proxy_user)
@@ -229,6 +245,7 @@ class NetworkSettingsDialog(QDialog):
     def _on_proxy_mode_changed(self, index: int) -> None:
         """Proxy modu manual olduğunda alanları etkinleştirir."""
         is_manual = (index == 2)
+        self.combo_proxy_type.setEnabled(is_manual)
         self.input_host.setEnabled(is_manual)
         self.spin_port.setEnabled(is_manual)
         self.input_user.setEnabled(is_manual)
@@ -259,6 +276,7 @@ class NetworkSettingsDialog(QDialog):
         self.settings.speed_limit_kbs = self.spin_speed_limit.value()
 
         self.settings.proxy_mode = index_to_mode.get(self.combo_proxy.currentIndex(), "system")
+        self.settings.proxy_type = self.combo_proxy_type.currentText().upper()
         self.settings.proxy_host = self.input_host.text().strip()
         self.settings.proxy_port = self.spin_port.value()
         self.settings.proxy_user = self.input_user.text().strip()

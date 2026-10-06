@@ -11,6 +11,7 @@ import re
 import shutil
 import time
 import urllib.parse
+import urllib.request
 from typing import Optional, Dict, Any, List
 
 from PyQt6.QtCore import QThread, pyqtSignal
@@ -101,9 +102,9 @@ def get_ytdl_base_opts(headers: Optional[Dict[str, str]] = None) -> Dict[str, An
         if net_settings.proxy_mode == "manual" and net_settings.proxy_host:
             password = getattr(net_settings, "proxy_pass", getattr(net_settings, "proxy_password", ""))
             auth = f"{net_settings.proxy_user}:{password}@" if net_settings.proxy_user else ""
-            opts["proxy"] = f"http://{auth}{net_settings.proxy_host}:{net_settings.proxy_port}"
+            proto = (getattr(net_settings, "proxy_type", "HTTP") or "HTTP").lower()
+            opts["proxy"] = f"{proto}://{auth}{net_settings.proxy_host}:{net_settings.proxy_port}"
         elif net_settings.proxy_mode == "system":
-            import urllib.request
             sys_proxies = urllib.request.getproxies()
             if "https" in sys_proxies:
                 opts["proxy"] = sys_proxies["https"]

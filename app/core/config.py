@@ -20,6 +20,7 @@ class NetworkSettings:
     speed_limit_enabled: bool = False          # Hız limiti aktif mi?
     speed_limit_kbs: int = 2600                # KB/sn cinsinden hız sınırı (0 = sınırsız)
     proxy_mode: str = "system"                 # "system", "none", "manual"
+    proxy_type: str = "HTTP"                   # "HTTP", "HTTPS", "SOCKS4", "SOCKS5"
     proxy_host: str = ""                       # Proxy sunucu adresi
     proxy_port: int = 0                        # Proxy portu
     proxy_user: str = ""                       # Proxy kullanıcı adı
@@ -64,6 +65,7 @@ def load_network_settings() -> NetworkSettings:
                     speed_limit_enabled=bool(data.get("speed_limit_enabled", False)),
                     speed_limit_kbs=int(data.get("speed_limit_kbs", 2600)),
                     proxy_mode=str(data.get("proxy_mode", "system")),
+                    proxy_type=str(data.get("proxy_type", "HTTP")).upper(),
                     proxy_host=str(data.get("proxy_host", "")),
                     proxy_port=int(data.get("proxy_port", 0)),
                     proxy_user=str(data.get("proxy_user", "")),
