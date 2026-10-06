@@ -218,8 +218,8 @@ class MediaQualityDialog(QDialog):
         )
         self.setWindowTitle("Media Download · Quality & Format Selection")
         self.setWindowIcon(get_app_icon())
-        self.resize(680, 530)
-        self.setMinimumWidth(620)
+        self.resize(740, 570)
+        self.setMinimumWidth(660)
         self.setStyleSheet(self._get_styles())
 
         # QStackedWidget ile iki aşama: 0 -> Kalite Seçimi, 1 -> IDM İlerleme Görünümü
@@ -252,6 +252,24 @@ class MediaQualityDialog(QDialog):
                 background-color: #0d1527;
                 border: 1px solid rgba(255, 255, 255, 0.08);
                 border-radius: 14px;
+            }
+            QFrame#progMediaCard {
+                background-color: #101a2d;
+                border: 1px solid #1b2a45;
+                border-radius: 12px;
+            }
+            QFrame#metricCard {
+                background-color: #0e1728;
+                border: 1px solid #162238;
+                border-radius: 8px;
+            }
+            QFrame#metricCard:hover {
+                border-color: #1e2e4a;
+            }
+            QFrame#progFooter {
+                background-color: #080e1a;
+                border-top: 1px solid #16233b;
+                border-radius: 8px;
             }
             QFrame#idmCard {
                 background-color: #0d1527;
@@ -366,6 +384,53 @@ class MediaQualityDialog(QDialog):
                 color: #ffffff;
                 border-color: rgba(255, 255, 255, 0.2);
             }
+            QPushButton#actionBtnSecondary {
+                background-color: #141f33;
+                border: 1px solid #233554;
+                color: #cbd5e1;
+                border-radius: 8px;
+                padding: 7px 14px;
+                font-size: 12px;
+                font-weight: 500;
+            }
+            QPushButton#actionBtnSecondary:hover {
+                background-color: #1a2942;
+                color: #ffffff;
+                border-color: #3b5075;
+            }
+            QPushButton#actionBtnSecondary:disabled {
+                background-color: #0d1524;
+                color: #475569;
+                border-color: #182234;
+            }
+            QPushButton#actionBtnPause {
+                background-color: #152a4a;
+                border: 1px solid rgba(56, 189, 248, 0.4);
+                color: #38bdf8;
+                border-radius: 8px;
+                padding: 7px 16px;
+                font-size: 12px;
+                font-weight: 600;
+            }
+            QPushButton#actionBtnPause:hover {
+                background-color: #1a355d;
+                border-color: #38bdf8;
+                color: #ffffff;
+            }
+            QPushButton#actionBtnCancel {
+                background-color: rgba(76, 5, 25, 0.4);
+                border: 1px solid rgba(225, 29, 72, 0.4);
+                color: #fda4af;
+                border-radius: 8px;
+                padding: 7px 16px;
+                font-size: 12px;
+                font-weight: 600;
+            }
+            QPushButton#actionBtnCancel:hover {
+                background-color: rgba(136, 19, 55, 0.6);
+                border-color: #f43f5e;
+                color: #ffffff;
+            }
             QPushButton.dangerBtn {
                 background-color: #381b1b;
                 color: #ff6b6b;
@@ -375,19 +440,19 @@ class MediaQualityDialog(QDialog):
                 background-color: #5a2020;
                 color: #ffffff;
             }
-            QProgressBar#neonProgress {
-                background-color: #070b14;
-                border: 1px solid #1e293b;
-                border-radius: 8px;
+            QProgressBar#glowProgress, QProgressBar#neonProgress {
+                background-color: #090f1d;
+                border: 1px solid #1b2b45;
+                border-radius: 7px;
                 text-align: center;
                 color: #ffffff;
                 font-weight: bold;
                 font-size: 11px;
             }
-            QProgressBar#neonProgress::chunk {
+            QProgressBar#glowProgress::chunk, QProgressBar#neonProgress::chunk {
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
                     stop:0 #0284c7, stop:0.5 #38bdf8, stop:1 #06b6d4);
-                border-radius: 7px;
+                border-radius: 6px;
             }
         """
 
@@ -670,137 +735,350 @@ class MediaQualityDialog(QDialog):
         self.card_hd.set_selected(data == "height_720")
         self.card_audio.set_selected(data == "audio_mp3")
 
-    # ==================== 2. AŞAMA: IDM Tarzı Canlı İlerleme Görünümü ====================
+    # ==================== 2. AŞAMA: Stitch Canlı İlerleme Görünümü ====================
+
+    def _build_metric_card(self, icon_char: str, icon_color: str, title: str) -> QFrame:
+        """Stitch arayüzündeki metrik kutucuklarını oluşturur."""
+        card = QFrame()
+        card.setObjectName("metricCard")
+        card_layout = QHBoxLayout(card)
+        card_layout.setContentsMargins(12, 7, 12, 7)
+        card_layout.setSpacing(8)
+
+        # Sol ikon ve başlık
+        left_box = QHBoxLayout()
+        left_box.setSpacing(6)
+        icon_lbl = QLabel(icon_char)
+        icon_lbl.setStyleSheet(f"color: {icon_color}; font-size: 13px; background: transparent; border: none;")
+        left_box.addWidget(icon_lbl)
+
+        title_lbl = QLabel(title)
+        title_lbl.setStyleSheet("color: #94a3b8; font-size: 12px; font-weight: 500; background: transparent; border: none;")
+        left_box.addWidget(title_lbl)
+        card_layout.addLayout(left_box)
+
+        card_layout.addStretch()
+        return card
 
     def _create_progress_page(self) -> QWidget:
-        """IDM indirme penceresi düzeninde canlı ilerleme sayfası."""
+        """Stitch Modern Media Download Manager - Active Download Window tasarımı."""
         widget = QWidget()
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(4, 4, 4, 4)
-        layout.setSpacing(12)
+        layout.setSpacing(14)
 
-        # Başlık ve Medya Adı
-        header_layout = QHBoxLayout()
+        # 1. Medya Başlık Kartı (Media Header Card)
+        media_card = QFrame()
+        media_card.setObjectName("progMediaCard")
+        media_layout = QHBoxLayout(media_card)
+        media_layout.setContentsMargins(14, 12, 14, 12)
+        media_layout.setSpacing(16)
+
+        # Video Thumbnail Container
+        self.prog_thumb_container = QFrame()
+        self.prog_thumb_container.setFixedSize(136, 76)
+        self.prog_thumb_container.setStyleSheet("""
+            QFrame {
+                background-color: #070b13;
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                border-radius: 8px;
+            }
+        """)
+
+        # Görüntü etiketi (Thumbnail)
+        self.prog_thumb_img_lbl = QLabel(self.prog_thumb_container)
+        self.prog_thumb_img_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.prog_thumb_img_lbl.setStyleSheet("background: transparent; border: none; border-radius: 8px;")
+
+        # Fallback görsel kutusu
+        self.prog_fallback_widget = QWidget(self.prog_thumb_container)
+        fallback_layout = QVBoxLayout(self.prog_fallback_widget)
+        fallback_layout.setContentsMargins(0, 4, 0, 12)
+        fallback_layout.setSpacing(2)
+        fallback_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
         self.prog_icon = QLabel("🎬")
-        self.prog_icon.setFont(QFont("Segoe UI Emoji", 16))
-        header_layout.addWidget(self.prog_icon)
+        self.prog_icon.setFont(QFont("Segoe UI Emoji", 18))
+        self.prog_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.prog_icon.setStyleSheet("background: transparent; border: none;")
+        fallback_layout.addWidget(self.prog_icon)
 
-        text_box = QVBoxLayout()
-        text_box.setSpacing(2)
+        self.prog_platform_lbl = QLabel("VIDEO")
+        self.prog_platform_lbl.setStyleSheet("color: #94a3b8; font-size: 9px; font-weight: 700; letter-spacing: 1px; background: transparent; border: none;")
+        self.prog_platform_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        fallback_layout.addWidget(self.prog_platform_lbl)
+
+        # Süre rozeti (Thumbnail sağ alt köşe)
+        self.prog_duration_badge = QLabel("--:--", self.prog_thumb_container)
+        self.prog_duration_badge.setStyleSheet("""
+            background-color: rgba(0, 0, 0, 0.85);
+            color: #e2e8f0;
+            font-family: 'Consolas', monospace;
+            font-size: 10px;
+            font-weight: 600;
+            padding: 1px 5px;
+            border-radius: 4px;
+            border: none;
+        """)
+
+        def _prog_thumb_resize(event):
+            w = self.prog_thumb_container.width()
+            h = self.prog_thumb_container.height()
+            self.prog_thumb_img_lbl.setGeometry(0, 0, w, h)
+            self.prog_fallback_widget.setGeometry(0, 0, w, h)
+            bw = self.prog_duration_badge.sizeHint().width() + 10
+            bh = 18
+            self.prog_duration_badge.setGeometry(w - bw - 6, h - bh - 6, bw, bh)
+
+        self.prog_thumb_container.resizeEvent = _prog_thumb_resize
+        media_layout.addWidget(self.prog_thumb_container)
+
+        # Sağ: Başlık ve Format Meta Verileri
+        meta_layout = QVBoxLayout()
+        meta_layout.setSpacing(4)
+        meta_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+
+        # Durum ve Motor rozetleri satırı
+        pill_row = QHBoxLayout()
+        pill_row.setSpacing(8)
+
+        self.prog_status_pill = QLabel("● Downloading")
+        self.prog_status_pill.setStyleSheet("""
+            background: rgba(16, 185, 129, 0.12);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            border-radius: 10px;
+            padding: 2px 8px;
+            font-size: 11px;
+            font-weight: 600;
+        """)
+        pill_row.addWidget(self.prog_status_pill)
+
+        self.prog_engine_lbl = QLabel("yt-dlp v2024.08")
+        self.prog_engine_lbl.setStyleSheet("color: #64748b; font-size: 11px; font-family: 'Consolas', monospace;")
+        pill_row.addWidget(self.prog_engine_lbl)
+        pill_row.addStretch()
+        meta_layout.addLayout(pill_row)
+
+        # Başlık etiketi
         self.prog_title_label = QLabel("Media Download")
-        self.prog_title_label.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
-        self.prog_title_label.setStyleSheet("color: #ffffff;")
+        self.prog_title_label.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
+        self.prog_title_label.setStyleSheet("color: #f8fafc;")
         self.prog_title_label.setWordWrap(True)
-        text_box.addWidget(self.prog_title_label)
+        meta_layout.addWidget(self.prog_title_label)
 
-        self.prog_quality_badge = QLabel("[Video Stream]")
-        self.prog_quality_badge.setStyleSheet("color: #00b4d8; font-size: 11px; font-weight: 600;")
-        text_box.addWidget(self.prog_quality_badge)
+        # Kalite Rozeti
+        qual_row = QHBoxLayout()
+        qual_row.setSpacing(6)
+        trophy_lbl = QLabel("🏆")
+        trophy_lbl.setFont(QFont("Segoe UI Emoji", 11))
+        trophy_lbl.setStyleSheet("background: transparent; border: none;")
+        qual_row.addWidget(trophy_lbl)
 
-        header_layout.addLayout(text_box)
-        header_layout.addStretch()
-        layout.addLayout(header_layout)
+        self.prog_quality_badge = QLabel("Best Quality (1080p FHD + Original Audio)")
+        self.prog_quality_badge.setStyleSheet("""
+            background: rgba(6, 182, 212, 0.12);
+            color: #38bdf8;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            border-radius: 6px;
+            padding: 2px 8px;
+            font-size: 11px;
+            font-weight: 600;
+        """)
+        qual_row.addWidget(self.prog_quality_badge)
+        qual_row.addStretch()
+        meta_layout.addLayout(qual_row)
 
-        # IDM Tarzı Bilgi Kartı (Grid)
-        idm_card = QFrame()
-        idm_card.setObjectName("idmCard")
-        grid = QGridLayout(idm_card)
-        grid.setHorizontalSpacing(16)
-        grid.setVerticalSpacing(7)
+        media_layout.addLayout(meta_layout)
+        layout.addWidget(media_card)
 
-        lbl_style = "color: #94a3b8; font-weight: 500; font-size: 12px; background: transparent; border: none;"
-        val_style = "color: #f1f5f9; font-weight: 600; font-size: 12px; background: transparent; border: none;"
+        # 2. Canlı İlerleme Bölümü (Active Progress Section)
+        prog_sec = QVBoxLayout()
+        prog_sec.setSpacing(6)
 
-        row = 0
-        # Status
-        grid.addWidget(QLabel("Status:", styleSheet=lbl_style), row, 0)
-        self.status_val = QLabel("Connecting & fetching stream...")
-        self.status_val.setStyleSheet("color: #38bdf8; font-weight: bold; font-size: 12px;")
-        grid.addWidget(self.status_val, row, 1)
+        # İlerleme Sayıları & Hızlı İstatistikler
+        stats_row = QHBoxLayout()
 
-        row += 1
-        # File Size
-        grid.addWidget(QLabel("File size:", styleSheet=lbl_style), row, 0)
-        self.size_val = QLabel("Estimating...")
-        self.size_val.setStyleSheet(val_style)
-        grid.addWidget(self.size_val, row, 1)
+        pct_box = QHBoxLayout()
+        pct_box.setSpacing(8)
+        pct_box.setAlignment(Qt.AlignmentFlag.AlignBottom)
+        self.prog_percent_lbl = QLabel("0%")
+        self.prog_percent_lbl.setStyleSheet("color: #38bdf8; font-size: 26px; font-weight: 800; font-family: 'Consolas', monospace;")
+        pct_box.addWidget(self.prog_percent_lbl)
 
-        row += 1
-        # Downloaded
-        grid.addWidget(QLabel("Downloaded:", styleSheet=lbl_style), row, 0)
-        self.downloaded_val = QLabel("0 B ( 0.0% )")
-        self.downloaded_val.setStyleSheet(val_style)
-        grid.addWidget(self.downloaded_val, row, 1)
+        compl_lbl = QLabel("Completed")
+        compl_lbl.setStyleSheet("color: #94a3b8; font-size: 12px; margin-bottom: 4px;")
+        pct_box.addWidget(compl_lbl)
+        stats_row.addLayout(pct_box)
 
-        row += 1
-        # Transfer rate (Speed)
-        grid.addWidget(QLabel("Transfer rate:", styleSheet=lbl_style), row, 0)
-        self.speed_val = QLabel("0 B/s")
-        self.speed_val.setStyleSheet("color: #38bdf8; font-weight: bold; font-size: 12px;")
-        grid.addWidget(self.speed_val, row, 1)
+        stats_row.addStretch()
 
-        row += 1
-        # Time left
-        grid.addWidget(QLabel("Time left:", styleSheet=lbl_style), row, 0)
-        self.eta_val = QLabel("--:--")
-        self.eta_val.setStyleSheet(val_style)
-        grid.addWidget(self.eta_val, row, 1)
+        bytes_box = QHBoxLayout()
+        bytes_box.setSpacing(2)
+        bytes_box.setAlignment(Qt.AlignmentFlag.AlignBottom)
+        self.prog_downloaded_lbl = QLabel("0 B")
+        self.prog_downloaded_lbl.setStyleSheet("color: #f1f5f9; font-size: 13px; font-weight: 600; font-family: 'Consolas', monospace; margin-bottom: 4px;")
+        bytes_box.addWidget(self.prog_downloaded_lbl)
 
-        row += 1
-        # Save Path
-        grid.addWidget(QLabel("Save folder:", styleSheet=lbl_style), row, 0)
-        self.path_val = QLabel(self.default_save_dir)
-        self.path_val.setStyleSheet("color: #64748b; font-size: 11px;")
-        self.path_val.setWordWrap(True)
-        grid.addWidget(self.path_val, row, 1)
+        self.prog_slash_total_lbl = QLabel(" / -- MB")
+        self.prog_slash_total_lbl.setStyleSheet("color: #94a3b8; font-size: 12px; font-family: 'Consolas', monospace; margin-bottom: 4px;")
+        bytes_box.addWidget(self.prog_slash_total_lbl)
+        stats_row.addLayout(bytes_box)
 
-        row += 1
-        # Resume capability
-        grid.addWidget(QLabel("Resume capability:", styleSheet=lbl_style), row, 0)
-        self.resume_val = QLabel("Yes")
-        self.resume_val.setStyleSheet("color: #22c55e; font-weight: bold; font-size: 12px;")
-        grid.addWidget(self.resume_val, row, 1)
+        prog_sec.addLayout(stats_row)
 
-        layout.addWidget(idm_card)
-
-        # Büyük İlerleme Çubuğu
+        # İlerleme Çubuğu (Glowing Progress Bar)
         self.progress_bar = QProgressBar()
-        self.progress_bar.setObjectName("neonProgress")
-        self.progress_bar.setFixedHeight(18)
+        self.progress_bar.setObjectName("glowProgress")
+        self.progress_bar.setFixedHeight(14)
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
-        self.progress_bar.setTextVisible(True)
-        self.progress_bar.setFormat("%p%")
-        layout.addWidget(self.progress_bar)
+        self.progress_bar.setTextVisible(False)
+        prog_sec.addWidget(self.progress_bar)
 
-        # Butonlar Satırı
-        btn_row = QHBoxLayout()
-        btn_row.setSpacing(10)
+        layout.addLayout(prog_sec)
 
+        # Test uyumluluğu için arka planda tutulan downloaded_val
+        self.downloaded_val = QLabel("0 B ( 0.0% )")
+        self.downloaded_val.setVisible(False)
+
+        # 3. Metrikler Izgarası (Metrics Grid - 2x3)
+        metrics_grid = QGridLayout()
+        metrics_grid.setHorizontalSpacing(10)
+        metrics_grid.setVerticalSpacing(8)
+
+        # Card 1: Status
+        card_status = self._build_metric_card("⚡", "#38bdf8", "Status")
+        self.status_val = QLabel("Connecting & fetching stream...")
+        self.status_val.setStyleSheet("color: #38bdf8; font-weight: 600; font-size: 12px; font-family: 'Consolas', monospace;")
+        card_status.layout().addWidget(self.status_val)
+        metrics_grid.addWidget(card_status, 0, 0)
+
+        # Card 2: Transfer Rate
+        card_speed = self._build_metric_card("📶", "#38bdf8", "Transfer Rate")
+        speed_box = QHBoxLayout()
+        speed_box.setSpacing(5)
+        self.prog_speed_arrow_lbl = QLabel("▲")
+        self.prog_speed_arrow_lbl.setStyleSheet("color: #34d399; font-size: 11px; font-weight: bold; background: transparent; border: none;")
+        speed_box.addWidget(self.prog_speed_arrow_lbl)
+
+        self.speed_val = QLabel("0 B/s")
+        self.speed_val.setStyleSheet("color: #f8fafc; font-weight: 700; font-size: 13px; font-family: 'Consolas', monospace; background: transparent; border: none;")
+        speed_box.addWidget(self.speed_val)
+        card_speed.layout().addLayout(speed_box)
+        metrics_grid.addWidget(card_speed, 0, 1)
+
+        # Card 3: File Size
+        card_size = self._build_metric_card("📄", "#94a3b8", "File Size")
+        self.size_val = QLabel("-- MB")
+        self.size_val.setStyleSheet("color: #e2e8f0; font-weight: 600; font-size: 12px; font-family: 'Consolas', monospace;")
+        card_size.layout().addWidget(self.size_val)
+        metrics_grid.addWidget(card_size, 1, 0)
+
+        # Card 4: Time Left
+        card_eta = self._build_metric_card("⏱", "#f59e0b", "Time Left")
+        self.eta_val = QLabel("--:-- s")
+        self.eta_val.setStyleSheet("color: #fcd34d; font-weight: 600; font-size: 12px; font-family: 'Consolas', monospace;")
+        card_eta.layout().addWidget(self.eta_val)
+        metrics_grid.addWidget(card_eta, 1, 1)
+
+        # Card 5: Save Folder (2 sütun kaplar)
+        card_folder = self._build_metric_card("📁", "#f59e0b", "Save Folder")
+        folder_right = QHBoxLayout()
+        folder_right.setSpacing(6)
+        self.path_val = QLabel(self.default_save_dir)
+        self.path_val.setStyleSheet("color: #cbd5e1; font-family: 'Consolas', monospace; font-size: 11px;")
+        self.path_val.setToolTip(self.default_save_dir)
+        folder_right.addWidget(self.path_val)
+
+        open_folder_icon_btn = QPushButton("↗")
+        open_folder_icon_btn.setFixedSize(22, 22)
+        open_folder_icon_btn.setToolTip("Show in Folder")
+        open_folder_icon_btn.setStyleSheet("""
+            QPushButton {
+                background: rgba(30, 41, 59, 0.7);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 4px;
+                color: #94a3b8;
+                font-weight: bold;
+                font-size: 11px;
+                padding: 0px;
+            }
+            QPushButton:hover {
+                background: #334155;
+                color: #ffffff;
+                border-color: rgba(255, 255, 255, 0.25);
+            }
+        """)
+        open_folder_icon_btn.clicked.connect(self._open_folder)
+        folder_right.addWidget(open_folder_icon_btn)
+        card_folder.layout().addLayout(folder_right)
+        metrics_grid.addWidget(card_folder, 2, 0, 1, 2)
+
+        # Card 6: Resume Support (2 sütun kaplar)
+        card_resume = self._build_metric_card("🛡", "#10b981", "Resume Support")
+        self.resume_val = QLabel("✓ Supported (Yes)")
+        self.resume_val.setStyleSheet("""
+            background: rgba(6, 78, 59, 0.5);
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            color: #6ee7b7;
+            border-radius: 4px;
+            padding: 2px 8px;
+            font-size: 11px;
+            font-weight: 600;
+            font-family: 'Consolas', monospace;
+        """)
+        card_resume.layout().addWidget(self.resume_val)
+        metrics_grid.addWidget(card_resume, 3, 0, 1, 2)
+
+        layout.addLayout(metrics_grid)
+
+        # 4. Seçenek Onay Kutusu & Bağlantı Durumu
+        opt_line = QHBoxLayout()
+        self.prog_open_folder_chk = QCheckBox("Show notification and open folder when download completes")
+        self.prog_open_folder_chk.setChecked(True)
+        opt_line.addWidget(self.prog_open_folder_chk)
+
+        opt_line.addStretch()
+
+        self.prog_conn_lbl = QLabel("Connection: Active (200 OK)")
+        self.prog_conn_lbl.setStyleSheet("color: #64748b; font-size: 11px; font-family: 'Consolas', monospace;")
+        opt_line.addWidget(self.prog_conn_lbl)
+        layout.addLayout(opt_line)
+
+        # 5. Alt Bar (Footer / Action Bar)
+        footer = QFrame()
+        footer.setObjectName("progFooter")
+        footer_layout = QHBoxLayout(footer)
+        footer_layout.setContentsMargins(14, 10, 14, 10)
+        footer_layout.setSpacing(10)
+
+        # Sol Butonlar (Open Folder / Preview Video)
         self.open_folder_btn = QPushButton("📁 Open Folder")
-        self.open_folder_btn.setProperty("class", "secondaryBtn")
+        self.open_folder_btn.setObjectName("actionBtnSecondary")
         self.open_folder_btn.clicked.connect(self._open_folder)
-        btn_row.addWidget(self.open_folder_btn)
+        footer_layout.addWidget(self.open_folder_btn)
 
-        self.play_video_btn = QPushButton("▶ Play Video")
-        self.play_video_btn.setProperty("class", "secondaryBtn")
+        self.play_video_btn = QPushButton("▶ Preview Video")
+        self.play_video_btn.setObjectName("actionBtnSecondary")
         self.play_video_btn.setEnabled(False)
         self.play_video_btn.clicked.connect(self._play_video)
-        btn_row.addWidget(self.play_video_btn)
+        footer_layout.addWidget(self.play_video_btn)
 
-        btn_row.addStretch()
+        footer_layout.addStretch()
 
+        # Sağ Butonlar (Pause / Cancel)
         self.pause_btn = QPushButton("⏸ Pause")
-        self.pause_btn.setProperty("class", "secondaryBtn")
+        self.pause_btn.setObjectName("actionBtnPause")
         self.pause_btn.clicked.connect(self._toggle_pause)
-        btn_row.addWidget(self.pause_btn)
+        footer_layout.addWidget(self.pause_btn)
 
         self.cancel_btn = QPushButton("✕ Cancel")
-        self.cancel_btn.setProperty("class", "dangerBtn")
+        self.cancel_btn.setObjectName("actionBtnCancel")
         self.cancel_btn.clicked.connect(self._cancel_download)
-        btn_row.addWidget(self.cancel_btn)
+        footer_layout.addWidget(self.cancel_btn)
 
-        layout.addLayout(btn_row)
+        layout.addWidget(footer)
         return widget
 
     # ==================== Olay ve Durum İşleyicileri ====================
@@ -917,8 +1195,10 @@ class MediaQualityDialog(QDialog):
     def _on_thumbnail_loaded(self, data: bytes) -> None:
         """İndirilen küçük resmi arayüze ölçekleyip yerleştirir."""
         try:
+            self._thumb_data = data
             pixmap = QPixmap()
             if pixmap.loadFromData(data):
+                self._thumb_pixmap = pixmap
                 scaled = pixmap.scaled(
                     self.thumb_container.width(),
                     self.thumb_container.height(),
@@ -926,6 +1206,16 @@ class MediaQualityDialog(QDialog):
                     Qt.TransformationMode.SmoothTransformation
                 )
                 self.thumb_img_lbl.setPixmap(scaled)
+                if hasattr(self, "prog_thumb_img_lbl") and hasattr(self, "prog_thumb_container"):
+                    scaled_prog = pixmap.scaled(
+                        self.prog_thumb_container.width(),
+                        self.prog_thumb_container.height(),
+                        Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                        Qt.TransformationMode.SmoothTransformation
+                    )
+                    self.prog_thumb_img_lbl.setPixmap(scaled_prog)
+                    if hasattr(self, "prog_fallback_widget"):
+                        self.prog_fallback_widget.setVisible(False)
         except Exception:
             pass
 
@@ -969,7 +1259,7 @@ class MediaQualityDialog(QDialog):
         }
 
     def _on_start_download_clicked(self) -> None:
-        """'Start Download' tıklandığında indirmeyi başlatır ve 2. aşama IDM görünümüne geçer."""
+        """'Start Download' tıklandığında indirmeyi başlatır ve 2. aşama Stitch görünümüne geçer."""
         data = self.get_data()
         if not self.task_manager:
             return
@@ -990,11 +1280,37 @@ class MediaQualityDialog(QDialog):
         # 2. İlerleme sayfasındaki etiketleri hazırla
         quality_label = self.format_combo.currentText()
         is_audio = data.get("audio_only", False)
-        self.prog_icon.setText("🎵" if is_audio else "🎬")
+        if hasattr(self, "prog_icon"):
+            self.prog_icon.setText("🎵" if is_audio else "🎬")
         self.prog_title_label.setText(self.final_title)
-        self.prog_quality_badge.setText(quality_label)
+        self.prog_title_label.setToolTip(self.final_title)
+
+        clean_qual = quality_label.replace("🏆 ", "").replace("🎬 ", "").replace("🎵 ", "").strip()
+        self.prog_quality_badge.setText(clean_qual)
         self.path_val.setText(self.final_dest)
         self.path_val.setToolTip(self.final_dest)
+
+        # Küçük resmi aktar
+        if hasattr(self, "_thumb_pixmap") and self._thumb_pixmap and hasattr(self, "prog_thumb_img_lbl"):
+            scaled_prog = self._thumb_pixmap.scaled(
+                self.prog_thumb_container.width(),
+                self.prog_thumb_container.height(),
+                Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                Qt.TransformationMode.SmoothTransformation
+            )
+            self.prog_thumb_img_lbl.setPixmap(scaled_prog)
+            if hasattr(self, "prog_fallback_widget"):
+                self.prog_fallback_widget.setVisible(False)
+
+        # Süre ve platform rozetini aktar
+        if hasattr(self, "duration_badge") and hasattr(self, "prog_duration_badge"):
+            self.prog_duration_badge.setText(self.duration_badge.text())
+        if hasattr(self, "platform_badge") and hasattr(self, "prog_platform_lbl"):
+            self.prog_platform_lbl.setText(self.platform_badge.text())
+
+        # Klasör açma kutusunu senkronize et
+        if hasattr(self, "open_folder_chk") and hasattr(self, "prog_open_folder_chk"):
+            self.prog_open_folder_chk.setChecked(self.open_folder_chk.isChecked())
 
         self.setWindowTitle(f"[0%] {self.final_title}")
 
@@ -1004,7 +1320,7 @@ class MediaQualityDialog(QDialog):
         self.task_manager.task_finished.connect(self._on_finished)
         self.task_manager.task_error.connect(self._on_error)
 
-        # 4. İkinci sayfaya (IDM İlerleme Görünümü) geçiş yap
+        # 4. İkinci sayfaya (Stitch İlerleme Görünümü) geçiş yap
         self.stack.setCurrentIndex(1)
 
     @pyqtSlot(dict)
@@ -1022,13 +1338,29 @@ class MediaQualityDialog(QDialog):
         self.progress_bar.setValue(int(pct))
         self.setWindowTitle(f"[{int(pct)}%] {self.final_title}")
 
-        self.status_val.setText(f"Downloading ( {pct:.1f}% )...")
+        if hasattr(self, "prog_percent_lbl"):
+            self.prog_percent_lbl.setText(f"{int(pct)}%")
+
+        self.status_val.setText(f"● Receiving data ({pct:.1f}%)...")
+        self.status_val.setStyleSheet("color: #38bdf8; font-weight: 600; font-size: 12px; font-family: 'Consolas', monospace;")
+
         self.speed_val.setText(speed_str)
-        self.eta_val.setText(eta_str)
-        self.downloaded_val.setText(f"{self._format_bytes(downloaded)} ( {pct:.1f}% )")
+
+        eta_disp = eta_str if (eta_str.endswith("s") or eta_str == "--:--") else f"{eta_str} s"
+        self.eta_val.setText(eta_disp)
+
+        down_str = self._format_bytes(downloaded)
+        total_str = self._format_bytes(total) if total > 0 else "-- MB"
+
+        self.downloaded_val.setText(f"{down_str} ( {pct:.1f}% )")
+
+        if hasattr(self, "prog_downloaded_lbl"):
+            self.prog_downloaded_lbl.setText(down_str)
+        if hasattr(self, "prog_slash_total_lbl"):
+            self.prog_slash_total_lbl.setText(f" / {total_str}")
 
         if total > 0:
-            self.size_val.setText(self._format_bytes(total))
+            self.size_val.setText(total_str)
 
     @pyqtSlot(str, str)
     def _on_status_changed(self, task_id: str, new_status: str) -> None:
@@ -1038,15 +1370,49 @@ class MediaQualityDialog(QDialog):
 
         if new_status == DownloadStatus.PAUSED.value:
             self.status_val.setText("⏸ Paused")
-            self.status_val.setStyleSheet("color: #f59e0b; font-weight: bold; font-size: 12px;")
+            self.status_val.setStyleSheet("color: #f59e0b; font-weight: 600; font-size: 12px; font-family: 'Consolas', monospace;")
+            if hasattr(self, "prog_status_pill"):
+                self.prog_status_pill.setText("⏸ Paused")
+                self.prog_status_pill.setStyleSheet("""
+                    background: rgba(245, 158, 11, 0.12);
+                    color: #fbbf24;
+                    border: 1px solid rgba(245, 158, 11, 0.25);
+                    border-radius: 10px;
+                    padding: 2px 8px;
+                    font-size: 11px;
+                    font-weight: 600;
+                """)
             self.pause_btn.setText("▶ Resume")
         elif new_status == DownloadStatus.DOWNLOADING.value:
-            self.status_val.setText("⬇ Downloading...")
-            self.status_val.setStyleSheet("color: #38bdf8; font-weight: bold; font-size: 12px;")
+            pct = self.progress_bar.value()
+            self.status_val.setText(f"● Receiving data ({pct}%)...")
+            self.status_val.setStyleSheet("color: #38bdf8; font-weight: 600; font-size: 12px; font-family: 'Consolas', monospace;")
+            if hasattr(self, "prog_status_pill"):
+                self.prog_status_pill.setText("● Downloading")
+                self.prog_status_pill.setStyleSheet("""
+                    background: rgba(16, 185, 129, 0.12);
+                    color: #34d399;
+                    border: 1px solid rgba(16, 185, 129, 0.25);
+                    border-radius: 10px;
+                    padding: 2px 8px;
+                    font-size: 11px;
+                    font-weight: 600;
+                """)
             self.pause_btn.setText("⏸ Pause")
         elif new_status == DownloadStatus.CANCELLED.value:
             self.status_val.setText("✕ Cancelled")
-            self.status_val.setStyleSheet("color: #f87171; font-weight: bold; font-size: 12px;")
+            self.status_val.setStyleSheet("color: #f87171; font-weight: 600; font-size: 12px; font-family: 'Consolas', monospace;")
+            if hasattr(self, "prog_status_pill"):
+                self.prog_status_pill.setText("✕ Cancelled")
+                self.prog_status_pill.setStyleSheet("""
+                    background: rgba(239, 68, 68, 0.12);
+                    color: #f87171;
+                    border: 1px solid rgba(239, 68, 68, 0.25);
+                    border-radius: 10px;
+                    padding: 2px 8px;
+                    font-size: 11px;
+                    font-weight: 600;
+                """)
             self.pause_btn.setEnabled(False)
 
     @pyqtSlot(str, str)
@@ -1059,26 +1425,57 @@ class MediaQualityDialog(QDialog):
         self.final_downloaded_path = final_path
 
         self.progress_bar.setValue(100)
+        if hasattr(self, "prog_percent_lbl"):
+            self.prog_percent_lbl.setText("100%")
         self.setWindowTitle(f"[100%] Complete - {self.final_title}")
         self.status_val.setText("✅ Completed!")
-        self.status_val.setStyleSheet("color: #4ade80; font-weight: bold; font-size: 12px;")
+        self.status_val.setStyleSheet("color: #4ade80; font-weight: 600; font-size: 12px; font-family: 'Consolas', monospace;")
+        if hasattr(self, "prog_status_pill"):
+            self.prog_status_pill.setText("✅ Completed")
+            self.prog_status_pill.setStyleSheet("""
+                background: rgba(16, 185, 129, 0.15);
+                color: #4ade80;
+                border: 1px solid rgba(16, 185, 129, 0.35);
+                border-radius: 10px;
+                padding: 2px 8px;
+                font-size: 11px;
+                font-weight: 600;
+            """)
 
         if final_path and os.path.exists(final_path):
             real_size = os.path.getsize(final_path)
-            self.size_val.setText(self._format_bytes(real_size))
-            self.downloaded_val.setText(f"{self._format_bytes(real_size)} ( 100% )")
+            real_str = self._format_bytes(real_size)
+            self.size_val.setText(real_str)
+            self.downloaded_val.setText(f"{real_str} ( 100% )")
+            if hasattr(self, "prog_downloaded_lbl"):
+                self.prog_downloaded_lbl.setText(real_str)
+            if hasattr(self, "prog_slash_total_lbl"):
+                self.prog_slash_total_lbl.setText(f" / {real_str}")
 
         self.speed_val.setText("0 B/s")
-        self.eta_val.setText("0s")
+        self.eta_val.setText("00:00 s")
 
         self.play_video_btn.setEnabled(True)
         self.pause_btn.setVisible(False)
         self.cancel_btn.setText("✓ Done")
-        self.cancel_btn.setProperty("class", "secondaryBtn")
-        self.cancel_btn.setStyleSheet("background-color: #107c41; color: #ffffff; border: none;")
+        self.cancel_btn.setStyleSheet("""
+            background-color: #065f46;
+            color: #ffffff;
+            border: 1px solid #10b981;
+            border-radius: 8px;
+            padding: 7px 18px;
+            font-size: 12px;
+            font-weight: 600;
+        """)
 
-        # Eğer kullanıcı "Show file in folder" kutusunu işaretlediyse dosyayı klasörde göster
-        if hasattr(self, "open_folder_chk") and self.open_folder_chk.isChecked() and final_path and os.path.exists(final_path):
+        # Eğer kullanıcı klasörü aç kutusunu işaretlediyse dosyayı klasörde göster
+        should_open = False
+        if hasattr(self, "prog_open_folder_chk") and self.prog_open_folder_chk.isChecked():
+            should_open = True
+        elif hasattr(self, "open_folder_chk") and self.open_folder_chk.isChecked():
+            should_open = True
+
+        if should_open and final_path and os.path.exists(final_path):
             try:
                 subprocess.Popen(f'explorer /select,"{os.path.normpath(final_path)}"')
             except Exception:
