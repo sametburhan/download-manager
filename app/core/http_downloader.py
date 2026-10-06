@@ -256,6 +256,11 @@ class HttpChunkDownloader(QThread):
                 temp_file=part_file
             )
             self.task.chunks.append(chunk)
+            if not os.path.exists(part_file):
+                try:
+                    open(part_file, "a").close()
+                except OSError:
+                    pass
             self._save_meta_file()
             return
 
@@ -274,6 +279,13 @@ class HttpChunkDownloader(QThread):
                 temp_file=part_file
             )
             self.task.chunks.append(chunk)
+
+            # Geçici parça dosyasını temp dizininde hazırla
+            if not os.path.exists(part_file):
+                try:
+                    open(part_file, "a").close()
+                except OSError:
+                    pass
 
         self._save_meta_file()
 

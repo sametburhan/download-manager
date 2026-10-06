@@ -14,7 +14,7 @@ import time
 import hashlib
 import unittest
 import threading
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -42,6 +42,7 @@ class RangeTestHTTPRequestHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/octet-stream")
         self.send_header("Content-Length", str(len(TEST_DATA)))
         self.send_header("Accept-Ranges", "bytes")
+        self.send_header("Connection", "close")
         self.end_headers()
 
     def do_GET(self):
@@ -68,6 +69,7 @@ class RangeTestHTTPRequestHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Range", f"bytes {start}-{end}/{data_len}")
             self.send_header("Content-Length", str(len(chunk)))
             self.send_header("Accept-Ranges", "bytes")
+            self.send_header("Connection", "close")
             self.end_headers()
             self.wfile.write(chunk)
         else:
@@ -75,6 +77,7 @@ class RangeTestHTTPRequestHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "application/octet-stream")
             self.send_header("Content-Length", str(data_len))
             self.send_header("Accept-Ranges", "bytes")
+            self.send_header("Connection", "close")
             self.end_headers()
             self.wfile.write(TEST_DATA)
 
@@ -84,7 +87,7 @@ class TestDownloadEngine(unittest.TestCase):
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication(sys.argv)
         cls.port = 8765
-        cls.server = HTTPServer(("127.0.0.1", cls.port), RangeTestHTTPRequestHandler)
+        cls.server = ThreadingHTTPServer(("127.0.0.1", cls.port), RangeTestHTTPRequestHandler)
         cls.server_thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
         cls.server_thread.start()
 
@@ -179,13 +182,12 @@ class TestDownloadEngine(unittest.TestCase):
         downloader = HttpChunkDownloader(task=task, num_chunks=4)
         downloader.start()
 
-        for _ in range(50):
+        start_wait = time.time()
+        while task.status != DownloadStatus.DOWNLOADING and time.time() - start_wait < 10:
             self.app.processEvents()
-            if task.status == DownloadStatus.DOWNLOADING:
-                break
             time.sleep(0.02)
 
-        time.sleep(0.02)
+        time.sleep(0.05)
         downloader.pause()
         downloader.wait(2000)
 
@@ -224,7 +226,8 @@ class TestDownloadEngine(unittest.TestCase):
         downloader.start()
 
         # Biraz indirmesine izin ver ve duraklat
-        for _ in range(150):
+        start_wait = time.time()
+        while time.time() - start_wait < 10:
             self.app.processEvents()
             if task.downloaded_size > 0:
                 break
