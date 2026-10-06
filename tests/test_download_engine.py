@@ -48,6 +48,7 @@ class RangeTestHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         range_header = self.headers.get("Range")
         data_len = len(TEST_DATA)
+        is_slow = "/slow" in self.path
 
         if range_header and range_header.startswith("bytes="):
             # Range formatı: bytes=start-end
@@ -71,7 +72,18 @@ class RangeTestHTTPRequestHandler(BaseHTTPRequestHandler):
             self.send_header("Accept-Ranges", "bytes")
             self.send_header("Connection", "close")
             self.end_headers()
-            self.wfile.write(chunk)
+
+            if is_slow:
+                block_size = 16 * 1024
+                for i in range(0, len(chunk), block_size):
+                    try:
+                        self.wfile.write(chunk[i:i + block_size])
+                        self.wfile.flush()
+                        time.sleep(0.01)
+                    except (BrokenPipeError, ConnectionResetError, OSError):
+                        break
+            else:
+                self.wfile.write(chunk)
         else:
             self.send_response(200)
             self.send_header("Content-Type", "application/octet-stream")
@@ -79,7 +91,17 @@ class RangeTestHTTPRequestHandler(BaseHTTPRequestHandler):
             self.send_header("Accept-Ranges", "bytes")
             self.send_header("Connection", "close")
             self.end_headers()
-            self.wfile.write(TEST_DATA)
+            if is_slow:
+                block_size = 16 * 1024
+                for i in range(0, data_len, block_size):
+                    try:
+                        self.wfile.write(TEST_DATA[i:i + block_size])
+                        self.wfile.flush()
+                        time.sleep(0.01)
+                    except (BrokenPipeError, ConnectionResetError, OSError):
+                        break
+            else:
+                self.wfile.write(TEST_DATA)
 
 
 class TestDownloadEngine(unittest.TestCase):
@@ -173,7 +195,7 @@ class TestDownloadEngine(unittest.TestCase):
         target_filename = "resumable_2mb.bin"
         task = DownloadTask(
             task_id="task_test_02",
-            url=f"http://127.0.0.1:{self.port}/file.bin",
+            url=f"http://127.0.0.1:{self.port}/slow_file_04.bin",
             destination_folder=self.test_dir,
             filename=target_filename
         )
@@ -183,11 +205,12 @@ class TestDownloadEngine(unittest.TestCase):
         downloader.start()
 
         start_wait = time.time()
-        while task.status != DownloadStatus.DOWNLOADING and time.time() - start_wait < 10:
+        while time.time() - start_wait < 10:
             self.app.processEvents()
-            time.sleep(0.02)
+            if task.downloaded_size > 0:
+                break
+            time.sleep(0.01)
 
-        time.sleep(0.05)
         downloader.pause()
         downloader.wait(2000)
 
@@ -217,7 +240,7 @@ class TestDownloadEngine(unittest.TestCase):
         target_filename = "clean_dest_2mb.bin"
         task = DownloadTask(
             task_id="task_test_isolation",
-            url=f"http://127.0.0.1:{self.port}/file.bin",
+            url=f"http://127.0.0.1:{self.port}/slow_file_05.bin",
             destination_folder=self.test_dir,
             filename=target_filename
         )
@@ -231,7 +254,7 @@ class TestDownloadEngine(unittest.TestCase):
             self.app.processEvents()
             if task.downloaded_size > 0:
                 break
-            time.sleep(0.02)
+            time.sleep(0.01)
 
         downloader.pause()
         downloader.wait(2000)

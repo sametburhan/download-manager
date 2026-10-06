@@ -60,17 +60,21 @@ class HttpChunkDownloader(QThread):
     def pause(self) -> None:
         """İndirmeyi güvenli bir şekilde duraklatır ve mevcut durumu kaydeder."""
         with self._lock:
+            if self.task.status in (DownloadStatus.COMPLETED, DownloadStatus.FAILED, DownloadStatus.CANCELLED):
+                return
             self._is_paused = True
-        self.task.status = DownloadStatus.PAUSED
-        self._save_meta_file()
-        self.status_changed.emit(self.task.task_id, DownloadStatus.PAUSED.value)
+            self.task.status = DownloadStatus.PAUSED
+            self._save_meta_file()
+            self.status_changed.emit(self.task.task_id, DownloadStatus.PAUSED.value)
 
     def cancel(self) -> None:
         """İndirmeyi iptal eder ve geçici dosyaları temizler."""
         with self._lock:
+            if self.task.status in (DownloadStatus.COMPLETED, DownloadStatus.FAILED, DownloadStatus.CANCELLED):
+                return
             self._is_cancelled = True
-        self.task.status = DownloadStatus.CANCELLED
-        self.status_changed.emit(self.task.task_id, DownloadStatus.CANCELLED.value)
+            self.task.status = DownloadStatus.CANCELLED
+            self.status_changed.emit(self.task.task_id, DownloadStatus.CANCELLED.value)
 
     # ==================== QThread Ana Yürütme Döngüsü ====================
 
