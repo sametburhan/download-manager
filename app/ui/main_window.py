@@ -1053,6 +1053,11 @@ class MainWindow(QMainWindow):
             elif task.total_size <= 0 and task.downloaded_size > 0:
                 task.total_size = task.downloaded_size
 
+            task.status = DownloadStatus.COMPLETED
+            if not task.completed_at:
+                task.completed_at = time.time()
+            self.task_manager.save_tasks(force=True)
+
         if task_id in self.cards:
             self.cards[task_id].update_status(DownloadStatus.COMPLETED.value)
             if task and hasattr(self.cards[task_id], "update_task_info"):
@@ -1525,12 +1530,15 @@ class MainWindow(QMainWindow):
         if task.status == DownloadStatus.DOWNLOADING:
             act_pause = menu.addAction("⏸ Pause")
             act_pause.triggered.connect(lambda: self.task_manager.pause_task(task.task_id))
+        elif task.status == DownloadStatus.COMPLETED:
+            act_open = menu.addAction("▶ Open File")
+            act_open.triggered.connect(lambda: self._open_task_file(task))
         else:
             act_resume = menu.addAction("▶ Resume")
             act_resume.triggered.connect(lambda: self.task_manager.resume_task(task.task_id))
 
-        act_open_file = menu.addAction("📁 Open File / Show in Folder")
-        act_open_file.triggered.connect(lambda: self._open_task_folder(task))
+        act_open_folder = menu.addAction("📁 Show in Folder")
+        act_open_folder.triggered.connect(lambda: self._open_task_folder(task))
 
         menu.addSeparator()
 
@@ -1539,14 +1547,31 @@ class MainWindow(QMainWindow):
 
         menu.exec(self.downloads_table.viewport().mapToGlobal(pos))
 
+    def _open_task_file(self, task: DownloadTask) -> None:
+        """Dosyayı varsayılan sistem uygulamasıyla açar."""
+        if os.path.exists(task.final_file_path):
+            try:
+                os.startfile(os.path.normpath(task.final_file_path))
+            except Exception as e:
+                self.statusBar().showMessage(f"Dosya açılamadı: {e}", 4000)
+        else:
+            self.statusBar().showMessage(
+                f"ℹ Dosya diskte bulunamadı ({task.filename}). İndirilenler klasöründen silinmiş olabilir; indirme kaydı arayüzde korunmaktadır.",
+                6000
+            )
+
     def _open_task_folder(self, task: DownloadTask) -> None:
-        """Dosyanın bulunduğu klasörü Windows Gezgini'nde açar ve dosyayı seçer."""
+        """Dosyanın bulunduğu klasörü Windows Gezgini'nde açar ve varsa dosyayı seçer."""
         if os.path.exists(task.final_file_path):
             subprocess.Popen(f'explorer /select,"{os.path.normpath(task.final_file_path)}"')
         else:
             dest = os.path.normpath(task.destination_folder)
             os.makedirs(dest, exist_ok=True)
             subprocess.Popen(f'explorer "{dest}"')
+            self.statusBar().showMessage(
+                f"ℹ Dosya diskte bulunamadı, ancak hedef klasör açıldı. İndirme kaydı arayüzde korunmaktadır.",
+                5000
+            )
 
     def _select_all_rows(self, checked: bool) -> None:
         """Tüm satırlardaki onay kutularını işaretler veya kaldırır."""
@@ -1747,6 +1772,10 @@ class MainWindow(QMainWindow):
                     self.tray_manager.tray_icon.hide()
                 except Exception:
                     pass
+            try:
+                self.task_manager.save_tasks(force=True)
+            except Exception:
+                pass
             event.accept()
             if self._is_forced_exit:
                 QApplication.quit()

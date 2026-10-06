@@ -184,8 +184,9 @@ class DownloadTask:
         size = self.total_size
         if size <= 0 and self.downloaded_size > 0:
             size = self.downloaded_size
+            self.total_size = size
 
-        # Eğer hala 0 ise veya dosya tamamlandıysa diskteki gerçek boyutu kontrol et
+        # Eğer hala 0 ise ve dosya diskte varsa diskteki boyutu tespit edip kalıcı hale getir
         if size <= 0:
             try:
                 target_path = self.final_file_path
@@ -319,6 +320,43 @@ class DownloadTask:
         if status in (DownloadStatus.DOWNLOADING, DownloadStatus.CONNECTING, DownloadStatus.MERGING, DownloadStatus.QUEUED):
             status = DownloadStatus.PAUSED
 
+        total_size = 0
+        try:
+            total_size = int(data.get("total_size") or 0)
+        except Exception:
+            total_size = 0
+
+        downloaded_size = 0
+        try:
+            downloaded_size = int(data.get("downloaded_size") or 0)
+        except Exception:
+            downloaded_size = 0
+
+        created_at = time.time()
+        try:
+            if data.get("created_at") is not None:
+                created_at = float(data["created_at"])
+        except Exception:
+            created_at = time.time()
+
+        completed_at = None
+        try:
+            if data.get("completed_at") is not None:
+                completed_at = float(data["completed_at"])
+        except Exception:
+            completed_at = None
+
+        # Eğer görev tamamlanmışsa veya completed_at zamanı varsa durum COMPLETED olarak korunur
+        if completed_at is not None and status not in (DownloadStatus.FAILED, DownloadStatus.CANCELLED):
+            status = DownloadStatus.COMPLETED
+
+        # Tamamlanan görevlerde boyut tutarlılığını garanti et
+        if status == DownloadStatus.COMPLETED:
+            if total_size <= 0 and downloaded_size > 0:
+                total_size = downloaded_size
+            elif downloaded_size <= 0 and total_size > 0:
+                downloaded_size = total_size
+
         chunks_data = data.get("chunks", [])
         chunks = [ChunkInfo.from_dict(c) for c in chunks_data] if chunks_data else []
 
@@ -329,19 +367,19 @@ class DownloadTask:
             filename=data.get("filename", "download"),
             task_type=task_type,
             status=status,
-            total_size=int(data.get("total_size", 0)),
-            downloaded_size=int(data.get("downloaded_size", 0)),
+            total_size=total_size,
+            downloaded_size=downloaded_size,
             speed_bytes_per_sec=0.0,
             eta_seconds=None,
             is_resumable=bool(data.get("is_resumable", False)),
             chunks=chunks,
             error_message=data.get("error_message"),
-            created_at=float(data.get("created_at", time.time())),
-            completed_at=float(data.get("completed_at")) if data.get("completed_at") else None,
+            created_at=created_at,
+            completed_at=completed_at,
             headers=data.get("headers", {})
         )
 
-        # Eğer dosya diskte zaten mevcut ve tam boyuttaysa durumunu COMPLETED olarak güncelle
+        # Eğer dosya henüz COMPLETED olarak işaretlenmemiş ama diskte tam boyutta mevcutsa COMPLETED yap
         if task.status != DownloadStatus.COMPLETED and task.total_size > 0:
             target = task.final_file_path
             if target and os.path.exists(target) and not os.path.isdir(target):

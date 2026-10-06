@@ -119,6 +119,15 @@ class HttpChunkDownloader(QThread):
                             "eta_str": "00:00:00"
                         })
 
+                if os.path.exists(self.task.final_file_path):
+                    real_size = os.path.getsize(self.task.final_file_path)
+                    if real_size > 0:
+                        self.task.total_size = real_size
+                        self.task.downloaded_size = real_size
+                elif copied > 0:
+                    self.task.total_size = copied
+                    self.task.downloaded_size = copied
+
                 self.task.status = DownloadStatus.COMPLETED
                 self.task.completed_at = time.time()
                 self.status_changed.emit(self.task.task_id, DownloadStatus.COMPLETED.value)
@@ -159,6 +168,14 @@ class HttpChunkDownloader(QThread):
             cleanup_temp_files(chunk_paths, self.task.meta_file_path, self.task.temp_dir)
 
             # 5. Başarıyla tamamlandı
+            if os.path.exists(self.task.final_file_path):
+                real_size = os.path.getsize(self.task.final_file_path)
+                if real_size > 0:
+                    self.task.total_size = real_size
+                    self.task.downloaded_size = real_size
+            elif self.task.downloaded_size > 0 and self.task.total_size <= 0:
+                self.task.total_size = self.task.downloaded_size
+
             self.task.status = DownloadStatus.COMPLETED
             self.task.completed_at = time.time()
             self.status_changed.emit(self.task.task_id, DownloadStatus.COMPLETED.value)

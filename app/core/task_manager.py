@@ -91,7 +91,20 @@ class TaskManager(QObject):
             os.makedirs(os.path.dirname(self.tasks_file), exist_ok=True)
             with open(tmp_file, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
-            os.replace(tmp_file, self.tasks_file)
+            try:
+                os.replace(tmp_file, self.tasks_file)
+            except Exception:
+                time.sleep(0.05)
+                try:
+                    os.replace(tmp_file, self.tasks_file)
+                except Exception:
+                    with open(self.tasks_file, "w", encoding="utf-8") as f:
+                        json.dump(data, f, indent=2, ensure_ascii=False)
+                    if os.path.exists(tmp_file):
+                        try:
+                            os.remove(tmp_file)
+                        except Exception:
+                            pass
         except Exception as e:
             print(f"[ERROR] Failed to save tasks to {self.tasks_file}: {e}")
 

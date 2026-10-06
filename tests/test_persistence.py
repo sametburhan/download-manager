@@ -172,6 +172,81 @@ class TestTaskPersistence(unittest.TestCase):
 
             win.close()
 
+    def test_04_deleted_file_from_disk_preserves_task_in_app_and_tasks_json(self):
+        """Diskteki dosya silinse bile uygulamanın görevi silmediğini, tasks.json'da tuttuğunu
+        ve sadece arayüzden silindiğinde listenin güncellendiğini doğrular."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tasks_file = os.path.join(tmpdir, "tasks.json")
+            download_dir = os.path.join(tmpdir, "Downloads")
+            os.makedirs(download_dir, exist_ok=True)
+
+            # 1. Tamamlanmış bir indirme simüle et ve diskte dosyasını oluştur
+            real_file_path = os.path.join(download_dir, "my_video.mp4")
+            with open(real_file_path, "wb") as f:
+                f.write(b"0" * (2 * 1024 * 1024))  # 2 MB dosya
+
+            tm1 = TaskManager(default_download_dir=download_dir, tasks_file=tasks_file, auto_load=False)
+            completed_task = DownloadTask(
+                task_id="persist_test_1",
+                url="https://example.com/my_video.mp4",
+                destination_folder=download_dir,
+                filename="my_video.mp4",
+                task_type=TaskType.MEDIA_VIDEO,
+                status=DownloadStatus.COMPLETED,
+                total_size=2 * 1024 * 1024,
+                downloaded_size=2 * 1024 * 1024,
+                completed_at=1789757000.0
+            )
+            tm1.tasks["persist_test_1"] = completed_task
+            tm1.save_tasks(force=True)
+
+            # 2. Kullanıcı dosyayı İndirilenler klasöründen siler
+            self.assertTrue(os.path.exists(real_file_path))
+            os.remove(real_file_path)
+            self.assertFalse(os.path.exists(real_file_path))
+
+            # 3. Uygulama açılır (yeni oturum / TaskManager ve MainWindow)
+            tm2 = TaskManager(default_download_dir=download_dir, tasks_file=tasks_file, auto_load=True)
+            self.assertIn("persist_test_1", tm2.tasks)
+            loaded_task = tm2.tasks["persist_test_1"]
+
+            # Görev COMPLETED kalmalı, boyutu ve adı korunmalı
+            self.assertEqual(loaded_task.status, DownloadStatus.COMPLETED)
+            self.assertEqual(loaded_task.filename, "my_video.mp4")
+            self.assertEqual(loaded_task.formatted_total_size, "2.00 MB")
+
+            # 4. Arayüz tablosunda görev eksiksiz yer almalı
+            bridge = ServerBridge()
+            win = MainWindow(task_manager=tm2, bridge=bridge)
+            self.assertEqual(win.downloads_table.rowCount(), 1)
+            self.assertEqual(len(win.cards), 1)
+
+            # Kategori sayaçları Completed ve Video olarak doğru saymalı
+            all_text = win.sidebar_items["ALL"][0].text(0)
+            self.assertIn("(1)", all_text)
+            completed_text = win.sidebar_items["COMPLETED"][0].text(0)
+            self.assertIn("(1)", completed_text)
+
+            # 5. tasks.json dosyasında kayıt hala korunuyor olmalı
+            with open(tasks_file, "r", encoding="utf-8") as f:
+                json_data = json.load(f)
+            self.assertEqual(len(json_data), 1)
+            self.assertEqual(json_data[0]["task_id"], "persist_test_1")
+            self.assertEqual(json_data[0]["status"], "COMPLETED")
+            self.assertEqual(json_data[0]["total_size"], 2 * 1024 * 1024)
+
+            # 6. SADECE kullanıcı arayüzden sildiğinde liste güncellenmeli
+            win._delete_tasks_batch(["persist_test_1"], delete_files=False)
+            self.assertEqual(win.downloads_table.rowCount(), 0)
+            self.assertEqual(len(tm2.tasks), 0)
+
+            # tasks.json güncellenmiş ve boş olmalı
+            with open(tasks_file, "r", encoding="utf-8") as f:
+                updated_json = json.load(f)
+            self.assertEqual(len(updated_json), 0)
+
+            win.close()
+
         print("\n[OK] All task persistence and reload tests passed successfully!")
 
 
