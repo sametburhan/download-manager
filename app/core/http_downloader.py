@@ -189,13 +189,34 @@ class HttpChunkDownloader(QThread):
 
     # ==================== İç Mantık ve Ağ Operasyonları ====================
 
+    @staticmethod
+    def _get_proxy_url() -> Optional[str]:
+        """Ayarlardan proxy yapılandırmasını okur ve httpx uyumlu URL döndürür."""
+        try:
+            from app.core.config import load_network_settings
+            net_settings = load_network_settings()
+            if net_settings.proxy_mode == "manual" and net_settings.proxy_host:
+                pwd = getattr(net_settings, "proxy_pass", getattr(net_settings, "proxy_password", ""))
+                auth = f"{net_settings.proxy_user}:{pwd}@" if net_settings.proxy_user else ""
+                return f"http://{auth}{net_settings.proxy_host}:{net_settings.proxy_port}"
+            elif net_settings.proxy_mode == "none":
+                return None
+            elif net_settings.proxy_mode == "system":
+                import urllib.request
+                sys_proxies = urllib.request.getproxies()
+                return sys_proxies.get("https") or sys_proxies.get("http")
+        except Exception:
+            pass
+        return None
+
     def _inspect_server(self) -> None:
         """Sunucuya HEAD veya test GET isteği atarak boyut ve Range desteğini belirler."""
         req_headers = dict(self.task.headers)
         # Bazı sunucular HEAD isteğini engellediği için Range: bytes=0-0 ile GET deniyoruz
         req_headers["Range"] = "bytes=0-0"
 
-        with httpx.Client(follow_redirects=True, timeout=15.0) as client:
+        proxy_url = self._get_proxy_url()
+        with httpx.Client(proxy=proxy_url, follow_redirects=True, timeout=15.0) as client:
             try:
                 response = client.get(self.task.url, headers=req_headers)
             except httpx.RequestError as err:
@@ -337,7 +358,8 @@ class HttpChunkDownloader(QThread):
         # Dosyayı varsa kaldığı yerden devam modunda ("ab"), yoksa "wb" modunda aç
         mode = "ab" if chunk.downloaded_bytes > 0 and os.path.exists(chunk.temp_file) else "wb"
 
-        with httpx.Client(follow_redirects=True, timeout=30.0) as client:
+        proxy_url = self._get_proxy_url()
+        with httpx.Client(proxy=proxy_url, follow_redirects=True, timeout=30.0) as client:
             with client.stream("GET", self.task.url, headers=req_headers) as response:
                 if response.status_code not in (200, 206):
                     raise RuntimeError(f"Parça #{chunk.chunk_id} indirilemedi. HTTP Kodu: {response.status_code}")

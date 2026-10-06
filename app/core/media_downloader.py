@@ -99,7 +99,8 @@ def get_ytdl_base_opts(headers: Optional[Dict[str, str]] = None) -> Dict[str, An
         from app.core.config import load_network_settings
         net_settings = load_network_settings()
         if net_settings.proxy_mode == "manual" and net_settings.proxy_host:
-            auth = f"{net_settings.proxy_user}:{net_settings.proxy_password}@" if net_settings.proxy_user else ""
+            password = getattr(net_settings, "proxy_pass", getattr(net_settings, "proxy_password", ""))
+            auth = f"{net_settings.proxy_user}:{password}@" if net_settings.proxy_user else ""
             opts["proxy"] = f"http://{auth}{net_settings.proxy_host}:{net_settings.proxy_port}"
         elif net_settings.proxy_mode == "system":
             import urllib.request
