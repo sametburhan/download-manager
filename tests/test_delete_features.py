@@ -138,19 +138,19 @@ class TestDeleteFeatures(unittest.TestCase):
             selected_ids = win._get_selected_task_ids()
             self.assertIn("t1", selected_ids)
             self.assertIn("t3", selected_ids)
-        self.assertNotIn("t2", selected_ids)
+            self.assertNotIn("t2", selected_ids)
 
-        # 4. Execute batch delete
-        win._delete_tasks_batch(selected_ids, delete_files=False)
+            # 4. Execute batch delete
+            win._delete_tasks_batch(selected_ids, delete_files=False)
 
-        # Only 1 row (t2) should remain in table
-        self.assertEqual(win.downloads_table.rowCount(), 1)
-        self.assertIn("t2", win.task_rows)
-        self.assertNotIn("t1", win.task_rows)
-        self.assertNotIn("t3", win.task_rows)
-        self.assertEqual(win.row_tasks.get(0), "t2")
+            # Only 1 row (t2) should remain in table
+            self.assertEqual(win.downloads_table.rowCount(), 1)
+            self.assertIn("t2", win.task_rows)
+            self.assertNotIn("t1", win.task_rows)
+            self.assertNotIn("t3", win.task_rows)
+            self.assertEqual(win.row_tasks.get(0), "t2")
 
-        win.close()
+            win.close()
 
     def test_05_select_all_toolbar_button_and_toggle(self):
         """Tests Select All button in toolbar, toggle state changes, and header section click."""

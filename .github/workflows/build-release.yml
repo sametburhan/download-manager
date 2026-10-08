@@ -24,6 +24,7 @@ on:
 env:
   PYTHONUTF8: '1'
   PYTHONIOENCODING: 'utf-8'
+  PYTHONUNBUFFERED: '1'
 
 jobs:
   test:
@@ -52,7 +53,7 @@ jobs:
 
       - name: Run Test Suite
         run: |
-          python -m unittest discover tests
+          python -m unittest discover tests -v
 
   build:
     name: Build Windows Installer & Packages

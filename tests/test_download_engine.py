@@ -108,8 +108,8 @@ class TestDownloadEngine(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication(sys.argv)
-        cls.port = 8765
-        cls.server = ThreadingHTTPServer(("127.0.0.1", cls.port), RangeTestHTTPRequestHandler)
+        cls.server = ThreadingHTTPServer(("127.0.0.1", 0), RangeTestHTTPRequestHandler)
+        cls.port = cls.server.server_address[1]
         cls.server_thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
         cls.server_thread.start()
 
@@ -165,22 +165,24 @@ class TestDownloadEngine(unittest.TestCase):
         downloader = HttpChunkDownloader(task=task, num_chunks=4)
         finished_results = []
         progress_events = []
+        errors = []
 
         downloader.finished.connect(lambda tid, path: finished_results.append((tid, path)))
         downloader.progress_updated.connect(lambda d: progress_events.append(d))
+        downloader.error_occurred.connect(lambda tid, err: errors.append(err))
 
         downloader.start()
 
-        # Wait for download completion (max 10s)
+        # Wait for download completion (max 30s)
         start_time = time.time()
-        while not finished_results and time.time() - start_time < 10:
+        while not finished_results and time.time() - start_time < 30:
             self.app.processEvents()
             time.sleep(0.05)
 
-        downloader.wait(2000)
+        downloader.wait(5000)
 
         # Verifications
-        self.assertEqual(len(finished_results), 1)
+        self.assertEqual(len(finished_results), 1, f"Download failed or timed out. Status: {task.status}, Task error: {task.error_message}, Errors: {errors}")
         final_file = finished_results[0][1]
         self.assertTrue(os.path.exists(final_file))
         self.assertEqual(os.path.getsize(final_file), len(TEST_DATA))
@@ -205,32 +207,34 @@ class TestDownloadEngine(unittest.TestCase):
         downloader.start()
 
         start_wait = time.time()
-        while time.time() - start_wait < 10:
+        while time.time() - start_wait < 30:
             self.app.processEvents()
             if task.downloaded_size > 0:
                 break
             time.sleep(0.01)
 
         downloader.pause()
-        downloader.wait(2000)
+        downloader.wait(5000)
 
         self.assertEqual(task.status, DownloadStatus.PAUSED)
         self.assertTrue(os.path.exists(task.meta_file_path))
 
         # 2. Resume download
         resume_finished = []
+        resume_errors = []
         resume_downloader = HttpChunkDownloader(task=task, num_chunks=4)
         resume_downloader.finished.connect(lambda tid, path: resume_finished.append((tid, path)))
+        resume_downloader.error_occurred.connect(lambda tid, err: resume_errors.append(err))
         resume_downloader.start()
 
         start_time = time.time()
-        while not resume_finished and time.time() - start_time < 10:
+        while not resume_finished and time.time() - start_time < 30:
             self.app.processEvents()
             time.sleep(0.05)
 
-        resume_downloader.wait(2000)
+        resume_downloader.wait(5000)
 
-        self.assertEqual(len(resume_finished), 1)
+        self.assertEqual(len(resume_finished), 1, f"Resume failed. Status: {task.status}, Error: {task.error_message}, Errors: {resume_errors}")
         final_file = resume_finished[0][1]
         self.assertTrue(os.path.exists(final_file))
         self.assertEqual(calculate_file_hash(final_file), TEST_HASH)
@@ -250,14 +254,14 @@ class TestDownloadEngine(unittest.TestCase):
 
         # Allow partial download and pause
         start_wait = time.time()
-        while time.time() - start_wait < 10:
+        while time.time() - start_wait < 30:
             self.app.processEvents()
             if task.downloaded_size > 0:
                 break
             time.sleep(0.01)
 
         downloader.pause()
-        downloader.wait(2000)
+        downloader.wait(5000)
 
         # 1. Destination folder MUST NOT contain .part or .meta files!
         dest_files = os.listdir(self.test_dir)
