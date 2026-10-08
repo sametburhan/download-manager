@@ -9,6 +9,7 @@ Even if the window is closed or minimized, downloading continues uninterrupted i
 """
 
 import os
+import shutil
 import subprocess
 import threading
 import urllib.request
@@ -65,6 +66,8 @@ class CompactDownloadWindow(QDialog):
     """
     Modern IDM-style compact download and progress window.
     """
+    # Thread-safe signal to deliver size query results from worker thread to main GUI thread
+    size_query_finished = pyqtSignal(int, bool, str, int)  # (size_bytes, is_resumable, status_msg, query_id)
 
     def __init__(
         self,
@@ -86,12 +89,17 @@ class CompactDownloadWindow(QDialog):
         self._chunk_bars: List[QProgressBar] = []
         self._segment_boxes: List[QLabel] = []
         self._is_part_info_expanded: bool = True
+        self._active_query_id: int = 0
+        self._debounce_timer: Optional[QTimer] = None
 
-        # Window properties (Windows 11 header, dark acrylic styling)
-        self.setWindowTitle("Add download")
+        # Thread-safe signal connection
+        self.size_query_finished.connect(self._update_size_ui)
+
+        # Window properties (Windows 11 header, dark acrylic styling matching Stitch design)
+        self.setWindowTitle("Add Download")
         self.setWindowIcon(get_app_icon())
-        self.setMinimumWidth(580)
-        self.resize(580, 240)
+        self.setMinimumWidth(740)
+        self.resize(760, 360)
         self.setWindowFlags(self.windowFlags() | Qt.WindowType.WindowStaysOnTopHint)
         self.setStyleSheet(self._get_style_sheet())
 
@@ -99,7 +107,7 @@ class CompactDownloadWindow(QDialog):
         self._connect_task_manager()
 
         if initial_url:
-            self._query_file_size_async(initial_url)
+            self._on_url_changed(initial_url)
         else:
             self._check_clipboard()
 
@@ -113,65 +121,111 @@ class CompactDownloadWindow(QDialog):
         self.main_layout.setContentsMargins(18, 16, 18, 16)
         self.main_layout.setSpacing(12)
 
-        # ------------------- 1. QUERY BODY (QUERY MODE) -------------------
+        # ------------------- 1. QUERY BODY (QUERY MODE - STITCH MODERN DESKTOP CLIENT) -------------------
         self.query_widget = QWidget()
-        query_layout = QHBoxLayout(self.query_widget)
-        query_layout.setContentsMargins(0, 2, 0, 2)
-        query_layout.setSpacing(14)
+        query_vbox = QVBoxLayout(self.query_widget)
+        query_vbox.setContentsMargins(0, 0, 0, 0)
+        query_vbox.setSpacing(14)
 
-        # Left Input Fields (URL, Folder, Filename)
+        # Upper row: 2 Columns (Inputs 7 cols, Metadata Card 5 cols)
+        upper_cols = QHBoxLayout()
+        upper_cols.setSpacing(18)
+
+        # --- LEFT COLUMN: Parameters (URL, Save Folder, File Name) ---
         inputs_layout = QVBoxLayout()
-        inputs_layout.setSpacing(8)
+        inputs_layout.setSpacing(10)
 
-        # A) URL Row + Clipboard Button
+        # 1) Download Address (URL)
+        url_group = QVBoxLayout()
+        url_group.setSpacing(4)
+        url_header = QHBoxLayout()
+        url_header.addWidget(QLabel("Download Address (URL)", styleSheet="color: #cbd5e1; font-weight: 500; font-size: 12px; background: transparent;"))
+        url_header.addStretch()
+        url_header.addWidget(QLabel("Direct Link", styleSheet="color: #38bdf8; font-family: 'Cascadia Code', Consolas, monospace; font-size: 11px; background: transparent;"))
+        url_group.addLayout(url_header)
+
         url_container = QFrame()
-        url_container.setObjectName("inputContainer")
-        url_layout = QHBoxLayout(url_container)
-        url_layout.setContentsMargins(10, 0, 8, 0)
-        url_layout.setSpacing(6)
+        url_container.setObjectName("inputGroupContainer")
+        url_box = QHBoxLayout(url_container)
+        url_box.setContentsMargins(10, 0, 6, 0)
+        url_box.setSpacing(8)
+
+        icon_url = QLabel("🔗")
+        icon_url.setStyleSheet("color: #64748b; font-size: 13px; background: transparent;")
+        url_box.addWidget(icon_url)
 
         self.url_input = QLineEdit(initial_url)
         self.url_input.setPlaceholderText("https://...")
-        self.url_input.setStyleSheet("border: none; background: transparent;")
+        self.url_input.setStyleSheet("border: none; background: transparent; color: #f1f5f9; font-family: 'Cascadia Code', Consolas, 'Segoe UI', monospace; font-size: 12px;")
         self.url_input.textChanged.connect(self._on_url_changed)
-        url_layout.addWidget(self.url_input)
+        url_box.addWidget(self.url_input, stretch=1)
 
-        self.btn_paste = QPushButton("📋")
+        self.btn_paste = QPushButton("📋 Paste")
         self.btn_paste.setObjectName("embeddedActionBtn")
-        self.btn_paste.setToolTip("Paste clipboard contents")
-        self.btn_paste.setFixedSize(26, 26)
+        self.btn_paste.setToolTip("Paste from clipboard")
         self.btn_paste.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_paste.clicked.connect(self._paste_from_clipboard)
-        url_layout.addWidget(self.btn_paste)
+        url_box.addWidget(self.btn_paste)
 
-        inputs_layout.addWidget(url_container)
+        url_group.addWidget(url_container)
+        inputs_layout.addLayout(url_group)
 
-        # B) Save Folder Row + Browse Icon
+        # 2) Save Folder
+        folder_group = QVBoxLayout()
+        folder_group.setSpacing(4)
+        folder_header = QHBoxLayout()
+        folder_header.addWidget(QLabel("Save Folder", styleSheet="color: #cbd5e1; font-weight: 500; font-size: 12px; background: transparent;"))
+        folder_header.addStretch()
+        self.free_space_lbl = QLabel(self._get_free_disk_space_str(self.default_save_dir))
+        self.free_space_lbl.setStyleSheet("color: #94a3b8; font-size: 11px; background: transparent;")
+        folder_header.addWidget(self.free_space_lbl)
+        folder_group.addLayout(folder_header)
+
         dest_container = QFrame()
-        dest_container.setObjectName("inputContainer")
-        dest_layout = QHBoxLayout(dest_container)
-        dest_layout.setContentsMargins(10, 0, 8, 0)
-        dest_layout.setSpacing(6)
+        dest_container.setObjectName("inputGroupContainer")
+        dest_box = QHBoxLayout(dest_container)
+        dest_box.setContentsMargins(10, 0, 6, 0)
+        dest_box.setSpacing(8)
+
+        icon_folder = QLabel("📁")
+        icon_folder.setStyleSheet("color: #f59e0b; font-size: 13px; background: transparent;")
+        dest_box.addWidget(icon_folder)
 
         self.dest_input = QLineEdit(self.default_save_dir)
-        self.dest_input.setStyleSheet("border: none; background: transparent;")
-        dest_layout.addWidget(self.dest_input)
+        self.dest_input.setStyleSheet("border: none; background: transparent; color: #e2e8f0; font-family: 'Cascadia Code', Consolas, 'Segoe UI', monospace; font-size: 12px;")
+        self.dest_input.textChanged.connect(self._update_free_space_badge)
+        dest_box.addWidget(self.dest_input, stretch=1)
 
-        self.btn_browse = QPushButton("📁")
+        self.btn_browse = QPushButton("Browse...")
         self.btn_browse.setObjectName("embeddedActionBtn")
         self.btn_browse.setToolTip("Select destination folder")
-        self.btn_browse.setFixedSize(26, 26)
         self.btn_browse.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_browse.clicked.connect(self._browse_folder)
-        dest_layout.addWidget(self.btn_browse)
+        dest_box.addWidget(self.btn_browse)
 
-        inputs_layout.addWidget(dest_container)
+        folder_group.addWidget(dest_container)
+        inputs_layout.addLayout(folder_group)
 
-        # C) Filename Row
+        # 3) File Name
+        file_group = QVBoxLayout()
+        file_group.setSpacing(4)
+        file_header = QHBoxLayout()
+        file_header.addWidget(QLabel("File Name", styleSheet="color: #cbd5e1; font-weight: 500; font-size: 12px; background: transparent;"))
+        file_header.addStretch()
+        self.file_type_lbl = QLabel(self._get_file_type_badge(initial_filename))
+        self.file_type_lbl.setStyleSheet("color: #64748b; font-family: 'Cascadia Code', Consolas, monospace; font-size: 11px; background: transparent;")
+        file_header.addWidget(self.file_type_lbl)
+        file_group.addLayout(file_header)
+
         file_container = QFrame()
-        file_container.setObjectName("inputContainer")
-        file_layout = QHBoxLayout(file_container)
-        file_layout.setContentsMargins(10, 0, 8, 0)
+        file_container.setObjectName("inputGroupContainer")
+        file_box = QHBoxLayout(file_container)
+        file_box.setContentsMargins(10, 0, 10, 0)
+        file_box.setSpacing(8)
+
+        icon_file = QLabel("📄")
+        icon_file.setStyleSheet("color: #64748b; font-size: 13px; background: transparent;")
+        file_box.addWidget(icon_file)
 
         if not initial_filename and initial_url:
             clean = initial_url.split("?")[0].split("#")[0]
@@ -185,57 +239,136 @@ class CompactDownloadWindow(QDialog):
 
         self.filename_input = QLineEdit(initial_filename)
         self.filename_input.setPlaceholderText("filename.ext")
-        self.filename_input.setStyleSheet("border: none; background: transparent;")
-        file_layout.addWidget(self.filename_input)
+        self.filename_input.setStyleSheet("border: none; background: transparent; color: #f1f5f9; font-family: 'Cascadia Code', Consolas, 'Segoe UI', monospace; font-size: 12px;")
+        self.filename_input.textChanged.connect(self._update_file_type_badge)
+        file_box.addWidget(self.filename_input, stretch=1)
 
-        inputs_layout.addWidget(file_container)
-        query_layout.addLayout(inputs_layout, stretch=3)
+        file_group.addWidget(file_container)
+        inputs_layout.addLayout(file_group)
 
-        # Right Info Panel (Modern File Size Card)
-        right_panel = QVBoxLayout()
-        right_panel.setContentsMargins(0, 0, 0, 0)
-        right_panel.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        upper_cols.addLayout(inputs_layout, stretch=7)
 
+        # --- RIGHT COLUMN: Metadata & Status Card ---
         self.size_card = QFrame()
-        self.size_card.setObjectName("sizeCard")
+        self.size_card.setObjectName("metadataStatusCard")
         size_card_layout = QVBoxLayout(self.size_card)
-        size_card_layout.setContentsMargins(14, 12, 14, 12)
-        size_card_layout.setSpacing(6)
+        size_card_layout.setContentsMargins(16, 14, 16, 14)
+        size_card_layout.setSpacing(8)
 
-        # Header and Refresh Button
-        header_box = QHBoxLayout()
-        header_box.setSpacing(6)
+        # Card Header: Parcel Icon + FILE SIZE & INFO + Content-Length + Refresh Button
+        card_header = QHBoxLayout()
+        card_header.setSpacing(10)
+
+        icon_parcel_box = QFrame()
+        icon_parcel_box.setObjectName("parcelIconBox")
+        icon_parcel_layout = QHBoxLayout(icon_parcel_box)
+        icon_parcel_layout.setContentsMargins(6, 6, 6, 6)
         self.size_icon = QLabel("📦")
-        self.size_icon.setStyleSheet("font-size: 13px; background: transparent;")
-        header_box.addWidget(self.size_icon)
+        self.size_icon.setStyleSheet("font-size: 14px; background: transparent;")
+        icon_parcel_layout.addWidget(self.size_icon)
+        card_header.addWidget(icon_parcel_box)
 
-        size_title = QLabel("FILE SIZE")
-        size_title.setStyleSheet("color: #94a3b8; font-size: 10px; font-weight: bold; letter-spacing: 0.6px; background: transparent;")
-        header_box.addWidget(size_title)
-        header_box.addStretch()
+        header_title_col = QVBoxLayout()
+        header_title_col.setSpacing(1)
+        size_title = QLabel("FILE SIZE & INFO")
+        size_title.setStyleSheet("color: #cbd5e1; font-size: 11px; font-weight: bold; letter-spacing: 0.8px; background: transparent;")
+        header_title_col.addWidget(size_title)
+        size_subtitle = QLabel("HTTP 1.1 / Content-Length")
+        size_subtitle.setStyleSheet("color: #64748b; font-size: 10px; background: transparent;")
+        header_title_col.addWidget(size_subtitle)
+        card_header.addLayout(header_title_col)
+
+        card_header.addStretch()
 
         self.btn_refresh = QPushButton("🔄")
-        self.btn_refresh.setObjectName("refreshBtn")
-        self.btn_refresh.setToolTip("Re-query file size")
-        self.btn_refresh.setFixedSize(22, 22)
+        self.btn_refresh.setObjectName("cardRefreshBtn")
+        self.btn_refresh.setToolTip("Re-query server")
+        self.btn_refresh.setFixedSize(28, 28)
         self.btn_refresh.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_refresh.clicked.connect(lambda: self._query_file_size_async(self.url_input.text()))
-        header_box.addWidget(self.btn_refresh)
-        size_card_layout.addLayout(header_box)
+        card_header.addWidget(self.btn_refresh)
 
-        # Large and clear size indicator
-        self.size_label = QLabel("Querying...")
-        self.size_label.setFont(QFont("Segoe UI", 15, QFont.Weight.Bold))
-        self.size_label.setStyleSheet("color: #38bdf8; background: transparent;")
-        size_card_layout.addWidget(self.size_label)
+        size_card_layout.addLayout(card_header)
 
-        # Status and quota explanation
-        self.check_icon = QLabel("Connecting to server...")
-        self.check_icon.setStyleSheet("color: #64748b; font-size: 11px; background: transparent;")
-        size_card_layout.addWidget(self.check_icon)
+        # Card Center: Large Size Display & Query Status
+        card_center = QVBoxLayout()
+        card_center.setSpacing(4)
+        card_center.setContentsMargins(0, 4, 0, 4)
 
-        right_panel.addWidget(self.size_card)
-        query_layout.addLayout(right_panel, stretch=2)
+        self.size_label = QLabel("Querying server...")
+        self.size_label.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
+        self.size_label.setStyleSheet("color: #38bdf8; font-weight: bold; background: transparent;")
+        card_center.addWidget(self.size_label)
+
+        self.check_icon = QLabel("● Connecting to server...")
+        self.check_icon.setStyleSheet("color: #94a3b8; font-size: 11px; background: transparent;")
+        self.check_icon.setWordWrap(True)
+        card_center.addWidget(self.check_icon)
+
+        size_card_layout.addLayout(card_center)
+        size_card_layout.addStretch()
+
+        # Card Bottom: Badges (Resume Support | Max Connections)
+        badges_layout = QHBoxLayout()
+        badges_layout.setSpacing(8)
+
+        # Badge 1: Resume Support
+        badge1 = QFrame()
+        badge1.setObjectName("badgeBox")
+        b1_layout = QVBoxLayout(badge1)
+        b1_layout.setContentsMargins(8, 6, 8, 6)
+        b1_layout.setSpacing(2)
+        b1_title = QLabel("Resume Support")
+        b1_title.setStyleSheet("color: #64748b; font-size: 9px; font-weight: 600; text-transform: uppercase; background: transparent;")
+        b1_layout.addWidget(b1_title)
+        self.resume_badge_lbl = QLabel("● Checking...")
+        self.resume_badge_lbl.setStyleSheet("color: #94a3b8; font-weight: 600; font-size: 11px; background: transparent;")
+        b1_layout.addWidget(self.resume_badge_lbl)
+        badges_layout.addWidget(badge1, stretch=1)
+
+        # Badge 2: Max Connections
+        badge2 = QFrame()
+        badge2.setObjectName("badgeBox")
+        b2_layout = QVBoxLayout(badge2)
+        b2_layout.setContentsMargins(8, 6, 8, 6)
+        b2_layout.setSpacing(2)
+        b2_title = QLabel("Max Connections")
+        b2_title.setStyleSheet("color: #64748b; font-size: 9px; font-weight: 600; text-transform: uppercase; background: transparent;")
+        b2_layout.addWidget(b2_title)
+        try:
+            from app.core.config import load_network_settings
+            initial_threads = load_network_settings().segments_per_download
+        except Exception:
+            initial_threads = 8
+        self.threads_badge_lbl = QLabel(f"{initial_threads} Threads")
+        self.threads_badge_lbl.setStyleSheet("color: #e2e8f0; font-family: 'Cascadia Code', Consolas, monospace; font-weight: 600; font-size: 11px; background: transparent;")
+        b2_layout.addWidget(self.threads_badge_lbl)
+        badges_layout.addWidget(badge2, stretch=1)
+
+        size_card_layout.addLayout(badges_layout)
+
+        upper_cols.addWidget(self.size_card, stretch=5)
+        query_vbox.addLayout(upper_cols)
+
+        # --- PREFERENCES ROW (Checkboxes) ---
+        prefs_frame = QFrame()
+        prefs_frame.setObjectName("prefsFrame")
+        prefs_layout = QHBoxLayout(prefs_frame)
+        prefs_layout.setContentsMargins(0, 8, 0, 0)
+        prefs_layout.setSpacing(24)
+
+        self.chk_start_now = QCheckBox("Start download immediately")
+        self.chk_start_now.setChecked(True)
+        self.chk_start_now.setStyleSheet("color: #cbd5e1; font-size: 12px; background: transparent;")
+        prefs_layout.addWidget(self.chk_start_now)
+
+        self.chk_remember_dir = QCheckBox("Remember this download folder")
+        self.chk_remember_dir.setChecked(False)
+        self.chk_remember_dir.setStyleSheet("color: #cbd5e1; font-size: 12px; background: transparent;")
+        prefs_layout.addWidget(self.chk_remember_dir)
+
+        prefs_layout.addStretch()
+        query_vbox.addWidget(prefs_frame)
 
         self.main_layout.addWidget(self.query_widget)
 
@@ -500,40 +633,38 @@ class CompactDownloadWindow(QDialog):
         prog_layout.addWidget(self.prog_tab_widget)
         self.main_layout.addWidget(self.progress_widget)
 
-        # ------------------- 4. ALT EYLEM BUTONLARI (QUERY MODE) -------------------
-        self.buttons_widget = QWidget()
+        # ------------------- 4. FOOTER ACTION BUTTONS (QUERY MODE - STITCH MODERN) -------------------
+        self.buttons_widget = QFrame()
+        self.buttons_widget.setObjectName("dialogFooter")
         btn_layout = QHBoxLayout(self.buttons_widget)
-        btn_layout.setContentsMargins(0, 6, 0, 0)
-        btn_layout.setSpacing(10)
+        btn_layout.setContentsMargins(16, 10, 16, 10)
+        btn_layout.setSpacing(12)
 
-        # 'Add' Button (Adds to queue without starting immediately)
-        self.btn_add = QPushButton("Add")
-        self.btn_add.setObjectName("secondaryBtn")
-        self.btn_add.setFixedWidth(80)
-        self.btn_add.setFixedHeight(38)
+        # Left: 'Add to Queue' button
+        self.btn_add = QPushButton("+ Add to Queue")
+        self.btn_add.setObjectName("secondaryQueueBtn")
+        self.btn_add.setFixedHeight(36)
         self.btn_add.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_add.clicked.connect(self._on_add_clicked)
         btn_layout.addWidget(self.btn_add)
 
-        # 'Download' Button (Starts download immediately)
-        self.btn_download = QPushButton("Download")
-        self.btn_download.setObjectName("downloadBtn")
-        self.btn_download.setFixedWidth(145)
-        self.btn_download.setFixedHeight(38)
-        self.btn_download.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_download.clicked.connect(self._on_download_clicked)
-        btn_layout.addWidget(self.btn_download)
-
         btn_layout.addStretch()
 
-        # 'Cancel' Butonu
+        # Right: 'Cancel' button
         self.btn_cancel = QPushButton("Cancel")
-        self.btn_cancel.setObjectName("secondaryBtn")
-        self.btn_cancel.setFixedWidth(80)
-        self.btn_cancel.setFixedHeight(38)
+        self.btn_cancel.setObjectName("cancelBtn")
+        self.btn_cancel.setFixedHeight(36)
         self.btn_cancel.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_cancel.clicked.connect(self.close)
         btn_layout.addWidget(self.btn_cancel)
+
+        # Right: 'Download' button (Gradient + Glow)
+        self.btn_download = QPushButton("↓ Download")
+        self.btn_download.setObjectName("primaryDownloadBtn")
+        self.btn_download.setFixedHeight(36)
+        self.btn_download.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_download.clicked.connect(self._on_download_clicked)
+        btn_layout.addWidget(self.btn_download)
 
         self.main_layout.addWidget(self.buttons_widget)
 
@@ -606,10 +737,12 @@ class CompactDownloadWindow(QDialog):
                 self.part_table.setItem(i, 2, item_down)
                 self.part_table.setItem(i, 3, item_tot)
 
-        # 4. Update footer label
+        # 4. Update footer label and metadata card badge
         if hasattr(self, "footer_engine_lbl"):
             label_conn = "Connection" if count == 1 else "Connections"
             self.footer_engine_lbl.setText(f"{count} {label_conn} • Download Manager")
+        if hasattr(self, "threads_badge_lbl"):
+            self.threads_badge_lbl.setText(f"{count} Threads")
 
     def _toggle_part_info(self) -> None:
         """Toggles the parts panel open or closed."""
@@ -641,28 +774,216 @@ class CompactDownloadWindow(QDialog):
 
     # ==================== Actions and Network Query ====================
 
-    def _on_url_changed(self, url: str) -> None:
-        """Estimates filename and queries file size when URL changes."""
-        url = url.strip()
-        if not self.filename_input.text() or self.filename_input.text() == "file.bin":
-            clean = url.split("?")[0].split("#")[0]
-            name = clean.split("/")[-1]
+    def _update_free_space_badge(self) -> None:
+        """Updates the free disk space badge for the selected destination folder."""
+        if not hasattr(self, "free_space_lbl"):
+            return
+        folder = self.dest_input.text().strip() or self.default_save_dir
+        self.free_space_lbl.setText(self._get_free_disk_space_str(folder))
+
+    @staticmethod
+    def _get_free_disk_space_str(path: str) -> str:
+        """Calculates free disk space for a given drive or folder path."""
+        try:
+            drive = os.path.splitdrive(os.path.abspath(path))[0]
+            if not drive:
+                drive = "C:"
+            usage = shutil.disk_usage(drive if drive.endswith("\\") else drive + "\\")
+            free_gb = usage.free / (1024 ** 3)
+            return f"{free_gb:.1f} GB free on {drive}"
+        except Exception:
+            return "Free space available"
+
+    def _update_file_type_badge(self) -> None:
+        """Updates the file type badge next to the filename input."""
+        if not hasattr(self, "file_type_lbl"):
+            return
+        filename = self.filename_input.text().strip()
+        self.file_type_lbl.setText(self._get_file_type_badge(filename))
+
+    @staticmethod
+    def _get_file_type_badge(filename: str) -> str:
+        """Returns human-friendly file category badge from extension."""
+        if not filename:
+            return "File"
+        ext = os.path.splitext(filename)[1].lower()
+        mapping = {
+            ".iso": ".ISO Disc Image",
+            ".exe": ".EXE Installer",
+            ".msi": ".MSI Installer",
+            ".zip": ".ZIP Archive",
+            ".rar": ".RAR Archive",
+            ".7z": ".7Z Archive",
+            ".tar": ".TAR Archive",
+            ".gz": ".GZ Archive",
+            ".pdf": ".PDF Document",
+            ".mp4": ".MP4 Video",
+            ".mkv": ".MKV Video",
+            ".webm": ".WEBM Video",
+            ".mp3": ".MP3 Audio",
+            ".wav": ".WAV Audio",
+            ".png": ".PNG Image",
+            ".jpg": ".JPG Image",
+            ".jpeg": ".JPEG Image",
+            ".bin": ".BIN Binary",
+            ".dmg": ".DMG Disk Image",
+            ".deb": ".DEB Package",
+            ".rpm": ".RPM Package",
+            ".apk": ".APK Package",
+            ".torrent": ".TORRENT Meta",
+        }
+        return mapping.get(ext, f"{ext.upper()} File" if ext else "File")
+
+    COMMON_TLDS = {
+        "com", "org", "net", "edu", "gov", "mil", "io", "dev", "app", "co", "tr", "de", "uk",
+        "fr", "ru", "jp", "cn", "me", "cc", "ai", "info", "biz", "xyz", "online", "site",
+        "store", "tech", "cloud", "pro", "ca", "eu", "nl", "it", "ch", "se", "no", "es", "br"
+    }
+
+    @classmethod
+    def _is_valid_url_target(cls, text: str) -> bool:
+        """Determines whether the input looks like a valid downloadable target (URL or local path)."""
+        if not text:
+            return False
+        if text.startswith(("http://", "https://", "ftp://", "file://")):
+            return True
+        if len(text) > 2 and text[1] == ":" and ("\\" in text or "/" in text):
+            return True
+        if text.startswith("//"):
+            return True
+        if "/" in text:
+            host_candidate = text.split("/")[0].split(":")[0].strip().lower()
+            if host_candidate == "localhost" or host_candidate.startswith("www."):
+                return True
+            parts = host_candidate.split(".")
+            if len(parts) >= 2 and parts[-1] in cls.COMMON_TLDS:
+                return True
+            if len(parts) == 4 and all(p.isdigit() and 0 <= int(p) <= 255 for p in parts):
+                return True
+        return False
+
+    @classmethod
+    def _normalize_url(cls, raw: str) -> str:
+        """Sanitizes quotes and automatically adds https:// when domain is given without protocol."""
+        url = raw.strip().strip("'\"`").strip()
+        if url.startswith("//"):
+            return "https:" + url
+        if not url.startswith(("http://", "https://", "ftp://", "file://")) and not (len(url) > 2 and url[1] == ":"):
+            if "/" in url:
+                host_candidate = url.split("/")[0].split(":")[0].strip().lower()
+                if host_candidate == "localhost" or host_candidate.startswith("www."):
+                    return "https://" + url
+                parts = host_candidate.split(".")
+                if len(parts) >= 2 and parts[-1] in cls.COMMON_TLDS:
+                    return "https://" + url
+                if len(parts) == 4 and all(p.isdigit() and 0 <= int(p) <= 255 for p in parts):
+                    return "https://" + url
+        return url
+
+    def _on_url_changed(self, raw_url: str) -> None:
+        """Sanitizes input URL, extracts filename, updates badges, and queries size without hanging."""
+        cleaned = raw_url.strip().strip("'\"`").strip()
+
+        # Extract filename if currently empty or default placeholder
+        if not self.filename_input.text() or self.filename_input.text() in ("file.bin", "download.bin"):
+            path_part = cleaned.split("?")[0].split("#")[0]
+            name = path_part.split("/")[-1]
             if name and "." in name:
+                try:
+                    name = urllib.parse.unquote(name)
+                except Exception:
+                    pass
                 self.filename_input.setText(name)
 
-        if url.startswith(("http://", "https://", "file://")):
-            # Query after 400ms debounce
-            QTimer.singleShot(400, lambda: self._query_file_size_async(url))
+        self._update_file_type_badge()
+
+        # Stop existing debounce timer
+        if hasattr(self, "_debounce_timer") and self._debounce_timer:
+            self._debounce_timer.stop()
+
+        if not cleaned:
+            self._active_query_id += 1
+            self.size_label.setText("--")
+            self.size_label.setStyleSheet("color: #64748b; font-size: 16px; font-weight: bold; background: transparent;")
+            self.check_icon.setText("Enter download URL")
+            self.check_icon.setStyleSheet("color: #64748b; font-size: 11px; background: transparent;")
+            if hasattr(self, "resume_badge_lbl"):
+                self.resume_badge_lbl.setText("● Unknown")
+                self.resume_badge_lbl.setStyleSheet("color: #64748b; font-weight: 600; font-size: 11px; background: transparent;")
+            return
+
+        if not self._is_valid_url_target(cleaned):
+            # Incomplete or invalid URL - immediately alert user instead of hanging in query state
+            self._active_query_id += 1
+            self.size_label.setText("--")
+            self.size_label.setStyleSheet("color: #64748b; font-size: 16px; font-weight: bold; background: transparent;")
+            self.check_icon.setText("Enter full http:// or https:// address")
+            self.check_icon.setStyleSheet("color: #f59e0b; font-size: 11px; background: transparent;")
+            if hasattr(self, "resume_badge_lbl"):
+                self.resume_badge_lbl.setText("● Unknown")
+                self.resume_badge_lbl.setStyleSheet("color: #64748b; font-weight: 600; font-size: 11px; background: transparent;")
+            return
+
+        target_url = self._normalize_url(cleaned)
+
+        # Immediate feedback while debouncing
+        self.size_label.setText("Querying server...")
+        self.size_label.setStyleSheet("color: #38bdf8; font-size: 16px; font-weight: bold; background: transparent;")
+        domain_display = "server"
+        try:
+            parsed = urllib.parse.urlparse(target_url)
+            if parsed.netloc:
+                domain_display = parsed.netloc
+        except Exception:
+            pass
+        self.check_icon.setText(f"● Connecting to {domain_display}...")
+        self.check_icon.setStyleSheet("color: #94a3b8; font-size: 11px; background: transparent;")
+        if hasattr(self, "resume_badge_lbl"):
+            self.resume_badge_lbl.setText("● Checking...")
+            self.resume_badge_lbl.setStyleSheet("color: #94a3b8; font-weight: 600; font-size: 11px; background: transparent;")
+
+        # Debounce size query by 300ms
+        self._debounce_timer = QTimer(self)
+        self._debounce_timer.setSingleShot(True)
+        self._debounce_timer.timeout.connect(lambda: self._query_file_size_async(target_url))
+        self._debounce_timer.start(300)
 
     def _query_file_size_async(self, url: str) -> None:
         """Determines file size via server HEAD/GET request or local disk inspection."""
+        url = self._normalize_url(url)
         if not url:
             self._update_size_ui(0, status_msg="Please enter URL")
             return
 
-        url = url.strip()
+        self._active_query_id += 1
+        query_id = self._active_query_id
 
-        # 1. Local File (file:// or direct Windows path C:\...)
+        # Extract domain for display
+        domain_display = "server"
+        try:
+            parsed = urllib.parse.urlparse(url)
+            if parsed.netloc:
+                domain_display = parsed.netloc
+        except Exception:
+            pass
+
+        # Update UI to querying state
+        self.size_label.setText("Querying server...")
+        self.size_label.setStyleSheet("color: #38bdf8; font-size: 16px; font-weight: bold; background: transparent;")
+        self.check_icon.setText(f"● Connecting to {domain_display}...")
+        self.check_icon.setStyleSheet("color: #94a3b8; font-size: 11px; background: transparent;")
+        if hasattr(self, "resume_badge_lbl"):
+            self.resume_badge_lbl.setText("● Checking...")
+            self.resume_badge_lbl.setStyleSheet("color: #94a3b8; font-weight: 600; font-size: 11px; background: transparent;")
+        if hasattr(self, "threads_badge_lbl"):
+            try:
+                from app.core.config import load_network_settings
+                th_count = load_network_settings().segments_per_download
+            except Exception:
+                th_count = 8
+            self.threads_badge_lbl.setText(f"{th_count} Threads")
+
+        # 1. Local File inspection
         if url.startswith("file://") or (len(url) > 2 and url[1] == ":" and ("\\" in url or "/" in url)):
             local_path = url
             if url.startswith("file://"):
@@ -674,32 +995,26 @@ class CompactDownloadWindow(QDialog):
             if os.path.exists(local_path):
                 try:
                     sz = os.path.getsize(local_path)
-                    self.size_icon.setText("📦")
-                    self._update_size_ui(sz, status_msg="✓ Local file ready")
+                    self._update_size_ui(sz, is_resumable=True, status_msg="✓ Local file ready", query_id=query_id)
                     return
                 except Exception:
                     pass
-            self.size_icon.setText("📦")
-            self._update_size_ui(-1, status_msg="Local file not found")
+            self._update_size_ui(-1, status_msg="Local file not found", query_id=query_id)
             return
 
         if not url.startswith(("http://", "https://", "ftp://")):
-            self._update_size_ui(0, status_msg="Invalid URL")
+            self._update_size_ui(0, status_msg="Invalid URL protocol", query_id=query_id)
             return
 
         if is_video_stream_url(url):
-            self.size_icon.setText("🎬")
             self.size_label.setText("Video Stream")
-            self.size_label.setStyleSheet("color: #38bdf8; font-size: 13px; font-weight: bold; background: transparent;")
-            self.check_icon.setText("🎬 Online video detected")
+            self.size_label.setStyleSheet("color: #38bdf8; font-size: 16px; font-weight: bold; background: transparent;")
+            self.check_icon.setText("🎬 Online media stream detected")
             self.check_icon.setStyleSheet("color: #38bdf8; font-size: 11px; background: transparent;")
+            if hasattr(self, "resume_badge_lbl"):
+                self.resume_badge_lbl.setText("● Supported")
+                self.resume_badge_lbl.setStyleSheet("color: #10b981; font-weight: 600; font-size: 11px; background: transparent;")
             return
-
-        self.size_icon.setText("📦")
-        self.size_label.setText("Querying...")
-        self.size_label.setStyleSheet("color: #38bdf8; font-size: 15px; font-weight: bold; background: transparent;")
-        self.check_icon.setText("Connecting to server...")
-        self.check_icon.setStyleSheet("color: #64748b; font-size: 11px; background: transparent;")
 
         def worker():
             size = 0
@@ -713,17 +1028,24 @@ class CompactDownloadWindow(QDialog):
 
             try:
                 with httpx.Client(follow_redirects=True, timeout=8.0) as client:
-                    # Attempt 1: HEAD request for size and Range support
+                    # Attempt 1: HEAD request
                     try:
                         resp = client.head(url, headers=browser_headers)
                         if resp.status_code == 200:
-                            if "Content-Length" in resp.headers and resp.headers["Content-Length"].isdigit():
-                                size = int(resp.headers["Content-Length"])
-                                is_resumable = resp.headers.get("Accept-Ranges", "").lower() == "bytes"
-                                status_text = "Resume supported" if is_resumable else "Ready to download"
+                            cl = resp.headers.get("Content-Length")
+                            if cl and cl.isdigit():
+                                size = int(cl)
+                            is_resumable = resp.headers.get("Accept-Ranges", "").lower() == "bytes"
+                            status_text = "Resume supported" if is_resumable else "Ready to download"
                         elif resp.status_code == 404:
-                            QTimer.singleShot(0, lambda: self._update_size_ui(-1, status_msg="404 Not Found"))
+                            self.size_query_finished.emit(-1, False, "404 Not Found", query_id)
                             return
+                        elif resp.status_code == 403:
+                            self.size_query_finished.emit(-1, False, "403 Forbidden", query_id)
+                            return
+                    except (httpx.ConnectError, httpx.ConnectTimeout):
+                        self.size_query_finished.emit(-1, False, "Could not reach server / host not found", query_id)
+                        return
                     except Exception:
                         pass
 
@@ -738,31 +1060,44 @@ class CompactDownloadWindow(QDialog):
                                     if "/" in cr:
                                         tot_str = cr.split("/")[-1].strip()
                                         if tot_str.isdigit():
-                                             size = int(tot_str)
-                                             is_resumable = True
-                                             status_text = "Resume supported"
+                                            size = int(tot_str)
+                                    is_resumable = True
+                                    status_text = "Resume supported"
                                 elif get_resp.status_code == 200:
-                                    if "Content-Length" in get_resp.headers and get_resp.headers["Content-Length"].isdigit():
-                                        size = int(get_resp.headers["Content-Length"])
-                                        is_resumable = get_resp.headers.get("Accept-Ranges", "").lower() == "bytes"
-                                        status_text = "Resume supported" if is_resumable else "Ready to download"
+                                    cl = get_resp.headers.get("Content-Length")
+                                    if cl and cl.isdigit():
+                                        size = int(cl)
+                                    is_resumable = get_resp.headers.get("Accept-Ranges", "").lower() == "bytes"
+                                    status_text = "Resume supported" if is_resumable else "Ready to download"
                                 elif get_resp.status_code == 404:
-                                    QTimer.singleShot(0, lambda: self._update_size_ui(-1, status_msg="404 Not Found"))
+                                    self.size_query_finished.emit(-1, False, "404 Not Found", query_id)
                                     return
+                                elif get_resp.status_code == 403:
+                                    self.size_query_finished.emit(-1, False, "403 Forbidden", query_id)
+                                    return
+                        except (httpx.ConnectError, httpx.ConnectTimeout):
+                            self.size_query_finished.emit(-1, False, "Could not reach server / host not found", query_id)
+                            return
                         except Exception:
                             pass
 
-                    # Update in UI thread
-                    final_size = size
-                    final_resumable = is_resumable
-                    final_status = status_text
-                    QTimer.singleShot(0, lambda: self._update_size_ui(final_size, is_resumable=final_resumable, status_msg=final_status))
+                    if size > 0:
+                        final_size = size
+                        final_resumable = is_resumable
+                        final_status = status_text or ("Resume supported" if is_resumable else "Ready to download")
+                        self.size_query_finished.emit(final_size, final_resumable, final_status, query_id)
+                    else:
+                        self.size_query_finished.emit(0, is_resumable, "Server did not provide Content-Length", query_id)
             except Exception:
-                QTimer.singleShot(0, lambda: self._update_size_ui(-1, status_msg="Connection timed out"))
+                self.size_query_finished.emit(-1, False, "Connection timed out", query_id)
 
         threading.Thread(target=worker, daemon=True).start()
 
-    def _update_size_ui(self, size_bytes: int, is_resumable: bool = False, status_msg: str = "") -> None:
+    def _update_size_ui(self, size_bytes: int, is_resumable: bool = False, status_msg: str = "", query_id: Optional[int] = None) -> None:
+        """Updates the size card UI elements with the resolved metadata."""
+        if query_id is not None and query_id != self._active_query_id:
+            return  # Ignore stale query response
+
         self.total_size_bytes = max(0, size_bytes)
         self._is_resumable = is_resumable
 
@@ -775,43 +1110,72 @@ class CompactDownloadWindow(QDialog):
                 formatted = f"{size_bytes / (1024 * 1024 * 1024):.2f} GB"
 
             self.size_label.setText(formatted)
-            self.size_label.setStyleSheet("color: #38bdf8; font-size: 15px; font-weight: bold; background: transparent;")
-            msg = status_msg or ("✓ Resume supported" if is_resumable else "✓ Server ready")
+            self.size_label.setStyleSheet("color: #38bdf8; font-size: 20px; font-weight: bold; background: transparent;")
+            msg = status_msg or f"Exact: {size_bytes:,} bytes"
             self.check_icon.setText(msg)
             self.check_icon.setStyleSheet("color: #94a3b8; font-size: 11px; background: transparent;")
+            if hasattr(self, "resume_badge_lbl"):
+                self.resume_badge_lbl.setText("● Supported" if is_resumable else "● Not Supported")
+                self.resume_badge_lbl.setStyleSheet(
+                    "color: #10b981; font-weight: 600; font-size: 11px; background: transparent;"
+                    if is_resumable else
+                    "color: #94a3b8; font-weight: 600; font-size: 11px; background: transparent;"
+                )
 
         elif size_bytes == 0:
-            self.size_label.setText("Unknown")
-            self.size_label.setStyleSheet("color: #f59e0b; font-size: 13px; font-weight: bold; background: transparent;")
-            self.check_icon.setText(status_msg or "Dynamic stream / no size info")
-            self.check_icon.setStyleSheet("color: #94a3b8; font-size: 10px; background: transparent;")
+            self.size_label.setText("Unknown Size")
+            self.size_label.setStyleSheet("color: #f59e0b; font-size: 16px; font-weight: bold; background: transparent;")
+            self.check_icon.setText(status_msg or "Server did not provide Content-Length")
+            self.check_icon.setStyleSheet("color: #94a3b8; font-size: 11px; background: transparent;")
+            if hasattr(self, "resume_badge_lbl"):
+                self.resume_badge_lbl.setText("● Supported" if is_resumable else "● Unknown")
+                self.resume_badge_lbl.setStyleSheet(
+                    "color: #10b981; font-weight: 600; font-size: 11px; background: transparent;"
+                    if is_resumable else
+                    "color: #94a3b8; font-weight: 600; font-size: 11px; background: transparent;"
+                )
 
         else:  # Negative (error / 404 / 403)
             self.size_label.setText("Unreachable")
-            self.size_label.setStyleSheet("color: #ef4444; font-size: 13px; font-weight: bold; background: transparent;")
-            self.check_icon.setText(status_msg or "Check address")
-            self.check_icon.setStyleSheet("color: #ef4444; font-size: 10px; background: transparent;")
+            self.size_label.setStyleSheet("color: #ef4444; font-size: 16px; font-weight: bold; background: transparent;")
+            self.check_icon.setText(status_msg or "Failed to connect to server")
+            self.check_icon.setStyleSheet("color: #ef4444; font-size: 11px; background: transparent;")
+            if hasattr(self, "resume_badge_lbl"):
+                self.resume_badge_lbl.setText("● Unknown")
+                self.resume_badge_lbl.setStyleSheet("color: #64748b; font-weight: 600; font-size: 11px; background: transparent;")
 
     def _paste_from_clipboard(self) -> None:
-        text = QApplication.clipboard().text().strip()
+        """Pastes text from clipboard, sanitizing surrounding quotes."""
+        text = QApplication.clipboard().text().strip().strip("'\"`").strip()
         if text:
             self.url_input.setText(text)
 
     def _check_clipboard(self) -> None:
-        text = QApplication.clipboard().text().strip()
+        """Inspects clipboard for downloadable URL at launch."""
+        text = QApplication.clipboard().text().strip().strip("'\"`").strip()
         if text.startswith(("http://", "https://")):
             self.url_input.setText(text)
 
     def _browse_folder(self) -> None:
+        """Opens folder picker dialog and updates destination input."""
         chosen = QFileDialog.getExistingDirectory(self, "Select Destination Folder", self.dest_input.text())
         if chosen:
             self.dest_input.setText(chosen)
+            self._update_free_space_badge()
 
     # ==================== Start and Morph to Progress ====================
 
     def _on_add_clicked(self) -> None:
         """Silently adds to queue (auto_start=False) and closes window."""
-        url = self.url_input.text().strip()
+        raw_url = self.url_input.text()
+        url = raw_url.strip().strip("'\"`").strip()
+        if url.startswith("//"):
+            url = "https:" + url
+        elif not url.startswith(("http://", "https://", "ftp://", "file://")) and not (len(url) > 2 and url[1] == ":"):
+            first_part = url.split("/")[0]
+            if "." in first_part and not url.startswith(("/", "\\")):
+                url = "https://" + url
+
         filename = sanitize_filename(self.filename_input.text().strip())
         dest = self.dest_input.text().strip() or self.default_save_dir
 
@@ -827,6 +1191,15 @@ class CompactDownloadWindow(QDialog):
                 except Exception:
                     pass
                 filename = sanitize_filename(name) or "download.bin"
+
+        if hasattr(self, "chk_remember_dir") and self.chk_remember_dir.isChecked():
+            try:
+                from app.core.config import load_general_settings, save_general_settings
+                g_set = load_general_settings()
+                g_set.default_download_folder = dest
+                save_general_settings(g_set)
+            except Exception:
+                pass
 
         if is_video_stream_url(url):
             self.task_manager.add_media_download(
@@ -846,7 +1219,15 @@ class CompactDownloadWindow(QDialog):
 
     def _on_download_clicked(self) -> None:
         """Starts download in the SAME WINDOW when Download is clicked and switches to progress mode."""
-        url = self.url_input.text().strip()
+        raw_url = self.url_input.text()
+        url = raw_url.strip().strip("'\"`").strip()
+        if url.startswith("//"):
+            url = "https:" + url
+        elif not url.startswith(("http://", "https://", "ftp://", "file://")) and not (len(url) > 2 and url[1] == ":"):
+            first_part = url.split("/")[0]
+            if "." in first_part and not url.startswith(("/", "\\")):
+                url = "https://" + url
+
         filename = sanitize_filename(self.filename_input.text().strip())
         dest = self.dest_input.text().strip() or self.default_save_dir
 
@@ -862,6 +1243,20 @@ class CompactDownloadWindow(QDialog):
                 except Exception:
                     pass
                 filename = sanitize_filename(name) or "download.bin"
+
+        if hasattr(self, "chk_remember_dir") and self.chk_remember_dir.isChecked():
+            try:
+                from app.core.config import load_general_settings, save_general_settings
+                g_set = load_general_settings()
+                g_set.default_download_folder = dest
+                save_general_settings(g_set)
+            except Exception:
+                pass
+
+        # If user explicitly unchecked "Start download immediately", queue and close
+        if hasattr(self, "chk_start_now") and not self.chk_start_now.isChecked():
+            self._on_add_clicked()
+            return
 
         if is_video_stream_url(url):
             from app.ui.media_dialog import MediaQualityDialog
@@ -1273,38 +1668,150 @@ class CompactDownloadWindow(QDialog):
                 background-color: #162035;
                 color: #f8fafc;
             }
+            QFrame#inputGroupContainer {
+                background-color: #070b14;
+                border: 1px solid #1e2a44;
+                border-radius: 8px;
+                min-height: 38px;
+                max-height: 38px;
+            }
+            QFrame#inputGroupContainer:hover {
+                border: 1px solid #2a3b5e;
+                background-color: #090e1a;
+            }
+            QFrame#inputGroupContainer:focus-within {
+                border: 1px solid #38bdf8;
+                background-color: #090e1a;
+            }
             QFrame#inputContainer {
-                background-color: #121826;
-                border: 1px solid #1f2b3e;
+                background-color: #070b14;
+                border: 1px solid #1e2a44;
                 border-radius: 8px;
                 min-height: 38px;
                 max-height: 38px;
             }
             QFrame#inputContainer:hover {
-                border: 1px solid #334460;
-                background-color: #151d2e;
+                border: 1px solid #2a3b5e;
+                background-color: #090e1a;
             }
             QFrame#inputContainer:focus-within {
-                border: 1px solid #3b82f6;
-                background-color: #151d2e;
+                border: 1px solid #38bdf8;
+                background-color: #090e1a;
             }
             QLineEdit {
                 color: #f1f5f9;
-                font-family: "Segoe UI", sans-serif;
-                font-size: 13px;
+                font-family: "Cascadia Code", Consolas, "Segoe UI", monospace;
+                font-size: 12px;
                 selection-background-color: #2563eb;
                 selection-color: #ffffff;
             }
             QPushButton#embeddedActionBtn {
-                background: transparent;
-                border: none;
-                border-radius: 4px;
-                font-size: 13px;
+                background-color: #131b2e;
+                border: 1px solid #22314e;
+                border-radius: 6px;
+                font-family: "Segoe UI", sans-serif;
+                font-size: 11px;
+                font-weight: 600;
                 color: #cbd5e1;
+                padding: 4px 10px;
+                min-height: 24px;
             }
             QPushButton#embeddedActionBtn:hover {
-                background-color: #243048;
+                background-color: #1a253e;
+                border-color: #2d4168;
                 color: #ffffff;
+            }
+            QPushButton#embeddedActionBtn:pressed {
+                background-color: #0d121f;
+            }
+            QFrame#metadataStatusCard {
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #11192e, stop:1 #0a101f);
+                border: 1px solid #1f2d48;
+                border-radius: 12px;
+            }
+            QFrame#parcelIconBox {
+                background-color: rgba(245, 158, 11, 0.12);
+                border: 1px solid rgba(245, 158, 11, 0.25);
+                border-radius: 8px;
+            }
+            QPushButton#cardRefreshBtn {
+                background-color: #19233c;
+                border: 1px solid #27385c;
+                border-radius: 6px;
+                color: #38bdf8;
+                font-size: 12px;
+            }
+            QPushButton#cardRefreshBtn:hover {
+                background-color: #223052;
+                border-color: #38bdf8;
+                color: #7dd3fc;
+            }
+            QFrame#badgeBox {
+                background-color: rgba(11, 16, 28, 0.85);
+                border: 1px solid #1b263d;
+                border-radius: 6px;
+            }
+            QFrame#prefsFrame {
+                border-top: 1px solid #162035;
+                background: transparent;
+            }
+            QFrame#dialogFooter {
+                background-color: #080d17;
+                border-top: 1px solid #18243b;
+                border-radius: 0 0 10px 10px;
+            }
+            QPushButton#secondaryQueueBtn {
+                background-color: #11192a;
+                border: 1px solid #22314e;
+                color: #cbd5e1;
+                font-family: "Segoe UI", sans-serif;
+                font-size: 12px;
+                font-weight: 600;
+                border-radius: 8px;
+                padding: 6px 16px;
+            }
+            QPushButton#secondaryQueueBtn:hover {
+                background-color: #18243c;
+                border-color: #2d4168;
+                color: #ffffff;
+            }
+            QPushButton#secondaryQueueBtn:pressed {
+                background-color: #0d121f;
+            }
+            QPushButton#cancelBtn {
+                background-color: transparent;
+                border: 1px solid transparent;
+                color: #cbd5e1;
+                font-family: "Segoe UI", sans-serif;
+                font-size: 12px;
+                font-weight: 600;
+                border-radius: 8px;
+                padding: 6px 16px;
+            }
+            QPushButton#cancelBtn:hover {
+                background-color: rgba(255, 255, 255, 0.05);
+                border: 1px solid #263756;
+                color: #ffffff;
+            }
+            QPushButton#cancelBtn:pressed {
+                background-color: rgba(255, 255, 255, 0.02);
+            }
+            QPushButton#primaryDownloadBtn {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #2563eb, stop:0.5 #4f46e5, stop:1 #1d4ed8);
+                border: 1px solid rgba(96, 165, 250, 0.45);
+                color: #ffffff;
+                font-family: "Segoe UI", sans-serif;
+                font-weight: bold;
+                font-size: 12px;
+                border-radius: 8px;
+                padding: 6px 20px;
+            }
+            QPushButton#primaryDownloadBtn:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #3b82f6, stop:0.5 #6366f1, stop:1 #2563eb);
+                border-color: #93c5fd;
+            }
+            QPushButton#primaryDownloadBtn:pressed {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #1d4ed8, stop:0.5 #4338ca, stop:1 #1e40af);
             }
             QFrame#sizeCard {
                 background-color: #131926;

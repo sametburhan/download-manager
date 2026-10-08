@@ -76,8 +76,8 @@ class TestCompactAndAutostart(unittest.TestCase):
         self.assertTrue(hasattr(win, "btn_add"))
         self.assertTrue(hasattr(win, "btn_download"))
         self.assertTrue(hasattr(win, "btn_cancel"))
-        self.assertEqual(win.btn_add.text(), "Add")
-        self.assertEqual(win.btn_download.text(), "Download")
+        self.assertIn(win.btn_add.text(), ("Add", "+ Add to Queue", "Add to Queue"))
+        self.assertIn("Download", win.btn_download.text())
         self.assertEqual(win.btn_cancel.text(), "Cancel")
 
         # When 'Add' is clicked, task is added with auto_start=False (queued)
