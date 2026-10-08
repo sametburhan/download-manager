@@ -239,11 +239,11 @@ class CompactDownloadWindow(QDialog):
 
         self.main_layout.addWidget(self.query_widget)
 
-        # ------------------- 3. İLERLEME GÖVDESİ (PROGRESS MODE - IDM STYLE) -------------------
+        # ------------------- 3. İLERLEME GÖVDESİ (PROGRESS MODE - STITCH MODERN IDM) -------------------
         self.progress_widget = QWidget()
         self.progress_widget.setVisible(False)
         prog_layout = QVBoxLayout(self.progress_widget)
-        prog_layout.setContentsMargins(0, 2, 0, 2)
+        prog_layout.setContentsMargins(0, 0, 0, 0)
         prog_layout.setSpacing(10)
 
         # Sekmeli Yapı: [ ⓘ Info ] [ ⚙ Settings ]
@@ -253,18 +253,19 @@ class CompactDownloadWindow(QDialog):
         # ----------------- TAB 1: INFO -----------------
         info_tab = QWidget()
         info_layout = QVBoxLayout(info_tab)
-        info_layout.setContentsMargins(10, 12, 10, 10)
-        info_layout.setSpacing(10)
+        info_layout.setContentsMargins(4, 10, 4, 4)
+        info_layout.setSpacing(12)
 
-        # A) Metadata Kartı (Referanstaki IDM Grid Yapısı)
+        # A) Metadata Kartı (Stitch Modern Grid Kartı)
         self.meta_card = QFrame()
         self.meta_card.setObjectName("metadataCard")
         meta_grid = QGridLayout(self.meta_card)
-        meta_grid.setContentsMargins(14, 12, 14, 12)
-        meta_grid.setHorizontalSpacing(18)
-        meta_grid.setVerticalSpacing(7)
+        meta_grid.setContentsMargins(20, 16, 20, 16)
+        meta_grid.setHorizontalSpacing(24)
+        meta_grid.setVerticalSpacing(10)
+        meta_grid.setColumnMinimumWidth(0, 130)
 
-        lbl_style = "color: #94a3b8; font-weight: 500; font-size: 12px; background: transparent;"
+        lbl_style = "color: #64748b; font-weight: 500; font-size: 12px; background: transparent;"
         val_style = "color: #f8fafc; font-weight: 600; font-size: 12px; background: transparent;"
 
         # Row 0: Name
@@ -277,7 +278,7 @@ class CompactDownloadWindow(QDialog):
 
         # Row 1: Status
         meta_grid.addWidget(QLabel("Status:", styleSheet=lbl_style), 1, 0)
-        self.status_val = QLabel("Starting...")
+        self.status_val = QLabel("● Downloading")
         self.status_val.setStyleSheet("color: #38bdf8; font-weight: 600; font-size: 12px; background: transparent;")
         meta_grid.addWidget(self.status_val, 1, 1)
 
@@ -313,18 +314,19 @@ class CompactDownloadWindow(QDialog):
 
         info_layout.addWidget(self.meta_card)
 
-        # B) Ana Neon İlerleme Çubuğu
+        # B) Ana Neon İlerleme Çubuğu (Stitch Slim Neon Bar)
         self.prog_bar = QProgressBar()
         self.prog_bar.setObjectName("neonProgressBar")
         self.prog_bar.setRange(0, 100)
         self.prog_bar.setValue(0)
         self.prog_bar.setTextVisible(False)
-        self.prog_bar.setFixedHeight(12)
+        self.prog_bar.setFixedHeight(8)
         info_layout.addWidget(self.prog_bar)
 
         # C) Parça Geçiş Butonu ve Aksiyonlar
         ctrl_layout = QHBoxLayout()
         ctrl_layout.setContentsMargins(0, 2, 0, 2)
+        ctrl_layout.setSpacing(10)
 
         self.toggle_part_btn = QPushButton("˄ Parts Info")
         self.toggle_part_btn.setObjectName("togglePartBtn")
@@ -336,19 +338,19 @@ class CompactDownloadWindow(QDialog):
         ctrl_layout.addStretch()
 
         self.btn_pause_resume = QPushButton("⏸ Pause")
-        self.btn_pause_resume.setObjectName("secondaryBtn")
+        self.btn_pause_resume.setObjectName("progActionPillBtn")
         self.btn_pause_resume.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_pause_resume.clicked.connect(self._toggle_pause_resume)
         ctrl_layout.addWidget(self.btn_pause_resume)
 
         self.btn_open_file = QPushButton("📁 Open Folder")
-        self.btn_open_file.setObjectName("secondaryBtn")
+        self.btn_open_file.setObjectName("progSecondaryPillBtn")
         self.btn_open_file.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_open_file.clicked.connect(self._open_target_folder)
         ctrl_layout.addWidget(self.btn_open_file)
 
         self.btn_hide_to_tray = QPushButton("✕ Close")
-        self.btn_hide_to_tray.setObjectName("closeBtn")
+        self.btn_hide_to_tray.setObjectName("progClosePillBtn")
         self.btn_hide_to_tray.setToolTip("Pencereyi gizle (İndirme arka planda kesintisiz devam eder)")
         self.btn_hide_to_tray.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_hide_to_tray.clicked.connect(self.hide)
@@ -359,7 +361,7 @@ class CompactDownloadWindow(QDialog):
         # D) 8 Parçalı Bağlantı ve İndirme Durumu Paneli (Katlanabilir)
         self.part_container = QWidget()
         part_layout = QVBoxLayout(self.part_container)
-        part_layout.setContentsMargins(0, 2, 0, 0)
+        part_layout.setContentsMargins(0, 0, 0, 0)
         part_layout.setSpacing(8)
 
         # Canlı 8-Bağlantı Segment Çubuğu
@@ -369,16 +371,17 @@ class CompactDownloadWindow(QDialog):
             box = QLabel()
             box.setFixedHeight(12)
             box.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-            box.setStyleSheet("background-color: #1e293b; border-radius: 2px;")
+            box.setStyleSheet("background-color: #101728; border: 1px solid #1a2336; border-radius: 3px;")
             self._segment_boxes.append(box)
             segments_layout.addWidget(box)
         part_layout.addLayout(segments_layout)
 
-        # Canlı Parça Tablosu (# | Status | Downloaded | Total)
+        # Canlı Parça Tablosu (# | STATUS | DOWNLOADED | TOTAL)
         self.part_table = QTableWidget(8, 4)
         self.part_table.setObjectName("partTable")
-        self.part_table.setHorizontalHeaderLabels(["#", "Status", "Downloaded", "Total"])
+        self.part_table.setHorizontalHeaderLabels(["#", "STATUS", "DOWNLOADED", "TOTAL"])
         self.part_table.verticalHeader().setVisible(False)
+        self.part_table.verticalHeader().setDefaultSectionSize(26)
         self.part_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.part_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.part_table.setShowGrid(False)
@@ -392,13 +395,37 @@ class CompactDownloadWindow(QDialog):
         part_layout.addWidget(self.part_table)
 
         info_layout.addWidget(self.part_container)
+
+        # E) Alt Durum Çubuğu (Footer Status Bar - Stitch Referansı)
+        footer_layout = QHBoxLayout()
+        footer_layout.setContentsMargins(2, 6, 2, 2)
+        self.footer_status_lbl = QLabel("● Initializing download...")
+        self.footer_status_lbl.setObjectName("footerStatusLbl")
+        self.footer_status_lbl.setStyleSheet("color: #38bdf8; font-size: 11px; font-weight: 500; background: transparent;")
+        footer_layout.addWidget(self.footer_status_lbl)
+
+        footer_layout.addStretch()
+
+        self.footer_engine_lbl = QLabel("8 Connections • AntiGravity Engine")
+        self.footer_engine_lbl.setObjectName("footerEngineLbl")
+        self.footer_engine_lbl.setStyleSheet("color: #475569; font-size: 11px; font-weight: 500; background: transparent;")
+        footer_layout.addWidget(self.footer_engine_lbl)
+
+        info_layout.addLayout(footer_layout)
+
         self.prog_tab_widget.addTab(info_tab, "ⓘ Info")
 
         # ----------------- TAB 2: SETTINGS -----------------
         settings_tab = QWidget()
         set_layout = QVBoxLayout(settings_tab)
-        set_layout.setContentsMargins(14, 14, 14, 14)
+        set_layout.setContentsMargins(4, 10, 4, 6)
         set_layout.setSpacing(12)
+
+        self.settings_card = QFrame()
+        self.settings_card.setObjectName("settingsCard")
+        set_card_layout = QVBoxLayout(self.settings_card)
+        set_card_layout.setContentsMargins(20, 18, 20, 18)
+        set_card_layout.setSpacing(14)
 
         # İndirme Klasörü
         folder_group = QVBoxLayout()
@@ -409,17 +436,17 @@ class CompactDownloadWindow(QDialog):
         folder_row = QHBoxLayout()
         self.folder_path_display = QLineEdit(self.default_save_dir)
         self.folder_path_display.setReadOnly(True)
-        self.folder_path_display.setStyleSheet("background-color: #171b26; border: 1px solid #232b3e; border-radius: 6px; padding: 6px; color: #f1f5f9;")
+        self.folder_path_display.setStyleSheet("background-color: #101625; border: 1px solid #1a2336; border-radius: 6px; padding: 6px 10px; color: #f1f5f9; font-size: 12px;")
         folder_row.addWidget(self.folder_path_display)
 
         btn_browse_set = QPushButton("📁")
         btn_browse_set.setToolTip("Klasör Değiştir")
         btn_browse_set.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_browse_set.setStyleSheet("background-color: #1e2538; border: 1px solid #28334a; border-radius: 6px; padding: 6px 12px; color: #fff;")
+        btn_browse_set.setStyleSheet("background-color: #151d2f; border: 1px solid #1a2336; border-radius: 6px; padding: 6px 12px; color: #fff;")
         btn_browse_set.clicked.connect(self._browse_folder_settings)
         folder_row.addWidget(btn_browse_set)
         folder_group.addLayout(folder_row)
-        set_layout.addLayout(folder_group)
+        set_card_layout.addLayout(folder_group)
 
         # Bağlantı Sayısı
         conn_group = QHBoxLayout()
@@ -432,10 +459,10 @@ class CompactDownloadWindow(QDialog):
         self.conn_spin.setValue(8)
         self.conn_spin.setFixedWidth(90)
         self.conn_spin.setFixedHeight(30)
-        self.conn_spin.setStyleSheet("background-color: #171b26; border: 1px solid #232b3e; border-radius: 6px; padding: 4px 8px; color: #f1f5f9;")
+        self.conn_spin.setStyleSheet("background-color: #101625; border: 1px solid #1a2336; border-radius: 6px; padding: 4px 8px; color: #f1f5f9; font-size: 12px;")
         conn_group.addWidget(self.conn_spin)
         conn_group.addStretch()
-        set_layout.addLayout(conn_group)
+        set_card_layout.addLayout(conn_group)
 
         # Hız Sınırlayıcı (Speed Limiter - IDM özelliği)
         speed_group = QHBoxLayout()
@@ -449,21 +476,22 @@ class CompactDownloadWindow(QDialog):
         self.spin_speed_limit.setFixedWidth(110)
         self.spin_speed_limit.setFixedHeight(30)
         self.spin_speed_limit.setEnabled(False)
-        self.spin_speed_limit.setStyleSheet("background-color: #171b26; border: 1px solid #232b3e; border-radius: 6px; padding: 4px 8px; color: #f1f5f9;")
+        self.spin_speed_limit.setStyleSheet("background-color: #101625; border: 1px solid #1a2336; border-radius: 6px; padding: 4px 8px; color: #f1f5f9; font-size: 12px;")
         self.chk_speed_limit.toggled.connect(self.spin_speed_limit.setEnabled)
         speed_group.addWidget(self.spin_speed_limit)
         speed_group.addStretch()
-        set_layout.addLayout(speed_group)
+        set_card_layout.addLayout(speed_group)
 
         # Tamamlanma Seçenekleri
         self.chk_autoclose = QCheckBox("Automatically close this window when download completes")
         self.chk_autoclose.setStyleSheet("color: #cbd5e1; font-size: 12px;")
-        set_layout.addWidget(self.chk_autoclose)
+        set_card_layout.addWidget(self.chk_autoclose)
 
         self.chk_open_file = QCheckBox("Open file when download completes")
         self.chk_open_file.setStyleSheet("color: #cbd5e1; font-size: 12px;")
-        set_layout.addWidget(self.chk_open_file)
+        set_card_layout.addWidget(self.chk_open_file)
 
+        set_layout.addWidget(self.settings_card)
         set_layout.addStretch()
         self.prog_tab_widget.addTab(settings_tab, "⚙ Settings")
 
@@ -514,17 +542,24 @@ class CompactDownloadWindow(QDialog):
     def _init_chunk_views(self, count: int = 8) -> None:
         """IDM tarzı 8 parça segment kutularını ve tablo satırlarını sıfırlar."""
         for box in self._segment_boxes:
-            box.setStyleSheet("background-color: #1e293b; border-radius: 2px;")
+            box.setStyleSheet("background-color: #101728; border: 1px solid #1a2336; border-radius: 3px;")
 
         self.part_table.setRowCount(count)
         for i in range(count):
             item_num = QTableWidgetItem(str(i + 1))
             item_num.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            item_status = QTableWidgetItem("Idle")
+            item_num.setForeground(QColor("#64748b"))
+
+            item_status = QTableWidgetItem("● Idle")
+            item_status.setForeground(QColor("#64748b"))
+
             item_down = QTableWidgetItem("--")
             item_down.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            item_down.setForeground(QColor("#f1f5f9"))
+
             item_tot = QTableWidgetItem("--")
             item_tot.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            item_tot.setForeground(QColor("#64748b"))
 
             self.part_table.setItem(i, 0, item_num)
             self.part_table.setItem(i, 1, item_status)
@@ -537,9 +572,9 @@ class CompactDownloadWindow(QDialog):
         self.part_container.setVisible(self._is_part_info_expanded)
         self.toggle_part_btn.setText("˄ Parts Info" if self._is_part_info_expanded else "˅ Parts Info")
         if self._is_part_info_expanded:
-            self.resize(560, 520)
+            self.resize(620, 580)
         else:
-            self.adjustSize()
+            self.resize(620, 360)
 
     def _browse_folder_settings(self) -> None:
         """Ayarlar sekmesinden klasör seçimi."""
@@ -822,7 +857,7 @@ class CompactDownloadWindow(QDialog):
 
         # Meta veri alanlarını başlangıç durumuna ayarla
         self.name_val.setText(filename)
-        self.status_val.setText("Downloading")
+        self.status_val.setText("● Downloading")
         self.status_val.setStyleSheet("color: #38bdf8; font-weight: 600; font-size: 12px; background: transparent;")
         if self.total_size_bytes > 0:
             self.size_val.setText(self._format_bytes(self.total_size_bytes))
@@ -835,14 +870,22 @@ class CompactDownloadWindow(QDialog):
         task = self.task_manager.get_task(self.current_task_id) if self.current_task_id else None
         is_resumable = task.is_resumable if task else self._is_resumable
         self.resume_val.setText("Yes" if is_resumable else "No")
-        self.resume_val.setStyleSheet("color: #22c55e; font-weight: bold; font-size: 12px; background: transparent;" if is_resumable else "color: #ef4444; font-weight: bold; font-size: 12px; background: transparent;")
+        self.resume_val.setStyleSheet(
+            "color: #10b981; font-weight: bold; font-size: 12px; background: transparent;"
+            if is_resumable else
+            "color: #ef4444; font-weight: bold; font-size: 12px; background: transparent;"
+        )
+
+        if hasattr(self, "footer_status_lbl"):
+            self.footer_status_lbl.setText("● Connecting to server...")
+            self.footer_status_lbl.setStyleSheet("color: #38bdf8; font-size: 11px; font-weight: 500; background: transparent;")
 
         # Parça tablosunu ve segmentleri sıfırla
         self._init_chunk_views(8)
 
-        # Canlı ilerleme gövdesini aç ve pencereyi genişlet
+        # Canlı ilerleme gövdesini aç ve pencereyi boyutlandır
         self.progress_widget.setVisible(True)
-        self.resize(560, 520)
+        self.resize(620, 580)
 
     def _on_task_progress(self, data: dict) -> None:
         """Canlı indirme verisi geldiğinde UI alanlarını besler."""
@@ -858,14 +901,19 @@ class CompactDownloadWindow(QDialog):
         speed = data.get("speed_str", "0 B/s")
         eta = data.get("eta_str", "--:--")
 
-        self.size_val.setText(self._format_bytes(tot_bytes))
+        self.size_val.setText(self._format_bytes(tot_bytes) if tot_bytes > 0 else "Bilinmiyor")
         if tot_bytes > 0:
             self.downloaded_val.setText(f"{self._format_bytes(down_bytes)} ( {pct}% )")
         else:
             self.downloaded_val.setText(self._format_bytes(down_bytes))
 
         self.speed_val.setText(speed)
-        self.eta_val.setText(f"{eta} left" if eta and eta != "--:--" else (eta or "--:--"))
+        eta_txt = f"{eta} left" if eta and eta != "--:--" else (eta or "--:--")
+        self.eta_val.setText(eta_txt)
+
+        if hasattr(self, "footer_status_lbl"):
+            self.footer_status_lbl.setText(f"● Downloading at {speed} • {eta_txt}")
+            self.footer_status_lbl.setStyleSheet("color: #38bdf8; font-size: 11px; font-weight: 500; background: transparent;")
 
     def _on_task_chunk_progress(self, task_id: str, chunk_id: int, downloaded: int, total: int) -> None:
         if task_id != self.current_task_id:
@@ -874,13 +922,13 @@ class CompactDownloadWindow(QDialog):
         # Tablo güncelleme
         if chunk_id < self.part_table.rowCount():
             is_done = (downloaded >= total > 0)
-            status_txt = "Completed" if is_done else "Receiving Data"
+            status_txt = "● Completed" if is_done else "● Receiving Data"
 
             item_status = self.part_table.item(chunk_id, 1)
             if item_status:
                 item_status.setText(status_txt)
                 if is_done:
-                    item_status.setForeground(QColor("#22c55e"))
+                    item_status.setForeground(QColor("#10b981"))
                 else:
                     item_status.setForeground(QColor("#38bdf8"))
 
@@ -890,52 +938,70 @@ class CompactDownloadWindow(QDialog):
 
             item_tot = self.part_table.item(chunk_id, 3)
             if item_tot:
-                item_tot.setText(self._format_bytes(total))
+                item_tot.setText(self._format_bytes(total) if total > 0 else "--")
 
         # Segment kutusu güncelleme
         if chunk_id < len(self._segment_boxes):
             box = self._segment_boxes[chunk_id]
             if downloaded >= total > 0:
-                box.setStyleSheet("background-color: #15803d; border-radius: 2px;")
+                box.setStyleSheet("background-color: #10b981; border: 1px solid #34d399; border-radius: 3px;")
             else:
-                box.setStyleSheet("background-color: #22c55e; border-radius: 2px; border: 1px solid #4ade80;")
+                box.setStyleSheet("background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #0284c7, stop:1 #06b6d4); border: 1px solid #0284c7; border-radius: 3px;")
 
     def _on_task_status_changed(self, task_id: str, status_str: str) -> None:
         if task_id == self.current_task_id:
             if status_str == DownloadStatus.PAUSED.value:
                 self.btn_pause_resume.setText("▶ Resume")
-                self.status_val.setText("Paused")
+                self.status_val.setText("● Paused")
                 self.status_val.setStyleSheet("color: #f59e0b; font-weight: 600; font-size: 12px; background: transparent;")
+                if hasattr(self, "footer_status_lbl"):
+                    self.footer_status_lbl.setText("● Download paused by user")
+                    self.footer_status_lbl.setStyleSheet("color: #f59e0b; font-size: 11px; font-weight: 500; background: transparent;")
                 for box in self._segment_boxes:
-                    box.setStyleSheet("background-color: #1e293b; border-radius: 2px;")
+                    box.setStyleSheet("background-color: #1e293b; border: 1px solid #334155; border-radius: 3px;")
+                for row in range(self.part_table.rowCount()):
+                    item_st = self.part_table.item(row, 1)
+                    if item_st and "Receiving" in item_st.text():
+                        item_st.setText("● Paused")
+                        item_st.setForeground(QColor("#f59e0b"))
             elif status_str == DownloadStatus.DOWNLOADING.value:
                 self.btn_pause_resume.setText("⏸ Pause")
-                self.status_val.setText("Downloading")
+                self.status_val.setText("● Downloading")
                 self.status_val.setStyleSheet("color: #38bdf8; font-weight: 600; font-size: 12px; background: transparent;")
+                if hasattr(self, "footer_status_lbl"):
+                    self.footer_status_lbl.setText("● Downloading...")
+                    self.footer_status_lbl.setStyleSheet("color: #38bdf8; font-size: 11px; font-weight: 500; background: transparent;")
             elif status_str == DownloadStatus.MERGING.value:
-                self.status_val.setText("Merging Chunks...")
+                self.status_val.setText("● Merging Chunks...")
                 self.status_val.setStyleSheet("color: #a855f7; font-weight: 600; font-size: 12px; background: transparent;")
+                if hasattr(self, "footer_status_lbl"):
+                    self.footer_status_lbl.setText("● Merging chunks into single file...")
+                    self.footer_status_lbl.setStyleSheet("color: #a855f7; font-size: 11px; font-weight: 500; background: transparent;")
 
     def _on_task_finished(self, task_id: str, final_path: str) -> None:
         if task_id == self.current_task_id:
             self.prog_bar.setValue(100)
             self.setWindowTitle(f"100% - {self.prog_filename}")
-            self.status_val.setText("Completed")
-            self.status_val.setStyleSheet("color: #22c55e; font-weight: 600; font-size: 12px; background: transparent;")
+            self.status_val.setText("● Completed")
+            self.status_val.setStyleSheet("color: #10b981; font-weight: 600; font-size: 12px; background: transparent;")
             self.speed_val.setText("0 B/s")
             self.eta_val.setText("Finished")
             self.btn_pause_resume.setEnabled(False)
+
+            if hasattr(self, "footer_status_lbl"):
+                self.footer_status_lbl.setText("● Download completed successfully")
+                self.footer_status_lbl.setStyleSheet("color: #10b981; font-size: 11px; font-weight: 500; background: transparent;")
 
             # Tüm tablo satırlarını tamamlandı yap
             for row in range(self.part_table.rowCount()):
                 item_st = self.part_table.item(row, 1)
                 if item_st:
-                    item_st.setText("Completed")
-                    item_st.setForeground(QColor("#22c55e"))
+                    item_st.setText("● Completed")
+                    item_st.setForeground(QColor("#10b981"))
 
             # Tüm segmentleri yeşile boya
             for box in self._segment_boxes:
-                box.setStyleSheet("background-color: #22c55e; border-radius: 2px;")
+                box.setStyleSheet("background-color: #10b981; border: 1px solid #34d399; border-radius: 3px;")
 
             if self.chk_open_file.isChecked():
                 self._open_file(final_path)
@@ -987,99 +1053,154 @@ class CompactDownloadWindow(QDialog):
             event.accept()
 
     def _get_style_sheet(self) -> str:
-        """Kullanıcının paylaştığı referans arayüzün özel QSS stilleri."""
+        """Kullanıcının paylaştığı Stitch referans arayüzünün modern koyu QSS stilleri."""
         return """
             QDialog {
-                background-color: #0f1420;
-                border: 1px solid #1e2638;
+                background-color: #0b0f19;
+                border: 1px solid #161e31;
                 border-radius: 12px;
             }
+            QTabWidget#detailTabs {
+                background: transparent;
+                border: none;
+            }
             QTabWidget#detailTabs::pane {
-                border: 1px solid #232838;
-                border-radius: 10px;
-                background-color: #171a23;
-                padding: 4px;
+                border: none;
+                background: transparent;
+            }
+            QTabWidget#detailTabs QTabBar {
+                background: transparent;
             }
             QTabWidget#detailTabs QTabBar::tab {
-                background-color: #12151e;
-                color: #94a3b8;
-                border: 1px solid #1e2433;
-                border-radius: 8px;
+                background-color: transparent;
+                color: #64748b;
+                border: 1px solid transparent;
+                border-radius: 14px;
                 padding: 6px 18px;
-                margin-right: 6px;
+                margin-right: 8px;
+                font-family: "Segoe UI", sans-serif;
                 font-weight: 600;
                 font-size: 12px;
             }
             QTabWidget#detailTabs QTabBar::tab:selected {
-                background-color: #232838;
+                background-color: #131c31;
                 color: #ffffff;
-                border: 1px solid #3b4258;
+                border: 1px solid #2563eb;
             }
-            QTabWidget#detailTabs QTabBar::tab:hover {
-                background-color: #1a1e2b;
-                color: #f1f5f9;
+            QTabWidget#detailTabs QTabBar::tab:hover:!selected {
+                background-color: #0f1524;
+                color: #94a3b8;
+                border: 1px solid #1e293b;
             }
             QFrame#metadataCard {
-                background-color: #11141e;
-                border: 1px solid #1e2538;
-                border-radius: 8px;
+                background-color: #0d121f;
+                border: 1px solid #161e31;
+                border-radius: 10px;
+            }
+            QFrame#settingsCard {
+                background-color: #0d121f;
+                border: 1px solid #161e31;
+                border-radius: 10px;
             }
             QProgressBar#neonProgressBar {
-                background-color: #0d1017;
-                border: 1px solid #1e2433;
-                border-radius: 6px;
+                background-color: #0d121f;
+                border: 1px solid #161e31;
+                border-radius: 4px;
+                min-height: 8px;
+                max-height: 8px;
                 text-align: center;
             }
             QProgressBar#neonProgressBar::chunk {
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #38bdf8, stop:0.5 #6366f1, stop:1 #a855f7);
-                border-radius: 5px;
+                    stop:0 #0284c7, stop:0.5 #3b82f6, stop:1 #8b5cf6);
+                border-radius: 3px;
             }
             QPushButton#togglePartBtn {
-                color: #cbd5e1;
+                color: #94a3b8;
+                font-family: "Segoe UI", sans-serif;
                 font-size: 12px;
                 font-weight: 600;
                 border: none;
                 background: transparent;
                 text-align: left;
-                padding: 4px 2px;
+                padding: 4px 0px;
             }
             QPushButton#togglePartBtn:hover {
                 color: #38bdf8;
             }
-            QTableWidget#partTable {
-                background-color: #11141e;
-                border: 1px solid #1e2538;
-                border-radius: 6px;
-                gridline-color: transparent;
-                color: #cbd5e1;
-                font-size: 11px;
-            }
-            QTableWidget#partTable QHeaderView::section {
-                background-color: #161b2a;
-                color: #94a3b8;
-                border: none;
-                padding: 5px 8px;
-                font-weight: bold;
-                font-size: 11px;
-            }
-            QTableWidget#partTable::item {
-                padding: 3px 6px;
-                border-bottom: 1px solid #171f30;
-            }
-            QPushButton#closeBtn {
-                background-color: #171a23;
-                border: 1px solid #272f44;
-                color: #94a3b8;
+            QPushButton#progActionPillBtn {
+                background-color: #111726;
+                border: 1px solid #1d4ed8;
+                color: #60a5fa;
+                font-family: "Segoe UI", sans-serif;
                 font-size: 12px;
                 font-weight: 600;
                 border-radius: 8px;
-                padding: 6px 14px;
+                padding: 6px 16px;
             }
-            QPushButton#closeBtn:hover {
-                background-color: #ef4444;
+            QPushButton#progActionPillBtn:hover {
+                background-color: #1e293b;
+                border-color: #2563eb;
+                color: #93c5fd;
+            }
+            QPushButton#progSecondaryPillBtn {
+                background-color: #111726;
+                border: 1px solid #1a2336;
+                color: #cbd5e1;
+                font-family: "Segoe UI", sans-serif;
+                font-size: 12px;
+                font-weight: 600;
+                border-radius: 8px;
+                padding: 6px 16px;
+            }
+            QPushButton#progSecondaryPillBtn:hover {
+                background-color: #1e293b;
+                border-color: #2d3b55;
                 color: #ffffff;
+            }
+            QPushButton#progClosePillBtn {
+                background-color: #111726;
+                border: 1px solid #1a2336;
+                color: #cbd5e1;
+                font-family: "Segoe UI", sans-serif;
+                font-size: 12px;
+                font-weight: 600;
+                border-radius: 8px;
+                padding: 6px 16px;
+            }
+            QPushButton#progClosePillBtn:hover {
+                background-color: #ef4444;
                 border-color: #dc2626;
+                color: #ffffff;
+            }
+            QTableWidget#partTable {
+                background-color: #0d121f;
+                border: 1px solid #161e31;
+                border-radius: 8px;
+                gridline-color: transparent;
+                color: #cbd5e1;
+                font-family: "Segoe UI", sans-serif;
+                font-size: 11px;
+                selection-background-color: #162035;
+                outline: none;
+            }
+            QTableWidget#partTable QHeaderView::section {
+                background-color: #0d121f;
+                color: #64748b;
+                border: none;
+                border-bottom: 1px solid #161e31;
+                padding: 6px 8px;
+                font-weight: bold;
+                font-size: 10px;
+                letter-spacing: 0.8px;
+            }
+            QTableWidget#partTable::item {
+                padding: 3px 8px;
+                border-bottom: 1px solid #111726;
+            }
+            QTableWidget#partTable::item:selected {
+                background-color: #162035;
+                color: #f8fafc;
             }
             QFrame#inputContainer {
                 background-color: #121826;
@@ -1169,6 +1290,21 @@ class CompactDownloadWindow(QDialog):
             }
             QPushButton#secondaryBtn:pressed {
                 background-color: #10141f;
+            }
+            QPushButton#closeBtn {
+                background-color: #131825;
+                border: 1px solid #1f2a3e;
+                color: #94a3b8;
+                font-family: "Segoe UI", sans-serif;
+                font-size: 12px;
+                font-weight: 600;
+                border-radius: 8px;
+                padding: 6px 14px;
+            }
+            QPushButton#closeBtn:hover {
+                background-color: #ef4444;
+                color: #ffffff;
+                border-color: #dc2626;
             }
             QPushButton#iconBtn {
                 background-color: #131825;
