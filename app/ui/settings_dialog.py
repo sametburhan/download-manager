@@ -1,9 +1,9 @@
 """
-Download Manager - Ağ Ayarları Penceresi (settings_dialog.py)
+Download Manager - Network Settings Window (settings_dialog.py)
 
-Kullanıcının paylaştığı 'Network settings' arayüzüne birebir uygun olarak
-tasarlanmıştır. Bağlantı zaman aşımı, parça (segment) sayısı, yeniden deneme limiti,
-hız sınırı ve sistem/özel proxy yapılandırmalarını yönetir.
+Designed to precisely match the user's 'Network settings' interface.
+Manages connection timeout, segment count, retry limit,
+speed limits, and system/manual proxy configurations.
 """
 
 import os
@@ -21,7 +21,7 @@ from app.utils.icon_utils import get_app_icon
 
 
 class NetworkSettingsDialog(QDialog):
-    """Kullanıcı referans görseline birebir uygun Ağ Ayarları diyalogu."""
+    """Network settings dialog matching the reference design."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -37,18 +37,18 @@ class NetworkSettingsDialog(QDialog):
         self._apply_styles()
 
     def _init_ui(self) -> None:
-        """Arayüz bileşenlerini ve düzenini kurar."""
+        """Sets up UI components and layout."""
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(24, 20, 24, 20)
         main_layout.setSpacing(16)
 
-        # 1. Başlık
+        # 1. Title
         title_lbl = QLabel("Network settings")
         title_lbl.setFont(QFont("Segoe UI Variable Display", 15, QFont.Weight.Bold))
         title_lbl.setStyleSheet("color: #f1f5f9; margin-bottom: 4px; background: transparent; border: none;")
         main_layout.addWidget(title_lbl)
 
-        # 2. Üst Parametreler Izgarası (Timeout, Segments, Retries)
+        # 2. Upper Parameters Grid (Timeout, Segments, Retries)
         top_grid = QGridLayout()
         top_grid.setHorizontalSpacing(16)
         top_grid.setVerticalSpacing(14)
@@ -107,13 +107,13 @@ class NetworkSettingsDialog(QDialog):
 
         main_layout.addLayout(top_grid)
 
-        # Ayırıcı Çizgi
+        # Separator Line
         sep = QFrame()
         sep.setFrameShape(QFrame.Shape.HLine)
         sep.setStyleSheet("background-color: #232b3e; border: none; height: 1px;")
         main_layout.addWidget(sep)
 
-        # 3. Proxy Ayarları
+        # 3. Proxy Settings
         proxy_grid = QGridLayout()
         proxy_grid.setHorizontalSpacing(16)
         proxy_grid.setVerticalSpacing(12)
@@ -178,7 +178,7 @@ class NetworkSettingsDialog(QDialog):
 
         main_layout.addLayout(proxy_grid)
 
-        # Open system proxy settings butonu
+        # Open system proxy settings button
         btn_sys_proxy_layout = QHBoxLayout()
         btn_sys_proxy_layout.addStretch()
         self.btn_sys_proxy = QPushButton("Open system proxy settings")
@@ -189,7 +189,7 @@ class NetworkSettingsDialog(QDialog):
 
         main_layout.addStretch()
 
-        # 4. Alt Butonlar (Save / Cancel)
+        # 4. Bottom Buttons (Save / Cancel)
         actions_layout = QHBoxLayout()
         actions_layout.addStretch()
 
@@ -208,7 +208,7 @@ class NetworkSettingsDialog(QDialog):
         main_layout.addLayout(actions_layout)
 
     def _load_values(self) -> None:
-        """Ayarları arayüz alanlarına aktarır."""
+        """Loads settings values into UI fields."""
         s = self.settings
         self.spin_timeout.setValue(s.connection_timeout)
         self.spin_segments.setValue(s.segments_per_download)
@@ -218,7 +218,7 @@ class NetworkSettingsDialog(QDialog):
         self.spin_speed_limit.setValue(s.speed_limit_kbs)
         self.spin_speed_limit.setEnabled(s.speed_limit_enabled)
 
-        # Proxy Modu Eşlemesi
+        # Proxy Mode Mapping
         mode_map = {
             "system": 0,
             "none": 1,
@@ -243,7 +243,7 @@ class NetworkSettingsDialog(QDialog):
         self.spin_speed_limit.setEnabled(checked)
 
     def _on_proxy_mode_changed(self, index: int) -> None:
-        """Proxy modu manual olduğunda alanları etkinleştirir."""
+        """Enables fields when proxy mode is manual."""
         is_manual = (index == 2)
         self.combo_proxy_type.setEnabled(is_manual)
         self.input_host.setEnabled(is_manual)
@@ -252,7 +252,7 @@ class NetworkSettingsDialog(QDialog):
         self.input_pass.setEnabled(is_manual)
 
     def _open_system_proxy_settings(self) -> None:
-        """Windows sistem proxy ayarları sayfasını açar."""
+        """Opens Windows system proxy settings page."""
         try:
             subprocess.Popen("start ms-settings:network-proxy", shell=True)
         except Exception:
@@ -262,7 +262,7 @@ class NetworkSettingsDialog(QDialog):
                 print(f"Failed to open system proxy settings: {e}")
 
     def _on_save_clicked(self) -> None:
-        """Kullanıcının girdiği ayarları nesneye aktarıp kaydeder."""
+        """Saves user input into settings object."""
         index_to_mode = {
             0: "system",
             1: "none",
@@ -286,7 +286,7 @@ class NetworkSettingsDialog(QDialog):
         self.accept()
 
     def _apply_styles(self) -> None:
-        """Kullanıcı görseline sadık kalan modern Fluent Obsidian stilini uygular."""
+        """Applies modern Fluent Obsidian style."""
         self.setStyleSheet("""
             QDialog, NetworkSettingsDialog {
                 background-color: #171920;

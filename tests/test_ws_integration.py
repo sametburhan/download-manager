@@ -1,9 +1,9 @@
 """
-Aşama 1 Otomatik Doğrulama Testi (WebSocket + Protocol + Bridge Entegrasyonu)
+Stage 1 Automated Verification Test (WebSocket + Protocol + Bridge Integration)
 
-Bu script, bağımsız olarak WebSocket sunucusunu bir QThread içinde başlatır,
-simüle edilmiş bir tarayıcı eklentisi gibi sokete bağlanır, farklı senaryolarda
-mesajlar gönderir ve sunucunun yanıtları ile PyQt sinyallerinin doğruluğunu test eder.
+This script independently starts the WebSocket server in a QThread,
+connects to the socket like a simulated browser extension, sends messages in various
+scenarios, and tests the accuracy of server responses and PyQt signals.
 """
 
 import sys
@@ -12,7 +12,7 @@ import json
 import asyncio
 import unittest
 
-# Proje ana dizinini Python arama yoluna ekle
+# Add project root directory to Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from PyQt6.QtWidgets import QApplication
@@ -28,11 +28,11 @@ class TestWebSocketBridgeIntegration(unittest.TestCase):
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication(sys.argv)
         cls.bridge = ServerBridge()
-        cls.port = 6801  # Testler için izole bir port
+        cls.port = 6801  # Isolated port for tests
         cls.ws_thread = WebSocketServerThread(host="127.0.0.1", port=cls.port, bridge=cls.bridge)
         cls.ws_thread.start()
 
-        # Sunucunun başlaması için kısa bir bekleme
+        # Short wait for server to start
         cls.app.processEvents()
         import time
         time.sleep(0.5)
@@ -43,7 +43,7 @@ class TestWebSocketBridgeIntegration(unittest.TestCase):
         cls.ws_thread.wait()
 
     def test_01_protocol_parser_valid_download(self):
-        """Protokol ayrıştırıcısının geçerli bir indirme isteğini doğru parse ettiğini test eder."""
+        """Tests that protocol parser correctly parses a valid download request."""
         raw_json = json.dumps({
             "action": "DOWNLOAD_URL",
             "payload": {
@@ -59,7 +59,7 @@ class TestWebSocketBridgeIntegration(unittest.TestCase):
         self.assertEqual(result["data"].filename, "archive.zip")
 
     def test_02_protocol_parser_invalid_json(self):
-        """Bozuk JSON gönderildiğinde sunucunun çökmeden hata döndürdüğünü test eder."""
+        """Tests that server returns error without crashing when malformed JSON is sent."""
         raw_bad = "{bu_gecersiz_bir_json_verisidir"
         result = ProtocolParser.parse_message(raw_bad)
         self.assertFalse(result["success"])
@@ -67,7 +67,7 @@ class TestWebSocketBridgeIntegration(unittest.TestCase):
         self.assertIn("JSON parse error", result["error"])
 
     def test_03_protocol_parser_invalid_url(self):
-        """Eksik veya geçersiz protokol içeren URL'lerin reddedildiğini test eder."""
+        """Tests rejection of URLs containing missing or invalid protocols."""
         raw_json = json.dumps({
             "action": "DOWNLOAD_URL",
             "payload": {
@@ -79,7 +79,7 @@ class TestWebSocketBridgeIntegration(unittest.TestCase):
         self.assertIn("Valid URL address was not provided", result["error"])
 
     def test_04_websocket_live_communication(self):
-        """Canlı WebSocket soketine bağlanıp istek-yanıt ve PyQt sinyal akışını test eder."""
+        """Tests request-response and PyQt signal flow by connecting to live WebSocket."""
         received_signals = []
 
         def on_download(data):
@@ -94,12 +94,12 @@ class TestWebSocketBridgeIntegration(unittest.TestCase):
         async def run_client_simulation():
             uri = f"ws://127.0.0.1:{self.port}"
             async with websockets.connect(uri) as ws:
-                # 1. Ping testi
+                # 1. Ping test
                 await ws.send(json.dumps({"action": "PING"}))
                 resp1 = json.loads(await ws.recv())
                 self.assertEqual(resp1.get("status"), "PONG")
 
-                # 2. DOWNLOAD_URL testi
+                # 2. DOWNLOAD_URL test
                 download_msg = {
                     "action": "DOWNLOAD_URL",
                     "payload": {
@@ -111,7 +111,7 @@ class TestWebSocketBridgeIntegration(unittest.TestCase):
                 resp2 = json.loads(await ws.recv())
                 self.assertEqual(resp2.get("status"), "ACCEPTED")
 
-                # 3. MEDIA_DETECTED testi
+                # 3. MEDIA_DETECTED test
                 media_msg = {
                     "action": "MEDIA_DETECTED",
                     "payload": {
@@ -123,13 +123,13 @@ class TestWebSocketBridgeIntegration(unittest.TestCase):
                 resp3 = json.loads(await ws.recv())
                 self.assertEqual(resp3.get("status"), "ACCEPTED")
 
-        # Asenkron istemci testini çalıştır
+        # Run async client test
         asyncio.run(run_client_simulation())
 
-        # PyQt event queue'yu işle
+        # Process PyQt event queue
         self.app.processEvents()
 
-        # Sinyallerin PyQt bridge tarafından yakalandığını doğrula
+        # Verify signals captured by PyQt bridge
         self.assertEqual(len(received_signals), 2)
         self.assertEqual(received_signals[0][0], "download")
         self.assertEqual(received_signals[0][1]["url"], "https://speed.hetzner.de/100MB.bin")

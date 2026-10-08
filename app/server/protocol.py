@@ -1,9 +1,9 @@
 """
-Download Manager - WebSocket Protokol ve Mesaj Ayrıştırma Modülü
+Download Manager - WebSocket Protocol & Message Parsing Module
 
-Bu modül, tarayıcı eklentisinden gelen ham JSON verilerini doğrular (validate),
-güvenli bir şekilde ayrıştırır (parse) ve standart veri modellerine dönüştürür.
-Hatalı veya kötü niyetli paketlere karşı dayanıklılık sağlar.
+This module validates, securely parses, and transforms raw JSON data received
+from the browser extension into standardized data models.
+It provides resilience against malformed or malicious packets.
 """
 
 from dataclasses import dataclass, field
@@ -13,15 +13,15 @@ import time
 
 
 class ActionType:
-    """Tarayıcı eklentisinden gelebilecek izin verilen eylem türleri."""
-    DOWNLOAD_URL = "DOWNLOAD_URL"       # Normal dosya indirme isteği
-    MEDIA_DETECTED = "MEDIA_DETECTED"   # Sayfada yakalanan video/ses akışı
-    PING = "PING"                       # Canlılık kontrolü (Heartbeat)
+    """Allowed action types coming from the browser extension."""
+    DOWNLOAD_URL = "DOWNLOAD_URL"       # Standard file download request
+    MEDIA_DETECTED = "MEDIA_DETECTED"   # Video/audio stream detected on page
+    PING = "PING"                       # Heartbeat check
 
 
 @dataclass
 class DownloadRequest:
-    """Standart dosya indirme istek modeli."""
+    """Standard file download request model."""
     url: str
     filename: Optional[str] = None
     referrer: Optional[str] = None
@@ -31,7 +31,7 @@ class DownloadRequest:
     timestamp: float = field(default_factory=time.time)
 
     def to_dict(self) -> Dict[str, Any]:
-        """Model verisini sözlük (dict) formatına çevirir."""
+        """Converts model data to dictionary format."""
         return {
             "url": self.url,
             "filename": self.filename,
@@ -45,7 +45,7 @@ class DownloadRequest:
 
 @dataclass
 class MediaRequest:
-    """Video / Ses yakalama istek modeli (yt-dlp veya doğrudan akış için)."""
+    """Video / Audio capture request model (for yt-dlp or direct stream)."""
     page_url: str
     media_src: Optional[str] = None
     title: Optional[str] = None
@@ -54,7 +54,7 @@ class MediaRequest:
     timestamp: float = field(default_factory=time.time)
 
     def to_dict(self) -> Dict[str, Any]:
-        """Model verisini sözlük (dict) formatına çevirir."""
+        """Converts model data to dictionary format."""
         return {
             "page_url": self.page_url,
             "media_src": self.media_src,
@@ -67,16 +67,16 @@ class MediaRequest:
 
 class ProtocolParser:
     """
-    Tarayıcı eklentisinden gelen ham metinleri (JSON) analiz eden ve
-    uygun nesnelere dönüştüren yardımcı sınıf.
+    Helper class analyzing raw JSON strings received from the browser
+    extension and converting them into validated objects.
     """
 
     @staticmethod
     def parse_message(raw_data: str) -> Dict[str, Any]:
         """
-        Ham JSON dizesini parse eder ve eylem tipine göre doğrulanmış nesne döndürür.
+        Parses raw JSON string and returns validated object according to action type.
 
-        Dönüş Formatı:
+        Return Format:
         {
             "success": bool,
             "action": str,
@@ -89,10 +89,10 @@ class ProtocolParser:
                 "success": False,
                 "action": "UNKNOWN",
                 "data": None,
-                "error": "Boş veya geçersiz veri tipi gönderildi."
+                "error": "Empty or invalid data type provided."
             }
 
-        # 1. JSON sözdizimi doğrulama
+        # 1. Validate JSON syntax
         try:
             payload = json.loads(raw_data)
         except json.JSONDecodeError as exc:
@@ -114,7 +114,7 @@ class ProtocolParser:
         action = payload.get("action", "").upper()
         data_block = payload.get("payload", {})
 
-        # 2. Eylem tipine göre ayrıştırma
+        # 2. Parse according to action type
         if action == ActionType.DOWNLOAD_URL:
             url = data_block.get("url")
             if not url or not isinstance(url, str) or not url.startswith(("http://", "https://", "ftp://", "file://")):
@@ -167,7 +167,7 @@ class ProtocolParser:
             }
 
         elif action == ActionType.PING:
-            # Heartbeat isteği
+            # Heartbeat request
             return {
                 "success": True,
                 "action": action,
@@ -186,7 +186,7 @@ class ProtocolParser:
     @staticmethod
     def create_response(status: str, message: str, task_id: Optional[str] = None) -> str:
         """
-        Tarayıcı eklentisine geri gönderilecek JSON yanıt paketini oluşturur.
+        Creates JSON response packet to send back to the browser extension.
         """
         response_dict = {
             "status": status,
@@ -196,3 +196,4 @@ class ProtocolParser:
         if task_id:
             response_dict["task_id"] = task_id
         return json.dumps(response_dict)
+

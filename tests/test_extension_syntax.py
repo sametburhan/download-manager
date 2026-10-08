@@ -1,10 +1,10 @@
 """
-Aşama 4 Tarayıcı Eklentisi Doğrulama ve Bütünlük Testi
+Stage 4 Browser Extension Verification and Integrity Test
 
-Bu test:
-1. extension/manifest.json dosyasının geçerli bir Manifest V3 olduğunu ve tüm referans dosyalarının diskte bulunduğunu teyit eder.
-2. background.js, popup.html, popup.js ve ikon dosyalarının varlığını ve bütünlüğünü denetler.
-3. background.js'in göndereceği exact JSON paketlerini WebSocket sunucusuna simüle ederek uçtan uca kabul edildiğini doğrular.
+This test suite:
+1. Confirms extension/manifest.json is a valid Manifest V3 and all referenced files exist on disk.
+2. Checks presence and integrity of background.js, popup.html, popup.js, and icon files.
+3. Simulates exact JSON packets sent by background.js to WebSocket server, verifying end-to-end acceptance.
 """
 
 import sys
@@ -28,7 +28,7 @@ class TestExtensionIntegrity(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication(sys.argv)
         cls.ext_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "extension"))
 
-        # Test için izole bir WebSocket sunucusu
+        # Isolated WebSocket server for tests
         cls.port = 6802
         cls.bridge = ServerBridge()
         cls.ws_thread = WebSocketServerThread(host="127.0.0.1", port=cls.port, bridge=cls.bridge)
@@ -43,7 +43,7 @@ class TestExtensionIntegrity(unittest.TestCase):
         cls.ws_thread.wait()
 
     def test_01_manifest_v3_structure(self):
-        """manifest.json dosyasının geçerliliğini ve Manifest V3 standartlarını doğrular."""
+        """Verifies manifest.json validity and Manifest V3 standards."""
         manifest_path = os.path.join(self.ext_dir, "manifest.json")
         self.assertTrue(os.path.exists(manifest_path))
 
@@ -56,7 +56,7 @@ class TestExtensionIntegrity(unittest.TestCase):
         self.assertIn("contextMenus", manifest.get("permissions", []))
         self.assertIn("<all_urls>", manifest.get("host_permissions", []))
 
-        # Referans verilen dosyaların diskte varlığını kontrol et
+        # Check presence of referenced files on disk
         bg_worker = manifest.get("background", {}).get("service_worker")
         self.assertTrue(os.path.exists(os.path.join(self.ext_dir, bg_worker)))
 
@@ -66,10 +66,10 @@ class TestExtensionIntegrity(unittest.TestCase):
         icons = manifest.get("icons", {})
         for size, icon_rel in icons.items():
             icon_full = os.path.join(self.ext_dir, icon_rel)
-            self.assertTrue(os.path.exists(icon_full), f"İkon bulunamadı: {icon_full}")
+            self.assertTrue(os.path.exists(icon_full), f"Icon not found: {icon_full}")
 
     def test_02_extension_scripts_exist(self):
-        """background.js ve popup dosyalarının içerik kontrolü."""
+        """Content inspection of background.js and popup files."""
         bg_path = os.path.join(self.ext_dir, "background.js")
         popup_html_path = os.path.join(self.ext_dir, "popup", "popup.html")
         popup_js_path = os.path.join(self.ext_dir, "popup", "popup.js")
@@ -100,7 +100,7 @@ class TestExtensionIntegrity(unittest.TestCase):
             self.assertIn("isYouTubeVideo", content_js)
 
     def test_03_simulate_extension_ws_interception(self):
-        """background.js tarafından fırlatılan indirme ve medya paketlerinin sunucu yanıtlarını doğrular."""
+        """Verifies server responses to download and media packets dispatched by background.js."""
         received_downloads = []
         received_medias = []
 
@@ -115,7 +115,7 @@ class TestExtensionIntegrity(unittest.TestCase):
                 pong = json.loads(await ws.recv())
                 self.assertEqual(pong.get("status"), "PONG")
 
-                # 2. background.js chrome.downloads.onCreated simülasyonu
+                # 2. background.js chrome.downloads.onCreated simulation
                 dl_packet = {
                     "action": "DOWNLOAD_URL",
                     "payload": {
@@ -130,14 +130,14 @@ class TestExtensionIntegrity(unittest.TestCase):
                 ack1 = json.loads(await ws.recv())
                 self.assertEqual(ack1.get("status"), "ACCEPTED")
 
-                # 3. background.js webRequest medya akışı koklama simülasyonu
+                # 3. background.js webRequest media stream sniffing simulation
                 media_packet = {
                     "action": "MEDIA_DETECTED",
                     "payload": {
                         "page_url": "https://video.example.com/stream/master.m3u8",
                         "media_src": "https://video.example.com/stream/master.m3u8",
                         "mime_type": "application/x-mpegURL",
-                        "title": "Canli Yayin Akisi"
+                        "title": "Live Stream Video"
                     },
                     "timestamp": 1725800001
                 }
@@ -148,7 +148,7 @@ class TestExtensionIntegrity(unittest.TestCase):
         asyncio.run(simulate_browser())
         self.app.processEvents()
 
-        # Sinyallerin PyQt tarafında yakalandığını kontrol et
+        # Verify signals captured on PyQt side
         self.assertEqual(len(received_downloads), 1)
         self.assertEqual(received_downloads[0]["filename"], "ubuntu-22.04.iso")
 
@@ -156,7 +156,7 @@ class TestExtensionIntegrity(unittest.TestCase):
         self.assertIn("master.m3u8", received_medias[0]["page_url"])
 
     def test_04_auto_capture_deactivation_logic(self):
-        """Automatic Download Interception deaktif durum kontrolü ve İngilizce uyarıların varlığını doğrular."""
+        """Verifies Automatic Download Interception disabled state check and presence of English warnings."""
         bg_path = os.path.join(self.ext_dir, "background.js")
         popup_js_path = os.path.join(self.ext_dir, "popup", "popup.js")
         popup_css_path = os.path.join(self.ext_dir, "popup", "popup.css")
@@ -191,7 +191,7 @@ class TestExtensionIntegrity(unittest.TestCase):
             self.assertIn("highlight-pulse", popup_css)
 
     def test_05_startup_guard_and_interception_filters(self):
-        """background.js dosyasında tarayıcı açılış koruması ve eski indirme filtrelerini doğrular."""
+        """Verifies browser startup guard and existing download filters in background.js."""
         bg_path = os.path.join(self.ext_dir, "background.js")
         with open(bg_path, "r", encoding="utf-8") as f:
             bg_content = f.read()
@@ -205,7 +205,7 @@ class TestExtensionIntegrity(unittest.TestCase):
         self.assertIn("onStartup", bg_content)
 
     def test_06_clear_and_suppression_lifecycle(self):
-        """Eklentide 'Temizle' (clear) sonrasi eski videolarin baskilanmasi ve yeni videolarin yakalanmasini dogrular."""
+        """Verifies suppression of old videos and capture of new videos after 'Clear' action in extension."""
         bg_path = os.path.join(self.ext_dir, "background.js")
         popup_js_path = os.path.join(self.ext_dir, "popup", "popup.js")
         content_js_path = os.path.join(self.ext_dir, "content.js")
@@ -230,7 +230,7 @@ class TestExtensionIntegrity(unittest.TestCase):
             self.assertIn("RESCAN_TAB_MEDIA", popup)
 
     def test_07_context_menu_and_file_protocol(self):
-        """Context menu eklenti kodu, pending queue ve file:// URL sunucu iletimini dogrular."""
+        """Verifies context menu extension code, pending queue, and file:// URL server transmission."""
         bg_path = os.path.join(self.ext_dir, "background.js")
         with open(bg_path, "r", encoding="utf-8") as f:
             bg = f.read()
@@ -245,7 +245,7 @@ class TestExtensionIntegrity(unittest.TestCase):
             manifest = json.load(f)
         self.assertIn("notifications", manifest.get("permissions", []))
 
-        # file:// URL gonderimi simülasyonu
+        # file:// URL dispatch simulation
         received = []
         self.bridge.download_requested.connect(lambda d: received.append(d))
 

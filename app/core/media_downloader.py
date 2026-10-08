@@ -1,9 +1,9 @@
 """
-Download Manager - yt-dlp Medya İndirme ve Ayrıştırma Motoru (media_downloader.py)
+Download Manager - yt-dlp Media Downloader & Parser Engine (media_downloader.py)
 
-Bu modül, YouTube ve diğer desteklenen video platformlarından medya bilgilerini
-(başlık, küçük resim, çözünürlük seçenekleri) çeker ve seçilen kalitede video/ses
-akışını QThread içinde izole olarak indirir.
+This module extracts media metadata (title, thumbnail, resolution options)
+from YouTube and other supported video platforms, and downloads the selected
+quality video/audio stream in an isolated QThread.
 """
 
 import os
@@ -47,7 +47,7 @@ yt_dlp.extractor.common.InfoExtractor._parse_m3u8_formats_and_subtitles = _patch
 
 
 def get_ffmpeg_path() -> Optional[str]:
-    """Sistemde veya paketlenmiş sanal ortamda ffmpeg çalıştırılabilir dosyasını bulur."""
+    """Locates the ffmpeg executable on the system or in the packaged virtualenv."""
     system_ffmpeg = shutil.which("ffmpeg")
     if system_ffmpeg:
         return system_ffmpeg
@@ -71,7 +71,7 @@ def get_ffmpeg_path() -> Optional[str]:
 
 
 def get_js_runtimes() -> dict:
-    """YouTube imza çözme ve player API'si için kullanılabilir JS motorlarını döndürür."""
+    """Returns available JS engines for YouTube signature solving and player API."""
     if shutil.which("node"):
         return {"node": {}}
     if shutil.which("deno"):
@@ -80,7 +80,7 @@ def get_js_runtimes() -> dict:
 
 
 def get_ytdl_base_opts(headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
-    """Tüm yt-dlp işlemleri için optimize edilmiş temel seçenekleri hazırlar."""
+    """Prepares optimized base options for all yt-dlp operations."""
     opts: Dict[str, Any] = {
         "quiet": True,
         "no_warnings": True,
@@ -95,7 +95,7 @@ def get_ytdl_base_opts(headers: Optional[Dict[str, str]] = None) -> Dict[str, An
     if runtimes:
         opts["js_runtimes"] = runtimes
 
-    # Proxy yapılandırması
+    # Proxy configuration
     try:
         from app.core.config import load_network_settings
         net_settings = load_network_settings()
@@ -113,7 +113,7 @@ def get_ytdl_base_opts(headers: Optional[Dict[str, str]] = None) -> Dict[str, An
     except Exception:
         pass
 
-    # Standart modern tarayıcı başlıkları (bot ve DPI engellemelerini aşmak için)
+    # Standard modern browser headers (to avoid bot and DPI restrictions)
     merged_headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
@@ -139,12 +139,12 @@ def get_ytdl_base_opts(headers: Optional[Dict[str, str]] = None) -> Dict[str, An
 
 class MediaInfoExtractor(QThread):
     """
-    Belirtilen medya URL'sini analiz ederek indirmeden önce format,
-    kalite, süre ve başlık bilgilerini çeken QThread sınıfı.
+    QThread class that inspects given media URL and extracts format,
+    quality, duration, and title information before downloading.
     """
 
-    metadata_ready = pyqtSignal(dict)    # Çıkarılan meta veri sözlüğü
-    error_occurred = pyqtSignal(str)     # Hata mesajı
+    metadata_ready = pyqtSignal(dict)    # Extracted metadata dictionary
+    error_occurred = pyqtSignal(str)     # Error message
 
     def __init__(self, url: str, headers: Optional[Dict[str, str]] = None, parent=None):
         super().__init__(parent)
@@ -152,7 +152,7 @@ class MediaInfoExtractor(QThread):
         self.headers = headers or {}
 
     def run(self) -> None:
-        """yt-dlp extract_info metodunu indirme yapmadan (download=False) çalıştırır."""
+        """Runs yt-dlp extract_info method without downloading (download=False)."""
         ydl_opts = get_ytdl_base_opts(self.headers)
         ydl_opts.update({
             "skip_download": True,
@@ -166,11 +166,11 @@ class MediaInfoExtractor(QThread):
                     self.error_occurred.emit("Failed to retrieve media information.")
                     return
 
-                # Önemli format seçeneklerini çözünürlüklere göre grupla ve sırala
+                # Group and sort important format options by resolutions
                 formats_summary: List[Dict[str, Any]] = []
                 formats = info.get("formats", [])
 
-                # 1. Video çözünürlüklerini topla (yüksekten düşüğe)
+                # 1. Collect video resolutions (highest to lowest)
                 seen_heights = set()
                 video_candidates = []
                 for fmt in formats:
@@ -179,7 +179,7 @@ class MediaInfoExtractor(QThread):
                     if height and vcodec != "none":
                         video_candidates.append(fmt)
 
-                # Yüksekliğe ve MP4 format önceliğine göre sırala
+                # Sort by height and MP4 format priority
                 video_candidates.sort(
                     key=lambda f: (
                         f.get("height", 0) or 0,
@@ -193,7 +193,7 @@ class MediaInfoExtractor(QThread):
                     h = fmt.get("height")
                     if not h or h in seen_heights:
                         continue
-                    # Kullanıcı talebi: 4K (2160p) ve 2K (1440p) seçenekleri eklenmez
+                    # Skip 4K (2160p) and 2K (1440p) per user requirement
                     if h > 1080:
                         continue
                     seen_heights.add(h)
@@ -213,7 +213,7 @@ class MediaInfoExtractor(QThread):
                         size_mb = filesize / (1024 * 1024)
                         size_str = f" (~{size_mb:.1f} MB)"
 
-                    # Kullanıcı talebi: Tüm video çözünürlükleri (720p, 480p, 360p, 240p vb.) daima MP4 olarak sunulur
+                    # All video resolutions are presented as MP4
                     label = f"{res_title} - MP4{size_str}"
 
                     formats_summary.append({
@@ -226,7 +226,7 @@ class MediaInfoExtractor(QThread):
                         "is_video": True
                     })
 
-                # 2. Ses seçeneklerini ekle
+                # 2. Add audio options
                 audio_seen = set()
                 for fmt in formats:
                     vcodec = fmt.get("vcodec", "none")
@@ -278,14 +278,14 @@ class MediaInfoExtractor(QThread):
 
 class MediaDownloader(QThread):
     """
-    Seçilen medya formatını arka planda indiren ve yt-dlp progress_hook
-    üzerinden PyQt6 arayüzüne anlık hız, yüzde ve durum aktaran motor.
+    Downloads selected media format in the background and reports
+    real-time speed, percentage, and status to PyQt6 UI via yt-dlp progress_hook.
     """
 
-    progress_updated = pyqtSignal(dict)      # İlerleme, hız, ETA sözlüğü
-    status_changed = pyqtSignal(str, str)    # task_id, yeni_durum
-    finished = pyqtSignal(str, str)          # task_id, dosya_yolu
-    error_occurred = pyqtSignal(str, str)    # task_id, hata_mesajı
+    progress_updated = pyqtSignal(dict)      # Progress, speed, ETA dictionary
+    status_changed = pyqtSignal(str, str)    # task_id, new_status
+    finished = pyqtSignal(str, str)          # task_id, file_path
+    error_occurred = pyqtSignal(str, str)    # task_id, error_message
 
     def __init__(
         self,
@@ -302,7 +302,7 @@ class MediaDownloader(QThread):
         self._final_filepath = ""
 
     def cancel(self) -> None:
-        """İndirmeyi iptal eder."""
+        """Cancels download."""
         self._is_cancelled = True
         self.task.status = DownloadStatus.CANCELLED
         self.status_changed.emit(self.task.task_id, DownloadStatus.CANCELLED.value)
@@ -314,11 +314,11 @@ class MediaDownloader(QThread):
             pass
 
     def run(self) -> None:
-        """yt-dlp ile indirmeyi başlatan ana iş parçacığı fonksiyonu."""
+        """Main thread function initiating download with yt-dlp."""
         self.task.status = DownloadStatus.DOWNLOADING
         self.status_changed.emit(self.task.task_id, DownloadStatus.DOWNLOADING.value)
 
-        # Hedef şablon ve indirme seçeneklerini hazırla
+        # Prepare target template and download options
         base_name = os.path.splitext(self.task.filename)[0] if self.task.filename else "%(title)s"
 
         ydl_opts: Dict[str, Any] = get_ytdl_base_opts(self.task.headers)
@@ -334,7 +334,7 @@ class MediaDownloader(QThread):
 
         has_ffmpeg = bool(get_ffmpeg_path())
 
-        # Format seçimi
+        # Format selection
         if self.audio_only:
             if has_ffmpeg:
                 ydl_opts["format"] = "bestaudio/best"
@@ -377,7 +377,7 @@ class MediaDownloader(QThread):
             if self._is_cancelled:
                 return
 
-            # İndirme ve dönüştürme tamamlandı: Diskte oluşan gerçek dosyayı tespit et
+            # Download and processing complete: resolve actual file on disk
             real_file_path = self._final_filepath
             if real_file_path and not os.path.exists(real_file_path):
                 base, _ = os.path.splitext(real_file_path)
@@ -441,7 +441,7 @@ class MediaDownloader(QThread):
                 pass
 
     def _progress_hook(self, d: Dict[str, Any]) -> None:
-        """yt-dlp'den gelen anlık verileri PyQt sinyaline dönüştürür."""
+        """Converts incoming yt-dlp metrics to PyQt signal."""
         if self._is_cancelled:
             raise yt_dlp.utils.DownloadCancelled("Download cancelled by user.")
 
@@ -473,6 +473,6 @@ class MediaDownloader(QThread):
             })
 
         elif status == "finished":
-            # İndirme bitti, birleştirme / ses dönüştürme aşaması
+            # Download complete, merging / audio conversion stage
             self.task.status = DownloadStatus.MERGING
             self.status_changed.emit(self.task.task_id, DownloadStatus.MERGING.value)

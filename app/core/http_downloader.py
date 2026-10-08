@@ -1,9 +1,9 @@
 """
-Download Manager - HTTP Range Çok Parçalı İndirme Motoru (http_downloader.py)
+Download Manager - HTTP Range Multi-part Download Engine (http_downloader.py)
 
-Bu modül, HTTP 'Range' başlığını kullanarak dosyaları eşzamanlı iş parçacıklarına
-(threads) böler, her parçayı bağımsız olarak indirir, duraklatma/devam ettirme
-(Pause/Resume) işlemlerini yönetir ve tamamlandığında parçaları hedef dosyada birleştirir.
+This module splits downloads into concurrent threads using HTTP 'Range' headers,
+downloads each chunk independently, manages Pause/Resume operations,
+and merges the parts into the final target file upon completion.
 """
 
 import os
@@ -23,22 +23,22 @@ from app.utils.file_utils import sanitize_filename, merge_chunks, cleanup_temp_f
 
 class HttpChunkDownloader(QThread):
     """
-    QThread tabanlı HTTP çok parçalı indirme motoru.
-    PyQt6 arayüzünü kilitlemeden arka planda çalışır ve pyqtSignal ile anlık durum bildirir.
+    QThread-based HTTP multi-chunk download engine.
+    Runs in the background without blocking the PyQt6 GUI and emits status updates via pyqtSignal.
     """
 
-    # Sinyaller (PyQt Signal mekanizması)
-    progress_updated = pyqtSignal(dict)           # İlerleme, hız, ETA sözlüğü
-    chunk_progress = pyqtSignal(int, int, int)    # chunk_id, inen_byte, toplam_byte
-    status_changed = pyqtSignal(str, str)         # task_id, yeni_durum (enum string)
-    finished = pyqtSignal(str, str)               # task_id, tamamlanan_dosya_yolu
-    error_occurred = pyqtSignal(str, str)         # task_id, hata_mesaji
+    # Signals (PyQt signal mechanism)
+    progress_updated = pyqtSignal(dict)           # Progress, speed, ETA dictionary
+    chunk_progress = pyqtSignal(int, int, int)    # chunk_id, downloaded_bytes, total_bytes
+    status_changed = pyqtSignal(str, str)         # task_id, new_status (enum string)
+    finished = pyqtSignal(str, str)               # task_id, completed_file_path
+    error_occurred = pyqtSignal(str, str)         # task_id, error_message
 
     def __init__(
         self,
         task: DownloadTask,
         num_chunks: int = 8,
-        chunk_buffer_size: int = 64 * 1024,  # 64 KB okuma tamponu
+        chunk_buffer_size: int = 64 * 1024,  # 64 KB read buffer
         parent=None
     ):
         super().__init__(parent)
@@ -46,19 +46,19 @@ class HttpChunkDownloader(QThread):
         self.num_chunks = max(1, num_chunks)
         self.chunk_buffer_size = chunk_buffer_size
 
-        # İş parçacığı kontrol bayrakları ve kilitleri
+        # Thread control flags and locks
         self._is_paused = False
         self._is_cancelled = False
         self._lock = threading.Lock()
 
-        # Hız ve ETA hesaplama değişkenleri
+        # Speed and ETA calculation variables
         self._last_calc_time = time.time()
         self._last_downloaded_bytes = 0
 
-    # ==================== Dışarıdan Çağrılan Kontrol Metotları ====================
+    # ==================== External Control Methods ====================
 
     def pause(self) -> None:
-        """İndirmeyi güvenli bir şekilde duraklatır ve mevcut durumu kaydeder."""
+        """Safely pauses the download and saves current state."""
         with self._lock:
             if self.task.status in (DownloadStatus.COMPLETED, DownloadStatus.FAILED, DownloadStatus.CANCELLED):
                 return
@@ -68,7 +68,7 @@ class HttpChunkDownloader(QThread):
             self.status_changed.emit(self.task.task_id, DownloadStatus.PAUSED.value)
 
     def cancel(self) -> None:
-        """İndirmeyi iptal eder ve geçici dosyaları temizler."""
+        """Cancels the download and cleans up temporary files."""
         with self._lock:
             if self.task.status in (DownloadStatus.COMPLETED, DownloadStatus.FAILED, DownloadStatus.CANCELLED):
                 return
@@ -76,10 +76,10 @@ class HttpChunkDownloader(QThread):
             self.task.status = DownloadStatus.CANCELLED
             self.status_changed.emit(self.task.task_id, DownloadStatus.CANCELLED.value)
 
-    # ==================== QThread Ana Yürütme Döngüsü ====================
+    # ==================== QThread Main Execution Loop ====================
 
     def run(self) -> None:
-        """QThread.start() çağrıldığında çalışan ana fonksiyon."""
+        """Main execution function triggered when QThread.start() is called."""
         self._is_paused = False
         self._is_cancelled = False
 
@@ -138,40 +138,40 @@ class HttpChunkDownloader(QThread):
                 self.finished.emit(self.task.task_id, self.task.final_file_path)
                 return
 
-            # 1. Sunucu başlıklarını ve Range desteğini sorgula
+            # 1. Query server headers and Range support
             self._inspect_server()
 
-            # 2. Parça (Chunk) sınırlarını hazırla veya mevcut durumdan yükle
+            # 2. Setup chunk boundaries or load from existing state
             self._setup_chunks()
 
             if self._is_paused or self._is_cancelled:
                 self._save_meta_file()
                 return
 
-            # 3. İndirmeyi başlat
+            # 3. Start download
             self.task.status = DownloadStatus.DOWNLOADING
             self.status_changed.emit(self.task.task_id, DownloadStatus.DOWNLOADING.value)
 
             self._download_all_chunks()
 
-            # Duraklatıldıysa veya iptal edildiyse çık
+            # Exit if paused or cancelled
             if self._is_paused or self._is_cancelled:
                 self._save_meta_file()
                 if self._is_cancelled:
                     self._cleanup_all()
                 return
 
-            # 4. Tüm parçalar bittiyse birleştirme aşamasına geç
+            # 4. If all chunks are finished, move to merging stage
             self.task.status = DownloadStatus.MERGING
             self.status_changed.emit(self.task.task_id, DownloadStatus.MERGING.value)
 
             chunk_paths = [chunk.temp_file for chunk in self.task.chunks]
             merge_chunks(chunk_paths, self.task.final_file_path)
 
-            # Geçici dosyaları ve görevin geçici dizinini temizle
+            # Clean up temporary files and task temp directory
             cleanup_temp_files(chunk_paths, self.task.meta_file_path, self.task.temp_dir)
 
-            # 5. Başarıyla tamamlandı
+            # 5. Successfully completed
             if os.path.exists(self.task.final_file_path):
                 real_size = os.path.getsize(self.task.final_file_path)
                 if real_size > 0:
@@ -191,11 +191,11 @@ class HttpChunkDownloader(QThread):
             self.status_changed.emit(self.task.task_id, DownloadStatus.FAILED.value)
             self.error_occurred.emit(self.task.task_id, str(exc))
 
-    # ==================== İç Mantık ve Ağ Operasyonları ====================
+    # ==================== Internal Logic & Network Operations ====================
 
     @staticmethod
     def _get_proxy_url() -> Optional[str]:
-        """Ayarlardan proxy yapılandırmasını okur ve httpx / httpx-socks uyumlu URL döndürür."""
+        """Reads proxy configuration from settings and returns an httpx / httpx-socks compatible URL."""
         try:
             from app.core.config import load_network_settings
             net_settings = load_network_settings()
@@ -216,8 +216,8 @@ class HttpChunkDownloader(QThread):
     @classmethod
     def _create_http_client(cls, timeout: float = 30.0) -> httpx.Client:
         """
-        Proxy yapılandırmasına göre uygun httpx.Client nesnesi üretir.
-        SOCKS4 ve SOCKS5 proxy'leri için SyncProxyTransport kullanır.
+        Creates an httpx.Client instance matching proxy configuration.
+        Uses SyncProxyTransport for SOCKS4 and SOCKS5 proxies.
         """
         proxy_url = cls._get_proxy_url()
         if proxy_url:
@@ -232,19 +232,19 @@ class HttpChunkDownloader(QThread):
         return httpx.Client(proxy=proxy_url, follow_redirects=True, timeout=timeout)
 
     def _inspect_server(self) -> None:
-        """Sunucuya HEAD veya test GET isteği atarak boyut ve Range desteğini belirler."""
+        """Determines size and Range support by sending a HEAD or test GET request."""
         req_headers = dict(self.task.headers)
-        # Bazı sunucular HEAD isteğini engellediği için Range: bytes=0-0 ile GET deniyoruz
+        # Some servers block HEAD requests, so test GET with Range: bytes=0-0
         req_headers["Range"] = "bytes=0-0"
 
         with self._create_http_client(timeout=15.0) as client:
             try:
                 response = client.get(self.task.url, headers=req_headers)
             except httpx.RequestError as err:
-                raise ConnectionError(f"Sunucuya bağlanılamadı: {str(err)}")
+                raise ConnectionError(f"Could not connect to server: {str(err)}")
 
             if response.status_code == 206:
-                # Sunucu 206 Partial Content döndü, yani Range destekleniyor!
+                # Server returned 206 Partial Content, Range is supported!
                 self.task.is_resumable = True
                 content_range = response.headers.get("Content-Range", "")
                 # Format: "bytes 0-0/1234567"
@@ -253,7 +253,7 @@ class HttpChunkDownloader(QThread):
                     if total_str.isdigit():
                         self.task.total_size = int(total_str)
             elif response.status_code in (200, 302):
-                # Sunucu 200 OK döndü. Accept-Ranges başlığını kontrol et
+                # Server returned 200 OK. Check Accept-Ranges header
                 accept_ranges = response.headers.get("Accept-Ranges", "").lower()
                 self.task.is_resumable = (accept_ranges == "bytes")
                 content_length = response.headers.get("Content-Length")
@@ -262,9 +262,9 @@ class HttpChunkDownloader(QThread):
                 else:
                     self.task.total_size = 0
             else:
-                raise RuntimeError(f"Sunucu beklenmeyen HTTP yanıtı döndü: {response.status_code}")
+                raise RuntimeError(f"Server returned unexpected HTTP response: {response.status_code}")
 
-            # Dosya adını Content-Disposition başlığından çıkarma imkanı varsa kullan
+            # Extract filename from Content-Disposition header if available
             content_disp = response.headers.get("Content-Disposition", "")
             if "filename=" in content_disp:
                 extracted_name = content_disp.split("filename=")[-1].strip('"\'; ')
@@ -272,8 +272,8 @@ class HttpChunkDownloader(QThread):
                     self.task.filename = sanitize_filename(extracted_name)
 
     def _setup_chunks(self) -> None:
-        """Mevcut bir meta dosyası varsa yükler, yoksa parçaları dinamik hesaplar."""
-        # 1. Pause/Resume için kayıtlı meta dosyası var mı?
+        """Loads existing meta file if available, otherwise calculates chunks dynamically."""
+        # 1. Does a saved meta file exist for Pause/Resume?
         if os.path.exists(self.task.meta_file_path):
             try:
                 with open(self.task.meta_file_path, "r", encoding="utf-8") as f:
@@ -285,7 +285,7 @@ class HttpChunkDownloader(QThread):
                     self.task.is_resumable = meta.get("is_resumable", self.task.is_resumable)
                     self.task.chunks = [ChunkInfo.from_dict(c) for c in chunks_data]
 
-                    # Disk üzerindeki gerçek parça boyutlarını güncelle
+                    # Synchronize actual chunk sizes on disk
                     total_downloaded = 0
                     for chunk in self.task.chunks:
                         if os.path.exists(chunk.temp_file):
@@ -298,14 +298,14 @@ class HttpChunkDownloader(QThread):
                     self.task.downloaded_size = total_downloaded
                     return
             except Exception:
-                # Meta dosyası bozulmuşsa baştan başla
+                # If meta file is corrupted, restart clean
                 pass
 
-        # 2. Yeni parça yapılandırması
+        # 2. New chunk setup
         self.task.chunks.clear()
         os.makedirs(self.task.temp_dir, exist_ok=True)
 
-        # Eğer Range desteklenmiyorsa veya dosya boyutu bilinmiyorsa TEK parça çalıştır
+        # If Range is not supported or file size is unknown, run SINGLE chunk
         if not self.task.is_resumable or self.task.total_size <= 0:
             part_file = os.path.join(self.task.temp_dir, f"{self.task.filename}.part0")
             chunk = ChunkInfo(
@@ -323,11 +323,11 @@ class HttpChunkDownloader(QThread):
             self._save_meta_file()
             return
 
-        # Range destekleniyor: Dosyayı num_chunks adedine böl
+        # Range is supported: Split file into num_chunks parts
         chunk_size = self.task.total_size // self.num_chunks
         for i in range(self.num_chunks):
             start = i * chunk_size
-            # Son parça dosyanın son byte'ına kadar kapsar
+            # Last chunk covers up to the last byte of the file
             end = self.task.total_size - 1 if i == self.num_chunks - 1 else (i + 1) * chunk_size - 1
             part_file = os.path.join(self.task.temp_dir, f"{self.task.filename}.part{i}")
 
@@ -339,7 +339,7 @@ class HttpChunkDownloader(QThread):
             )
             self.task.chunks.append(chunk)
 
-            # Geçici parça dosyasını temp dizininde hazırla
+            # Prepare temp chunk file in temp dir
             if not os.path.exists(part_file):
                 try:
                     open(part_file, "a").close()
@@ -349,24 +349,24 @@ class HttpChunkDownloader(QThread):
         self._save_meta_file()
 
     def _download_all_chunks(self) -> None:
-        """ThreadPoolExecutor ile tüm parçaları eşzamanlı iş parçacıklarında indirir."""
-        # Henüz tamamlanmamış parçaları filtrele
+        """Downloads all chunks concurrently in worker threads using ThreadPoolExecutor."""
+        # Filter incomplete chunks
         incomplete_chunks = [c for c in self.task.chunks if not c.is_completed]
         if not incomplete_chunks:
             return
 
-        # Eşzamanlı parça indiricilerini başlat
+        # Start concurrent chunk downloaders
         with ThreadPoolExecutor(max_workers=len(incomplete_chunks)) as executor:
             futures = [executor.submit(self._download_chunk_worker, chunk) for chunk in incomplete_chunks]
             for future in as_completed(futures):
-                future.result()  # İstisnaları (exception) yakalamak için result() çağrılır
+                future.result()  # Call result() to re-raise any worker exceptions
 
     def _download_chunk_worker(self, chunk: ChunkInfo) -> None:
-        """Tek bir parçayı HTTP Range ile indiren işçi fonksiyon."""
+        """Worker function that downloads a single chunk using HTTP Range."""
         if chunk.is_completed or self._is_paused or self._is_cancelled:
             return
 
-        # Kalan byte aralığını belirle (Resume mantığı)
+        # Determine remaining byte range (Resume logic)
         current_start = chunk.start_byte + chunk.downloaded_bytes
         if current_start > chunk.end_byte and chunk.total_bytes > 0:
             chunk.is_completed = True
@@ -376,18 +376,18 @@ class HttpChunkDownloader(QThread):
         if self.task.is_resumable and chunk.total_bytes > 0:
             req_headers["Range"] = f"bytes={current_start}-{chunk.end_byte}"
 
-        # Dosyayı varsa kaldığı yerden devam modunda ("ab"), yoksa "wb" modunda aç
+        # Open file in append mode ("ab") if continuing, or "wb" if fresh
         mode = "ab" if chunk.downloaded_bytes > 0 and os.path.exists(chunk.temp_file) else "wb"
 
         with self._create_http_client(timeout=30.0) as client:
             with client.stream("GET", self.task.url, headers=req_headers) as response:
                 if response.status_code not in (200, 206):
-                    raise RuntimeError(f"Parça #{chunk.chunk_id} indirilemedi. HTTP Kodu: {response.status_code}")
+                    raise RuntimeError(f"Failed to download chunk #{chunk.chunk_id}. HTTP Code: {response.status_code}")
 
                 os.makedirs(os.path.dirname(chunk.temp_file), exist_ok=True)
                 with open(chunk.temp_file, mode) as f:
                     for data_block in response.iter_bytes(chunk_size=self.chunk_buffer_size):
-                        # Duraklatıldı veya iptal edildiyse derhal çık
+                        # Exit immediately if paused or cancelled
                         if self._is_paused or self._is_cancelled:
                             break
 
@@ -405,18 +405,18 @@ class HttpChunkDownloader(QThread):
                 chunk.is_completed = True
 
     def _emit_progress(self, chunk: ChunkInfo) -> None:
-        """Hız, kalan süre ve ilerleme sinyallerini hesaplayıp GUI'ye fırlatır."""
+        """Calculates speed, ETA, and progress signals and emits them to GUI."""
         now = time.time()
         elapsed = now - self._last_calc_time
 
-        # Her 200 ms'de bir hız ve ETA hesapla
+        # Calculate speed and ETA every 200 ms
         if elapsed >= 0.2:
             with self._lock:
                 bytes_diff = self.task.downloaded_size - self._last_downloaded_bytes
                 speed = bytes_diff / elapsed if elapsed > 0 else 0
                 self.task.speed_bytes_per_sec = speed
 
-                # Kalan süre (ETA) hesabı
+                # Remaining time (ETA) calculation
                 if speed > 0 and self.task.total_size > self.task.downloaded_size:
                     remaining_bytes = self.task.total_size - self.task.downloaded_size
                     self.task.eta_seconds = int(remaining_bytes / speed)
@@ -426,7 +426,7 @@ class HttpChunkDownloader(QThread):
                 self._last_calc_time = now
                 self._last_downloaded_bytes = self.task.downloaded_size
 
-            # Sinyalleri yayınla
+            # Emit signals
             self.progress_updated.emit({
                 "task_id": self.task.task_id,
                 "downloaded_bytes": self.task.downloaded_size,
@@ -444,9 +444,9 @@ class HttpChunkDownloader(QThread):
             )
 
     def _save_meta_file(self) -> None:
-        """Pause/Resume durumunu meta JSON dosyasına yazar."""
+        """Writes Pause/Resume state to meta JSON file."""
         try:
-            # Disk üzerindeki gerçek parça boyutlarını senkronize et
+            # Synchronize actual chunk sizes on disk
             for chunk in self.task.chunks:
                 if os.path.exists(chunk.temp_file):
                     chunk.downloaded_bytes = os.path.getsize(chunk.temp_file)
@@ -468,7 +468,7 @@ class HttpChunkDownloader(QThread):
             pass
 
     def _cleanup_all(self) -> None:
-        """İptal edilen görevin tüm artık dosyalarını siler."""
+        """Deletes all temporary and artifact files of cancelled task."""
         chunk_paths = [c.temp_file for c in self.task.chunks]
         cleanup_temp_files(chunk_paths, self.task.meta_file_path, self.task.temp_dir)
         if os.path.exists(self.task.final_file_path):

@@ -1,11 +1,11 @@
 """
-Aşama 2 Otomatik Doğrulama Testi (İndirme Motoru, HTTP Range, Pause/Resume, Birleştirme)
+Stage 2 Automated Verification Test (Download Engine, HTTP Range, Pause/Resume, Merging)
 
-Bu test dosyası:
-1. Yerel bir Range-destekli HTTP test sunucusu ayağa kaldırır.
-2. 4 parçalı (chunked) indirme motorunu çalıştırır ve parça birleştirmeyi doğrular.
-3. Pause ve Resume (duraklatma ve devam ettirme) akışını test eder.
-4. Dosya sanitization ve hash doğrulamasını test eder.
+This test suite:
+1. Spins up a local Range-supported HTTP test server.
+2. Runs 4-chunk download engine and verifies chunk merging.
+3. Tests Pause and Resume download flows.
+4. Verifies filename sanitization and hash integrity.
 """
 
 import sys
@@ -26,16 +26,16 @@ from app.core.http_downloader import HttpChunkDownloader
 from app.core.task_manager import TaskManager
 
 
-# Test için 2 MB büyüklüğünde rastgele ikili veri üret
+# Generate 2 MB random binary test data
 TEST_DATA = os.urandom(2 * 1024 * 1024)
 TEST_HASH = hashlib.sha256(TEST_DATA).hexdigest()
 
 
 class RangeTestHTTPRequestHandler(BaseHTTPRequestHandler):
-    """HTTP Range (206 Partial Content) başlıklarını destekleyen test sunucu işleyicisi."""
+    """Test server handler supporting HTTP Range (206 Partial Content) headers."""
 
     def log_message(self, format, *args):
-        pass  # Test loglarını kirletmemek için sessize al
+        pass  # Silence logging to keep test output clean
 
     def do_HEAD(self):
         self.send_response(200)
@@ -51,7 +51,7 @@ class RangeTestHTTPRequestHandler(BaseHTTPRequestHandler):
         is_slow = "/slow" in self.path
 
         if range_header and range_header.startswith("bytes="):
-            # Range formatı: bytes=start-end
+            # Range format: bytes=start-end
             range_val = range_header.replace("bytes=", "").strip()
             parts = range_val.split("-")
             start = int(parts[0]) if parts[0] else 0
@@ -120,19 +120,19 @@ class TestDownloadEngine(unittest.TestCase):
     def tearDownClass(cls):
         cls.server.shutdown()
         cls.server.server_close()
-        # Test klasörünü temizle
+        # Clean up test directory
         import shutil
         if os.path.exists(cls.test_dir):
             shutil.rmtree(cls.test_dir, ignore_errors=True)
 
     def test_01_sanitize_filename(self):
-        """Windows geçersiz karakterlerinin temizlendiğini test eder."""
+        """Tests sanitization of Windows invalid characters."""
         raw_name = 'video:part1/test*file?.mp4'
         clean = sanitize_filename(raw_name)
         self.assertEqual(clean, "video_part1_test_file_.mp4")
 
     def test_02_merge_chunks(self):
-        """Parça dosyalarının sıralı ve kayıpsız birleştirildiğini test eder."""
+        """Tests sequential, lossless merging of chunk files."""
         chunk1 = os.path.join(self.test_dir, "test.part0")
         chunk2 = os.path.join(self.test_dir, "test.part1")
         merged = os.path.join(self.test_dir, "test.merged")
@@ -153,7 +153,7 @@ class TestDownloadEngine(unittest.TestCase):
         self.assertFalse(os.path.exists(chunk2))
 
     def test_03_http_range_chunked_download(self):
-        """HTTP Range ile 4 parçalı indirmeyi ve SHA256 bütünlüğünü test eder."""
+        """Tests 4-chunk HTTP Range download and SHA256 integrity."""
         target_filename = "downloaded_2mb.bin"
         task = DownloadTask(
             task_id="task_test_01",
@@ -171,7 +171,7 @@ class TestDownloadEngine(unittest.TestCase):
 
         downloader.start()
 
-        # İndirmenin bitmesini bekle (en fazla 10 sn)
+        # Wait for download completion (max 10s)
         start_time = time.time()
         while not finished_results and time.time() - start_time < 10:
             self.app.processEvents()
@@ -179,19 +179,19 @@ class TestDownloadEngine(unittest.TestCase):
 
         downloader.wait(2000)
 
-        # Doğrulamalar
+        # Verifications
         self.assertEqual(len(finished_results), 1)
         final_file = finished_results[0][1]
         self.assertTrue(os.path.exists(final_file))
         self.assertEqual(os.path.getsize(final_file), len(TEST_DATA))
 
-        # Hash kontrolü (Veri eksiksiz mi indi?)
+        # Hash verification (Did data download completely?)
         downloaded_hash = calculate_file_hash(final_file)
         self.assertEqual(downloaded_hash, TEST_HASH)
         self.assertTrue(len(progress_events) > 0)
 
     def test_04_pause_and_resume_download(self):
-        """İndirmeyi duraklatıp (pause) ardından devam ettirmeyi (resume) test eder."""
+        """Tests pausing download and subsequently resuming it."""
         target_filename = "resumable_2mb.bin"
         task = DownloadTask(
             task_id="task_test_02",
@@ -200,7 +200,7 @@ class TestDownloadEngine(unittest.TestCase):
             filename=target_filename
         )
 
-        # 1. İndirmeyi başlat ve veri akışı başlayınca duraklat
+        # 1. Start download and pause once data stream begins
         downloader = HttpChunkDownloader(task=task, num_chunks=4)
         downloader.start()
 
@@ -217,7 +217,7 @@ class TestDownloadEngine(unittest.TestCase):
         self.assertEqual(task.status, DownloadStatus.PAUSED)
         self.assertTrue(os.path.exists(task.meta_file_path))
 
-        # 2. Kaldığı yerden devam ettir (Resume)
+        # 2. Resume download
         resume_finished = []
         resume_downloader = HttpChunkDownloader(task=task, num_chunks=4)
         resume_downloader.finished.connect(lambda tid, path: resume_finished.append((tid, path)))
@@ -236,7 +236,7 @@ class TestDownloadEngine(unittest.TestCase):
         self.assertEqual(calculate_file_hash(final_file), TEST_HASH)
 
     def test_05_temp_dir_isolation_and_no_destination_pollution(self):
-        """Parçaların kullanıcının hedef klasöründe değil, arka plan temp dizininde tutulduğunu test eder."""
+        """Tests that chunks are stored in isolated temp directory, not polluting destination folder."""
         target_filename = "clean_dest_2mb.bin"
         task = DownloadTask(
             task_id="task_test_isolation",
@@ -248,7 +248,7 @@ class TestDownloadEngine(unittest.TestCase):
         downloader = HttpChunkDownloader(task=task, num_chunks=4)
         downloader.start()
 
-        # Biraz indirmesine izin ver ve duraklat
+        # Allow partial download and pause
         start_wait = time.time()
         while time.time() - start_wait < 10:
             self.app.processEvents()
@@ -259,19 +259,19 @@ class TestDownloadEngine(unittest.TestCase):
         downloader.pause()
         downloader.wait(2000)
 
-        # 1. Hedef klasörde .part veya .meta dosyası OLMAMALI!
+        # 1. Destination folder MUST NOT contain .part or .meta files!
         dest_files = os.listdir(self.test_dir)
         for f in dest_files:
             self.assertFalse(f.endswith(".part0") or f.endswith(".part1") or f.endswith(".part2") or f.endswith(".part3"))
             self.assertFalse(f.endswith(".meta.json"))
 
-        # 2. Geçici parçalar ve meta dosyası görevin özel temp dizininde bulunmalı!
+        # 2. Temporary chunks and meta file must exist in task isolated temp dir!
         self.assertTrue(os.path.exists(task.temp_dir))
         temp_files = os.listdir(task.temp_dir)
         self.assertTrue(any(f.endswith(".meta.json") for f in temp_files))
         self.assertTrue(any(".part" in f for f in temp_files))
 
-        # 3. İndirmeyi tamamla
+        # 3. Complete download
         resume_finished = []
         resume_downloader = HttpChunkDownloader(task=task, num_chunks=4)
         resume_downloader.finished.connect(lambda tid, path: resume_finished.append((tid, path)))
@@ -284,7 +284,7 @@ class TestDownloadEngine(unittest.TestCase):
 
         resume_downloader.wait(2000)
 
-        # 4. Tamamlanınca asıl dosya hedefte olmalı, temp klasörü tamamen temizlenmiş olmalı!
+        # 4. Target file must be in destination, and temp dir must be completely cleaned up!
         final_file = os.path.join(self.test_dir, target_filename)
         self.assertTrue(os.path.exists(final_file))
         self.assertEqual(calculate_file_hash(final_file), TEST_HASH)

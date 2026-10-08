@@ -1,9 +1,8 @@
 """
-Download Manager - Dosya Yardımcı Araçları (file_utils.py)
+Download Manager - File Utilities (file_utils.py)
 
-Bu modül, dosya adı temizleme (sanitization), indirilen parçaların (chunks)
-hedef dosyada kayıpsız birleştirilmesi (merging) ve geçici dosyaların
-temizlenmesi gibi kritik I/O işlemlerini gerçekleştirir.
+This module performs critical I/O operations such as filename sanitization,
+lossless chunk merging into target files, and temporary file cleanup.
 """
 
 import os
@@ -14,52 +13,52 @@ from typing import List, Callable, Optional
 
 def sanitize_filename(name: str, default: str = "downloaded_file") -> str:
     """
-    Windows ve diğer işletim sistemlerinde yasaklı karakterleri temizler.
-    Yasaklı karakterler: < > : " / \\ | ? *
+    Sanitizes prohibited characters for Windows and other operating systems.
+    Prohibited characters: < > : " / \\ | ? *
     """
     if not name:
         return default
 
-    # Yasaklı karakterleri alt çizgi ile değiştir
+    # Replace forbidden characters with underscore
     name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '_', name)
     name = name.strip('. ')
 
     if not name:
         return default
-    return name[:255]  # Maksimum dosya adı uzunluğu
+    return name[:255]  # Maximum filename length
 
 
 def merge_chunks(
     chunk_paths: List[str],
     destination_path: str,
-    buffer_size: int = 1024 * 1024,  # 1 MB bellek tamponu
+    buffer_size: int = 1024 * 1024,  # 1 MB buffer
     progress_callback: Optional[Callable[[int, int], None]] = None
 ) -> bool:
     """
-    İndirilmiş geçici parça (.part) dosyalarını sıralı olarak okur ve
-    hedef dosyaya birleştirir. Düşük bellek (RAM) tüketir.
+    Sequentially reads downloaded temporary chunk (.part) files and
+    merges them into the destination file. Low memory (RAM) usage.
 
-    :param chunk_paths: Sıralı geçici dosya yolları listesi
-    :param destination_path: Birleştirilmiş dosyanın kaydedileceği yol
-    :param buffer_size: Okuma/yazma tampon büyüklüğü (varsayılan: 1MB)
-    :param progress_callback: (yazılan_byte, toplam_byte) bildiren geri çağırım
-    :return: İşlem başarılı ise True
+    :param chunk_paths: Ordered list of temporary chunk file paths
+    :param destination_path: Target path where merged file will be written
+    :param buffer_size: Read/write buffer size (default: 1MB)
+    :param progress_callback: Optional callback reporting (bytes_written, total_bytes)
+    :return: True if operation succeeds
     """
-    # Toplam beklenen boyutu hesapla
+    # Calculate total expected size
     total_bytes = 0
     for path in chunk_paths:
         if not os.path.exists(path):
-            raise FileNotFoundError(f"Parça dosyası bulunamadı: {path}")
+            raise FileNotFoundError(f"Chunk file not found: {path}")
         total_bytes += os.path.getsize(path)
 
-    # Hedef dizinin varlığını garanti et
+    # Ensure destination directory exists
     dest_dir = os.path.dirname(destination_path)
     if dest_dir and not os.path.exists(dest_dir):
         os.makedirs(dest_dir, exist_ok=True)
 
     bytes_written = 0
 
-    # Hedef dosyayı ikili yazma modunda aç
+    # Open destination file in binary write mode
     with open(destination_path, "wb") as dest_file:
         for chunk_idx, chunk_file_path in enumerate(chunk_paths):
             with open(chunk_file_path, "rb") as part_file:
@@ -81,8 +80,8 @@ def cleanup_temp_files(
     temp_dir: Optional[str] = None
 ) -> None:
     """
-    Birleştirme sonrasında veya iptal durumunda geçici .part, .meta dosyalarını ve
-    varsa göreve ait geçici dizini siler.
+    Cleans up temporary .part and .meta files after merging or upon cancellation,
+    including the task temporary folder if present.
     """
     import shutil
 
@@ -108,9 +107,10 @@ def cleanup_temp_files(
 
 
 def calculate_file_hash(file_path: str, algorithm: str = "sha256") -> str:
-    """Dosyanın bütünlüğünü teyit etmek için hash değerini hesaplar."""
+    """Calculates file hash to verify integrity."""
     hasher = hashlib.new(algorithm)
     with open(file_path, "rb") as f:
         for block in iter(lambda: f.read(65536), b""):
             hasher.update(block)
     return hasher.hexdigest()
+

@@ -1,8 +1,8 @@
 """
-Eklenti İkonları Üretici (generate_icons.py)
+Extension Icons Generator (generate_icons.py)
 
-PyQt6 QPainter kullanarak 16x16, 48x48 ve 128x128 boyutlarında modern,
-yuvarlatılmış ve gradyanlı eklenti ikonları üretir.
+Generates modern, rounded, gradient extension icons in 16x16, 48x48,
+and 128x128 sizes using PyQt6 QPainter.
 """
 
 import os
@@ -14,12 +14,12 @@ from PyQt6.QtCore import Qt, QPointF
 
 def create_icon(size: int, output_path: str):
     image = QImage(size, size, QImage.Format.Format_ARGB32)
-    image.fill(QColor(0, 0, 0, 0))  # Şeffaf arka plan
+    image.fill(QColor(0, 0, 0, 0))  # Transparent background
 
     painter = QPainter(image)
     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-    # Yuvarlatılmış köşeli kare arka plan
+    # Rounded rectangle background
     rect_margin = size * 0.05
     rect_size = size * 0.9
     radius = size * 0.22
@@ -34,18 +34,18 @@ def create_icon(size: int, output_path: str):
     painter.setPen(Qt.PenStyle.NoPen)
     painter.drawRoundedRect(QRectF(rect_margin, rect_margin, rect_size, rect_size), radius, radius)
 
-    # İndirme Oku (Download Arrow)
+    # Download Arrow
     painter.setBrush(QBrush(QColor("#ffffff")))
     painter.setPen(Qt.PenStyle.NoPen)
 
-    # Ok gövdesi
+    # Arrow stem
     stem_w = size * 0.2
     stem_h = size * 0.35
     stem_x = (size - stem_w) / 2
     stem_y = size * 0.22
     painter.drawRoundedRect(QRectF(stem_x, stem_y, stem_w, stem_h), 2.0, 2.0)
 
-    # Ok ucu (Üçgen)
+    # Arrow head (Triangle)
     triangle = QPolygonF([
         QPointF(size * 0.25, size * 0.52),
         QPointF(size * 0.75, size * 0.52),
@@ -53,7 +53,7 @@ def create_icon(size: int, output_path: str):
     ])
     painter.drawPolygon(triangle)
 
-    # Alt çizgi taban
+    # Base line
     base_w = size * 0.6
     base_h = size * 0.08
     base_x = (size - base_w) / 2
@@ -64,7 +64,8 @@ def create_icon(size: int, output_path: str):
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     image.save(output_path, "PNG")
-    print(f"İkon oluşturuldu: {output_path} ({size}x{size})")
+    print(f"Icon generated: {output_path} ({size}x{size})")
+
 
 
 def main():

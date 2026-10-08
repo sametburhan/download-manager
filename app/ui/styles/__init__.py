@@ -1,3 +1,4 @@
 """
-Download Manager Tema ve Stil Modülü
+Download Manager Theme and Style Module
 """
+

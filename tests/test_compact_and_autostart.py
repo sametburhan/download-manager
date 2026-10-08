@@ -1,5 +1,5 @@
 """
-Kompakt İndirme Penceresi ve Otomatik Başlatma Doğrulama Testi
+Compact Download Window and Autostart Verification Test
 """
 
 import sys
@@ -38,13 +38,13 @@ class TestCompactAndAutostart(unittest.TestCase):
             pass
 
     def test_01_autostart_command_generation(self):
-        """Otomatik başlatma komut satırının doğru oluşturulduğunu test eder."""
+        """Tests that the autostart command line is correctly generated."""
         cmd = get_startup_command(minimized=True)
         self.assertIn("run.py", cmd)
         self.assertIn("--tray", cmd)
 
     def test_02_compact_download_window_init(self):
-        """Kompakt pencerenin başlangıç durumunu test eder."""
+        """Tests the initial state of the compact download window."""
         win = CompactDownloadWindow(
             task_manager=self.task_manager,
             initial_url="https://example.com/archive.zip",
@@ -55,11 +55,11 @@ class TestCompactAndAutostart(unittest.TestCase):
         self.assertFalse(win.query_widget.isHidden())
         self.assertTrue(win.progress_widget.isHidden())
 
-        # Boyut formatı test
+        # Test size formatting
         win._update_size_ui(1048576)  # 1 MB
         self.assertEqual(win.size_label.text(), "1.00 MB")
 
-        # İlerlemeye dönüşüm testi
+        # Test conversion to progress mode
         win._morph_to_progress_mode("archive.zip")
         self.assertTrue(win.is_progress_mode)
         self.assertTrue(win.query_widget.isHidden())
@@ -67,7 +67,7 @@ class TestCompactAndAutostart(unittest.TestCase):
         win.close()
 
     def test_02b_compact_download_add_vs_download_buttons(self):
-        """Add ve Download butonlarının kuyruklama ve indirme davranışını test eder."""
+        """Tests queuing and download behavior of Add and Download buttons."""
         win = CompactDownloadWindow(
             task_manager=self.task_manager,
             initial_url="https://example.com/testfile.bin",
@@ -80,19 +80,19 @@ class TestCompactAndAutostart(unittest.TestCase):
         self.assertEqual(win.btn_download.text(), "Download")
         self.assertEqual(win.btn_cancel.text(), "Cancel")
 
-        # 'Add' tıklandığında görev auto_start=False ile eklenir (kuyruğa alınır)
+        # When 'Add' is clicked, task is added with auto_start=False (queued)
         initial_tasks_count = len(self.task_manager.tasks)
         win._on_add_clicked()
         self.assertEqual(len(self.task_manager.tasks), initial_tasks_count + 1)
         newest_task = list(self.task_manager.tasks.values())[-1]
         self.assertEqual(newest_task.url, "https://example.com/testfile.bin")
         self.assertEqual(newest_task.filename, "testfile.bin")
-        # İndirme hemen başlatılmamalı (workers içinde olmamalı)
+        # Download must not start immediately (must not be in workers)
         self.assertNotIn(newest_task.task_id, self.task_manager.workers)
         win.close()
 
     def test_03_tray_manager_actions(self):
-        """Sistem tepsisi menüsünün ve eylemlerinin tanımlı olduğunu test eder."""
+        """Tests that system tray menu and actions are defined."""
         main_win = MainWindow(task_manager=self.task_manager, bridge=self.bridge)
         tray = TrayManager(main_window=main_win, task_manager=self.task_manager)
         self.assertIsNotNone(tray.tray_icon)
@@ -103,21 +103,21 @@ class TestCompactAndAutostart(unittest.TestCase):
         main_win.close()
 
     def test_04_tray_activated_reasons(self):
-        """Tepsi simgesi aktivasyonunun (sol tık, çift tık, sağ tık, int) hatasız çalıştığını test eder."""
+        """Tests that tray icon activation (left click, double click, right click, int) operates without error."""
         from PyQt6.QtWidgets import QSystemTrayIcon
         main_win = MainWindow(task_manager=self.task_manager, bridge=self.bridge)
         tray = TrayManager(main_window=main_win, task_manager=self.task_manager)
 
-        # Trigger (sol tık)
+        # Trigger (left click)
         tray._on_tray_activated(QSystemTrayIcon.ActivationReason.Trigger)
         self.assertTrue(main_win.isVisible())
 
-        # DoubleClick (çift tık)
+        # DoubleClick
         tray._on_tray_activated(QSystemTrayIcon.ActivationReason.DoubleClick)
-        # Context (sağ tık) menüyü açar, pencere görünürlüğünü bozmaz
+        # Context (right click) opens menu without altering window visibility
         tray._on_tray_activated(QSystemTrayIcon.ActivationReason.Context)
 
-        # Integer değerler ve None ile çağrıldığında çökmemeli
+        # Must not crash when called with integer values or None
         tray._on_tray_activated(3)
         tray._on_tray_activated(2)
         tray._on_tray_activated(None)
@@ -126,12 +126,12 @@ class TestCompactAndAutostart(unittest.TestCase):
         main_win.close()
 
     def test_05_exit_handling(self):
-        """Uygulama çıkış eylemlerinin düzgün çalıştığını doğrular."""
+        """Verifies that application exit actions work properly."""
         main_win = MainWindow(task_manager=self.task_manager, bridge=self.bridge)
         tray = TrayManager(main_window=main_win, task_manager=self.task_manager)
         main_win.tray_manager = tray
 
-        # _exit_app metodu var ve çağrılabilir
+        # _exit_app method exists and is callable
         self.assertTrue(hasattr(main_win, "_exit_app"))
         self.assertTrue(hasattr(tray, "_force_exit"))
 

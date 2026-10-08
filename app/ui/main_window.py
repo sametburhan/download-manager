@@ -1,10 +1,10 @@
 """
-Download Manager - Ana Kullanıcı Arayüzü Penceresi (main_window.py)
+Download Manager - Main User Interface Window (main_window.py)
 
-Download Manager tasarımına uygun olarak geliştirilen bu ana pencere;
-koyu obsidyen neon teması, canlı arama çubuğu, kategori ağacı (All, Finished, Unfinished, Medya kategorileri),
-responsive indirme tablosu (özel ikonlu dosya adı, mini ilerleme çubuklu durum hücresi, hız, kalan süre, tarih),
-ayrıntılı indirme penceresi entegrasyonu ve sistem tepsisi arka plan desteğini bir arada sunar.
+Developed to match the Download Manager design, this main window features:
+dark obsidian neon theme, live search bar, category tree (All, Finished, Unfinished, Media categories),
+responsive downloads table (file name with category icon, status cell with mini progress bar, speed, ETA, date),
+detailed download window integration, and system tray background operation support.
 """
 
 import os
@@ -37,7 +37,7 @@ from app.utils.icon_utils import get_app_icon, get_app_pixmap, get_search_icon
 
 
 class ElidedLabel(QLabel):
-    """Metin hücre genişliğini aştığında '...' ile estetik kırpan responsive etiket."""
+    """Responsive label that aesthetically elides text with '...' when exceeding cell width."""
 
     def __init__(self, text: str = "", text_color: str = "#f1f5f9", parent=None):
         super().__init__(text, parent)
@@ -74,7 +74,7 @@ class ElidedLabel(QLabel):
 
 
 class CategoryBadgeWidget(QLabel):
-    """Pürüzsüz (anti-aliased) kenarlı ve renkli kategori rozeti."""
+    """Smooth anti-aliased bordered and colored category badge."""
 
     def __init__(self, icon_str: str, category: str, parent=None):
         super().__init__(icon_str, parent)
@@ -128,7 +128,7 @@ class CategoryBadgeWidget(QLabel):
 
 
 class FileNameCellWidget(QWidget):
-    """Tablo için solunda özel renkli kategori kutusu, üstünde kalın dosya adı ve altında alt bilgi olan hücre."""
+    """Table cell widget with category badge on the left, bold filename above, and subtitle below."""
 
     def __init__(self, filename: str, category: str, icon_str: str, subtitle: Optional[str] = None, parent=None):
         super().__init__(parent)
@@ -137,11 +137,11 @@ class FileNameCellWidget(QWidget):
         layout.setContentsMargins(6, 4, 6, 4)
         layout.setSpacing(8)
 
-        # Kategori İkonu Rozeti (30x30 Anti-aliased rounded)
+        # Category Icon Badge (30x30 Anti-aliased rounded)
         self.icon_lbl = CategoryBadgeWidget(icon_str, category)
         layout.addWidget(self.icon_lbl)
 
-        # Başlık ve Kategori / Subtitle (Dikey Düzen)
+        # Title and Category / Subtitle (Vertical Layout)
         text_layout = QVBoxLayout()
         text_layout.setContentsMargins(0, 0, 0, 0)
         text_layout.setSpacing(1)
@@ -164,7 +164,7 @@ class FileNameCellWidget(QWidget):
             self.icon_lbl.set_category(category)
 
     def update_info(self, filename: str, category: str, icon_str: str, subtitle: Optional[str] = None) -> None:
-        """Dosya adı, kategori, alt başlık ve ikonunu dinamik olarak günceller."""
+        """Dynamically updates filename, category, subtitle, and icon."""
         self.name_lbl.setText(filename)
         self.cat_lbl.setText(subtitle if subtitle is not None else category)
         self.icon_lbl.setText(icon_str)
@@ -173,7 +173,7 @@ class FileNameCellWidget(QWidget):
 
 
 class StatusCellWidget(QWidget):
-    """Tablo için indirme durumunu yüzde ve mini neon gradyan ilerleme çubuğuyla gösteren hücre."""
+    """Table cell displaying download status with percentage and mini neon gradient progress bar."""
 
     def __init__(self, status: DownloadStatus, percent: float = 0.0, parent=None):
         super().__init__(parent)
@@ -181,7 +181,7 @@ class StatusCellWidget(QWidget):
         layout.setContentsMargins(8, 4, 8, 4)
         layout.setSpacing(3)
 
-        # Üst satır: Sol Durum Metni + Sağ Yüzde
+        # Top row: Left Status Text + Right Percentage
         top_row = QHBoxLayout()
         top_row.setContentsMargins(0, 0, 0, 0)
         top_row.setSpacing(6)
@@ -301,17 +301,17 @@ class MainWindow(QMainWindow):
         self.task_manager = task_manager
         self.bridge = bridge
 
-        # Geriye dönük uyumluluk ve testler için kart referansları
+        # Card references for backward compatibility and testing
         self.cards: Dict[str, DownloadCardWidget] = {}
-        # Gizli kart konteyneri: Kartların bağımsız pencere olarak fırlamasını önler
+        # Hidden card container: Prevents cards from popping up as independent windows
         self._cards_container = QWidget(self)
         self._cards_container.setObjectName("dummyCardsContainer")
         self._cards_container.hide()
-        # task_id -> row_index eşlemesi
+        # task_id -> row_index mapping
         self.task_rows: Dict[str, int] = {}
-        # row_index -> task_id eşlemesi
+        # row_index -> task_id mapping
         self.row_tasks: Dict[int, str] = {}
-        # Açık detay pencereleri
+        # Open detail windows
         self.detail_windows: Dict[str, DownloadDetailWindow] = {}
 
         self.current_category_filter = "ALL"
@@ -336,7 +336,7 @@ class MainWindow(QMainWindow):
 
     @property
     def current_filter(self) -> str:
-        """Geriye dönük uyumluluk ve testler için filtre anahtarı."""
+        """Filter key for backward compatibility and tests."""
         return self.current_category_filter
 
     @current_filter.setter
@@ -344,25 +344,25 @@ class MainWindow(QMainWindow):
         self.current_category_filter = val
 
     def _init_ui(self) -> None:
-        """Arayüz bileşenlerini ve responsive düzeni kurar."""
-        # 1. Üst Menü Çubuğu (MenuBar)
+        """Builds UI components and responsive layout."""
+        # 1. Top Menu Bar (MenuBar)
         self._create_menubar()
 
-        # 2. Üst Araç Çubuğu ve Arama (Toolbar)
+        # 2. Top Toolbar and Search (Toolbar)
         self._create_top_toolbar()
 
-        # 3. Ana Gövde: Sol Kategori Ağacı + Alt Disk Kartı + Sağ Responsive Tablo
+        # 3. Main Body: Left Category Tree + Bottom Disk Card + Right Responsive Table
         central_widget = QWidget(self)
         self.setCentralWidget(central_widget)
         main_layout = QHBoxLayout(central_widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
-        # Bölücü (Splitter) ile responsive genişleme
+        # Responsive expansion with QSplitter
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setHandleWidth(1)
 
-        # --- SOL KENAR ÇUBUĞU (Kategori Ağacı + Disk Kartı) ---
+        # --- LEFT SIDEBAR (Category Tree + Disk Card) ---
         sidebar_container = QWidget()
         sidebar_container.setObjectName("sidebarContainer")
         sidebar_container.setMinimumWidth(165)
@@ -384,19 +384,19 @@ class MainWindow(QMainWindow):
         self.sidebar_tree.currentItemChanged.connect(self._on_sidebar_current_item_changed)
         sidebar_layout.addWidget(self.sidebar_tree, 1)
 
-        # Depolama Disk Kartı
+        # Storage Disk Card
         self.disk_card = self._create_disk_card()
         sidebar_layout.addWidget(self.disk_card, 0)
 
         splitter.addWidget(sidebar_container)
 
-        # --- SAĞ İÇERİK ALANI (Tablo ve Boş Durum) ---
+        # --- RIGHT CONTENT AREA (Table and Empty State) ---
         table_container = QWidget()
         table_layout = QVBoxLayout(table_container)
         table_layout.setContentsMargins(0, 0, 0, 0)
         table_layout.setSpacing(0)
 
-        # Ana İndirme Tablosu
+        # Main Downloads Table
         self.downloads_table = QTableWidget(0, 7)
         self.downloads_table.setObjectName("downloadsTable")
         self.downloads_table.setHorizontalHeaderLabels([
@@ -410,11 +410,11 @@ class MainWindow(QMainWindow):
         self.downloads_table.customContextMenuRequested.connect(self._show_context_menu)
         self.downloads_table.cellDoubleClicked.connect(self._on_cell_double_clicked)
 
-        # Klavyeden Delete tuşu kısayolu
+        # Keyboard Delete shortcut
         self.shortcut_delete = QShortcut(QKeySequence(Qt.Key.Key_Delete), self.downloads_table)
         self.shortcut_delete.activated.connect(self._on_delete_clicked)
 
-        # Sütun Genişlikleri ve Responsive Davranış
+        # Column Widths and Responsive Behavior
         header = self.downloads_table.horizontalHeader()
         header.setSectionsClickable(True)
         header.setSortIndicatorShown(False)
@@ -422,17 +422,17 @@ class MainWindow(QMainWindow):
         header.setMinimumSectionSize(36)
 
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
-        self.downloads_table.setColumnWidth(0, 36)  # Checkbox sütunu
+        self.downloads_table.setColumnWidth(0, 36)  # Checkbox column
 
         for col in range(1, 7):
             header.setSectionResizeMode(col, QHeaderView.ResizeMode.Interactive)
 
-        # Viewport resize olayını dinlemek için eventFilter kur
+        # Install eventFilter to listen for viewport resize events
         self.downloads_table.viewport().installEventFilter(self)
 
         table_layout.addWidget(self.downloads_table)
 
-        # Boş Durum (Empty State) Bilgisi
+        # Empty State Information
         self.empty_label = QLabel("🚀 No download tasks yet.\nClick '+ Add URL' above or start a download from your browser.")
         self.empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.empty_label.setStyleSheet("color: #64748b; font-size: 13px; padding: 60px; line-height: 1.6;")
@@ -448,14 +448,14 @@ class MainWindow(QMainWindow):
 
         main_layout.addWidget(splitter)
 
-        # İlk sütun genişliklerini hesapla
+        # Calculate initial column widths
         self._adjust_table_columns()
 
-        # 4. Alt Durum Çubuğu (Status Bar)
+        # 4. Bottom Status Bar
         self._create_statusbar()
 
     def _adjust_table_columns(self) -> None:
-        """Pencere yatayda daraldığında bile dosya adını koruyan akıllı responsive sütun yerleşimi."""
+        """Smart responsive column layout preserving filename even when window narrows horizontally."""
         if getattr(self, "_is_adjusting_columns", False):
             return
         if not hasattr(self, "downloads_table") or self.downloads_table is None:
@@ -467,15 +467,15 @@ class MainWindow(QMainWindow):
             if viewport_w < 80:
                 return
 
-            # Sütun 0: Checkbox
+            # Column 0: Checkbox
             col0_w = 36
             self.downloads_table.setColumnWidth(0, col0_w)
 
             # Responsive kademeler:
-            # 1. Geniş pencere (viewport >= 880): Tüm 7 sütun ferah görünür
-            # 2. Orta pencere (700 <= viewport < 880): Tarih gizlenir, alana dosya adı geçer
-            # 3. Dar pencere (520 <= viewport < 700): Tarih ve Kalan Süre gizlenir, dosya adına devasa alan kalır
-            # 4. Çok dar pencere (viewport < 520): Yalnızca Dosya Adı, Boyut ve İlerleme görünür
+            # 1. Wide window (viewport >= 880): All 7 columns visible with ample space
+            # 2. Medium window (700 <= viewport < 880): Date hidden, allocating space to filename
+            # 3. Narrow window (520 <= viewport < 700): Date and ETA hidden, maximizing filename width
+            # 4. Very narrow window (viewport < 520): Only Filename, Size, and Progress visible
             if viewport_w >= 880:
                 self.downloads_table.setColumnHidden(6, False)  # Date
                 self.downloads_table.setColumnHidden(5, False)  # Time Left
@@ -522,7 +522,7 @@ class MainWindow(QMainWindow):
             if not self.downloads_table.isColumnHidden(6):
                 self.downloads_table.setColumnWidth(6, col6_w)
 
-            # Diğer görünür sütunların toplam genişliği
+            # Total width of other visible columns
             other_w = (
                 col0_w +
                 col2_w +
@@ -532,7 +532,7 @@ class MainWindow(QMainWindow):
                 (col6_w if not self.downloads_table.isColumnHidden(6) else 0)
             )
 
-            # Dosya adı sütunu en az 180px olacak şekilde kalan TÜM genişliği alır!
+            # Filename column takes ALL remaining width with a minimum of 180px!
             name_w = max(180, viewport_w - other_w)
             self.downloads_table.setColumnWidth(1, name_w)
         finally:
@@ -553,10 +553,10 @@ class MainWindow(QMainWindow):
         self._adjust_table_columns()
 
     def _create_menubar(self) -> None:
-        """Üst modern Cyber-Slate menü çubuğunu ve sol logo rozetini oluşturur."""
+        """Creates the modern Cyber-Slate top menu bar and left logo badge."""
         menubar = self.menuBar()
 
-        # Sağ Köşe Rozeti: Download Manager (En sağa yaslı)
+        # Right Corner Badge: Download Manager (Right-aligned)
         logo_widget = QWidget(menubar)
         logo_widget.setObjectName("logoWidget")
         logo_widget.setStyleSheet("background: transparent; border: none;")
@@ -571,7 +571,7 @@ class MainWindow(QMainWindow):
 
         menubar.setCornerWidget(logo_widget, Qt.Corner.TopRightCorner)
 
-        # File Menüsü
+        # File Menu
         file_menu = menubar.addMenu("File")
         act_add = QAction("➕ Add URL...", self)
         act_add.setShortcut("Ctrl+N")
@@ -595,7 +595,7 @@ class MainWindow(QMainWindow):
         act_exit.triggered.connect(self._exit_app)
         file_menu.addAction(act_exit)
 
-        # Tools Menüsü
+        # Tools Menu
         tools_menu = menubar.addMenu("Tools")
         act_settings = QAction("⚙️ Network Settings...", self)
         act_settings.triggered.connect(self._open_settings_dialog)
@@ -608,14 +608,14 @@ class MainWindow(QMainWindow):
         self.act_autostart.triggered.connect(self._toggle_autostart)
         tools_menu.addAction(self.act_autostart)
 
-        # View Menüsü
+        # View Menu
         view_menu = menubar.addMenu("View")
         act_focus_search = QAction("🔍 Focus Search Bar", self)
         act_focus_search.setShortcut("Ctrl+F")
         act_focus_search.triggered.connect(lambda: self.search_bar.setFocus())
         view_menu.addAction(act_focus_search)
 
-        # Queue Menüsü
+        # Queue Menu
         queue_menu = menubar.addMenu("Queue")
         act_start_all = QAction("▶️ Start / Resume Queue", self)
         act_start_all.triggered.connect(self._resume_all_tasks)
@@ -646,14 +646,14 @@ class MainWindow(QMainWindow):
         act_delete.triggered.connect(self._on_delete_clicked)
         queue_menu.addAction(act_delete)
 
-        # Help Menüsü
+        # Help Menu
         help_menu = menubar.addMenu("Help")
         act_about = QAction("ℹ️ About Download Manager", self)
         act_about.triggered.connect(self._show_about)
         help_menu.addAction(act_about)
 
     def _create_top_toolbar(self) -> None:
-        """Üst modern Cyber-Slate eylem araç çubuğu ve canlı arama kutusunu kurar."""
+        """Sets up the modern Cyber-Slate action toolbar and live search box."""
         toolbar = QToolBar("Main Toolbar", self)
         toolbar.setMovable(False)
         toolbar.setContextMenuPolicy(Qt.ContextMenuPolicy.PreventContextMenu)
@@ -713,45 +713,45 @@ class MainWindow(QMainWindow):
         btn_settings.clicked.connect(self._open_settings_dialog)
         toolbar.addWidget(btn_settings)
 
-        # Arama Kutusunu Sağa Yaslamak İçin Esnek Boşluk
+        # Flexible spacer to right-align search box
         spacer = QWidget()
         spacer.setObjectName("toolbarSpacer")
         spacer.setStyleSheet("background: transparent; border: none;")
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         toolbar.addWidget(spacer)
 
-        # 🔍 Canlı Arama Kutusu
+        # 🔍 Live Search Box
         self.search_bar = QLineEdit()
         self.search_bar.setObjectName("searchBar")
         self.search_bar.setPlaceholderText("Search downloads...")
         self.search_bar.setClearButtonEnabled(True)
         self.search_bar.textChanged.connect(self._on_search_text_changed)
 
-        # Ufak büyüteç simgesi (Leading icon)
+        # Small magnifying glass icon (Leading icon)
         search_icon = get_search_icon(size=14, color="#94a3b8")
         if not search_icon.isNull():
             self.search_bar.addAction(search_icon, QLineEdit.ActionPosition.LeadingPosition)
 
-        # Ctrl+F Kısayol Rozeti
+        # Ctrl+F Shortcut Badge
         act_shortcut = QAction("Ctrl+F", self.search_bar)
         act_shortcut.triggered.connect(self.search_bar.setFocus)
         self.search_bar.addAction(act_shortcut, QLineEdit.ActionPosition.TrailingPosition)
 
-        # Ctrl+F Global Kısayolu
+        # Ctrl+F Global Shortcut
         self.shortcut_find = QShortcut(QKeySequence("Ctrl+F"), self)
         self.shortcut_find.activated.connect(lambda: (self.search_bar.setFocus(), self.search_bar.selectAll()))
 
         toolbar.addWidget(self.search_bar)
 
     def _create_disk_card(self) -> QFrame:
-        """Kenar çubuğu altındaki depolama disk kartını oluşturur."""
+        """Creates storage disk card beneath the sidebar."""
         card = QFrame()
         card.setObjectName("diskCard")
         layout = QVBoxLayout(card)
         layout.setContentsMargins(12, 10, 12, 10)
         layout.setSpacing(6)
 
-        # 1. Satır: Sürücü İkonu + Adı ve Kalan Alan
+        # Row 1: Drive Icon + Name and Free Space
         top_layout = QHBoxLayout()
         top_layout.setContentsMargins(0, 0, 0, 0)
         self.disk_drive_lbl = QLabel("🖴 Local Disk (C:)")
@@ -767,7 +767,7 @@ class MainWindow(QMainWindow):
         top_layout.addWidget(self.disk_free_lbl)
         layout.addLayout(top_layout)
 
-        # 2. Satır: İlerleme Çubuğu
+        # Row 2: Progress Bar
         self.disk_progress = QProgressBar()
         self.disk_progress.setFixedHeight(5)
         self.disk_progress.setRange(0, 100)
@@ -786,7 +786,7 @@ class MainWindow(QMainWindow):
         """)
         layout.addWidget(self.disk_progress)
 
-        # 3. Satır: Kullanılan ve Toplam
+        # Row 3: Used and Total
         bottom_layout = QHBoxLayout()
         bottom_layout.setContentsMargins(0, 0, 0, 0)
         self.disk_used_lbl = QLabel("Used: 340 GB")
@@ -805,7 +805,7 @@ class MainWindow(QMainWindow):
         return card
 
     def _update_disk_storage(self) -> None:
-        """Kullanıcının indirme sürücüsünün disk durumunu günceller."""
+        """Updates disk storage status for user download drive."""
         import shutil
         dest = getattr(self.task_manager, "default_download_dir", "C:\\")
         try:
@@ -825,11 +825,11 @@ class MainWindow(QMainWindow):
             pass
 
     def _populate_sidebar_tree(self) -> None:
-        """Sol taraftaki hiyerarşik kategori ağacını doldurur."""
+        """Populates the hierarchical category tree on the left."""
         self.sidebar_tree.clear()
         self.sidebar_items = {}
 
-        # 1. Kök: Categories
+        # 1. Root: Categories
         self.item_all = QTreeWidgetItem(self.sidebar_tree, ["📁 Categories"])
         self.item_all.setData(0, Qt.ItemDataRole.UserRole, "ALL")
         self.sidebar_items["ALL"] = (self.item_all, "📁 Categories")
@@ -851,7 +851,7 @@ class MainWindow(QMainWindow):
 
         self.item_all.setExpanded(True)
 
-        # 2. STATUS Bölümü
+        # 2. STATUS Section
         self.item_status_root = QTreeWidgetItem(self.sidebar_tree, ["STATUS"])
         self.item_status_root.setData(0, Qt.ItemDataRole.UserRole, "STATUS_HEADER")
         self.item_status_root.setFlags(Qt.ItemFlag.ItemIsEnabled)
@@ -874,7 +874,7 @@ class MainWindow(QMainWindow):
         self._update_category_counts()
 
     def _load_initial_tasks(self) -> None:
-        """TaskManager içinde önceden kaydedilmiş görevleri tabloya ekler."""
+        """Adds pre-saved tasks in TaskManager to the table."""
         all_tasks = self.task_manager.get_all_tasks()
         sorted_tasks = sorted(all_tasks, key=lambda t: getattr(t, "created_at", 0))
         for task in sorted_tasks:
@@ -883,7 +883,7 @@ class MainWindow(QMainWindow):
         self._apply_filter()
 
     def _update_category_counts(self) -> None:
-        """Kenar çubuğundaki her kategorinin yanındaki sayaçları (sayıları) günceller."""
+        """Updates badge counters next to each category in the sidebar."""
         if not hasattr(self, "sidebar_items") or not self.sidebar_items:
             return
 
@@ -911,25 +911,25 @@ class MainWindow(QMainWindow):
         self._update_disk_storage()
 
     def _create_statusbar(self) -> None:
-        """Alt durum çubuğu ve ağ hızı metriklerini kurar."""
+        """Sets up bottom status bar and network speed metrics."""
         status_bar = QStatusBar(self)
         self.setStatusBar(status_bar)
 
-        # Sunucu Durum Rozeti (Yeşil canlı sinyal)
+        # Server Status Badge (Live green signal)
         self.status_server_lbl = QLabel('<span style="font-size: 10px;">●</span> Server Connected')
         self.status_server_lbl.setStyleSheet("color: #34d399; margin-left: 8px; font-weight: 600; font-size: 11px;")
         status_bar.addWidget(self.status_server_lbl)
 
         status_bar.addPermanentWidget(QLabel("|"))
 
-        # Eklenti bağlantı sayısı
+        # Extension connection count
         self.status_clients_lbl = QLabel("🌐 Browser Extension: 0 Connected")
         self.status_clients_lbl.setStyleSheet("color: #94a3b8; margin-right: 8px; font-size: 11px;")
         status_bar.addPermanentWidget(self.status_clients_lbl)
 
         status_bar.addPermanentWidget(QLabel("|"))
 
-        # Toplam İndirme Hızı ve Aktif Görev Sayısı
+        # Total Download Speed and Active Tasks Count
         self.status_count_lbl = QLabel("☰ Active: 0 / 0")
         self.status_count_lbl.setStyleSheet("color: #cbd5e1; font-weight: 500; margin-right: 8px; font-size: 11px;")
         status_bar.addPermanentWidget(self.status_count_lbl)
@@ -941,7 +941,7 @@ class MainWindow(QMainWindow):
 
 
     def _connect_signals(self) -> None:
-        """TaskManager ve ServerBridge sinyallerini bağlar."""
+        """Connects TaskManager and ServerBridge signals."""
         self.task_manager.task_added.connect(self._on_task_added)
         self.task_manager.task_progress.connect(self._on_task_progress)
         self.task_manager.task_chunk_progress.connect(self._on_task_chunk_progress)
@@ -955,10 +955,10 @@ class MainWindow(QMainWindow):
         self.bridge.download_requested.connect(self._on_ext_download_requested)
         self.bridge.media_detected.connect(self._on_ext_media_detected)
 
-    # ==================== Tablo ve Görev Yönetimi ====================
+    # ==================== Table and Task Management ====================
 
     def _get_task_subtitle(self, task: DownloadTask) -> str:
-        """Görevin türüne veya URL'sine göre şık bir alt açıklama oluşturur."""
+        """Creates an elegant subtitle based on task type or URL."""
         if task.task_type == TaskType.MEDIA_VIDEO:
             return "yt-dlp • 1080p FHD 60fps"
         elif task.task_type == TaskType.MEDIA_AUDIO:
@@ -983,18 +983,18 @@ class MainWindow(QMainWindow):
 
     @pyqtSlot(DownloadTask)
     def _on_task_added(self, task: DownloadTask) -> None:
-        """Yeni görev eklendiğinde tabloya satır ve uyumluluk kartını ekler."""
+        """Adds row to table and creates compatibility card when new task is added."""
         self.empty_label.setVisible(False)
 
-        # Geriye dönük uyumluluk ve testler için card nesnesi (Gizli dummy container'a bağlanır)
+        # Card object for backward compatibility and tests (attached to hidden container)
         card = DownloadCardWidget(task, parent=self._cards_container)
-        card.hide()  # Kartın bağımsız pencere olarak fırlamasını veya ekranda görünmesini önle
+        card.hide()  # Prevent card from popping up as independent window
         card.pause_requested.connect(self.task_manager.pause_task)
         card.resume_requested.connect(self.task_manager.resume_task)
         card.cancel_requested.connect(self._remove_task)
         self.cards[task.task_id] = card
 
-        # Tabloya yeni satır ekle
+        # Add new row to table
         row = self.downloads_table.rowCount()
         self.downloads_table.insertRow(row)
         self.downloads_table.setRowHeight(row, 52)
@@ -1002,7 +1002,7 @@ class MainWindow(QMainWindow):
         self.task_rows[task.task_id] = row
         self.row_tasks[row] = task.task_id
 
-        # Sütun 0: Checkbox
+        # Column 0: Checkbox
         chk_item = QTableWidgetItem()
         chk_item.setFlags(Qt.ItemFlag.ItemIsUserCheckable | Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
         chk_item.setCheckState(Qt.CheckState.Unchecked)
@@ -1010,7 +1010,7 @@ class MainWindow(QMainWindow):
         chk_item.setData(Qt.ItemDataRole.UserRole, task.task_id)
         self.downloads_table.setItem(row, 0, chk_item)
 
-        # Sütun 1: İsim Hücresi (İkon + Ad + Kategori/Alt Bilgi)
+        # Column 1: Name Cell (Icon + Name + Category/Subtitle)
         subtitle = self._get_task_subtitle(task)
         name_cell = FileNameCellWidget(
             filename=task.filename,
@@ -1020,7 +1020,7 @@ class MainWindow(QMainWindow):
         )
         self.downloads_table.setCellWidget(row, 1, name_cell)
 
-        # Sütun 2: Boyut
+        # Column 2: Size
         size_str = task.formatted_size_progress if task.status == DownloadStatus.DOWNLOADING and task.downloaded_size > 0 else task.formatted_total_size
         size_item = QTableWidgetItem(size_str)
         size_item.setTextAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
@@ -1028,11 +1028,11 @@ class MainWindow(QMainWindow):
         size_item.setFont(QFont("JetBrains Mono", 8))
         self.downloads_table.setItem(row, 2, size_item)
 
-        # Sütun 3: Durum Hücresi (Yüzde + Mini Neon Çubuk)
+        # Column 3: Status Cell (Percentage + Mini Neon Bar)
         status_cell = StatusCellWidget(task.status, task.progress_percent)
         self.downloads_table.setCellWidget(row, 3, status_cell)
 
-        # Sütun 4: Hız
+        # Column 4: Speed
         speed_text = f"▲ {task.formatted_speed}" if task.status == DownloadStatus.DOWNLOADING and task.formatted_speed else "--"
         speed_item = QTableWidgetItem(speed_text)
         speed_item.setTextAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
@@ -1040,7 +1040,7 @@ class MainWindow(QMainWindow):
         speed_item.setFont(QFont("JetBrains Mono", 8, QFont.Weight.DemiBold if task.status == DownloadStatus.DOWNLOADING else QFont.Weight.Normal))
         self.downloads_table.setItem(row, 4, speed_item)
 
-        # Sütun 5: Kalan Süre
+        # Column 5: Time Left
         eta_text = f"{task.formatted_eta} s" if task.status == DownloadStatus.DOWNLOADING and task.formatted_eta != "--:--" else ("Finished" if task.status == DownloadStatus.COMPLETED else ("Queued" if task.status == DownloadStatus.PAUSED else "--"))
         eta_item = QTableWidgetItem(eta_text)
         eta_item.setTextAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
@@ -1048,7 +1048,7 @@ class MainWindow(QMainWindow):
         eta_item.setFont(QFont("JetBrains Mono", 8))
         self.downloads_table.setItem(row, 5, eta_item)
 
-        # Sütun 6: Eklenme Tarihi
+        # Column 6: Date Added
         date_item = QTableWidgetItem(task.formatted_date_added)
         date_item.setTextAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
         date_item.setForeground(QColor("#64748b"))
@@ -1063,7 +1063,7 @@ class MainWindow(QMainWindow):
 
     @pyqtSlot(dict)
     def _on_task_progress(self, data: dict) -> None:
-        """Progress bilgisini hem uyumluluk kartına hem de tablodaki hücrelere yansıtır."""
+        """Reflects progress updates to both compatibility card and table cells."""
         task_id = data.get("task_id")
         if task_id in self.cards:
             self.cards[task_id].update_progress(data)
@@ -1077,7 +1077,7 @@ class MainWindow(QMainWindow):
 
             task = self.task_manager.get_task(task_id)
 
-            # Sütun 2: Canlı indirilen / toplam boyutu göster (X.XX MB / Y.YY MB)
+            # Column 2: Show live downloaded / total size (X.XX MB / Y.YY MB)
             size_item = self.downloads_table.item(row, 2)
             if size_item:
                 if task:
@@ -1112,13 +1112,13 @@ class MainWindow(QMainWindow):
 
     @pyqtSlot(str, int, int, int)
     def _on_task_chunk_progress(self, task_id: str, chunk_id: int, downloaded: int, total: int) -> None:
-        """Parça ilerlemesini karta iletir."""
+        """Forwards chunk progress to card."""
         if task_id in self.cards:
             self.cards[task_id].update_chunk_progress(chunk_id, downloaded, total)
 
     @pyqtSlot(str, str)
     def _on_task_status_changed(self, task_id: str, status_str: str) -> None:
-        """Durum değişimini tabloya ve karta yansıtır."""
+        """Reflects status changes to table and card."""
         if task_id in self.cards:
             self.cards[task_id].update_status(status_str)
 
@@ -1182,10 +1182,10 @@ class MainWindow(QMainWindow):
 
     @pyqtSlot(str, str)
     def _on_task_finished(self, task_id: str, final_path: str) -> None:
-        """Tamamlanan görevi günceller."""
+        """Updates completed task."""
         task = self.task_manager.get_task(task_id)
         if task:
-            # Diskteki dosya boyutunu ve adını teyit et
+            # Verify file size and name on disk
             if final_path and os.path.exists(final_path):
                 task.filename = os.path.basename(final_path)
                 real_size = os.path.getsize(final_path)
@@ -1207,12 +1207,12 @@ class MainWindow(QMainWindow):
 
         row = self.task_rows.get(task_id)
         if row is not None and row < self.downloads_table.rowCount():
-            # Sütun 1: İsim, Kategori ve İkon güncelle
+            # Column 1: Update Name, Category, and Icon
             name_cell = self.downloads_table.cellWidget(row, 1)
             if isinstance(name_cell, FileNameCellWidget) and task:
                 name_cell.update_info(task.filename, task.category, task.category_icon, self._get_task_subtitle(task))
 
-            # Sütun 2: Boyut güncelle
+            # Column 2: Update Size
             size_item = self.downloads_table.item(row, 2)
             if size_item and task:
                 size_item.setText(task.formatted_total_size)
@@ -1235,7 +1235,7 @@ class MainWindow(QMainWindow):
 
     @pyqtSlot(str, str)
     def _on_task_error(self, task_id: str, error_msg: str) -> None:
-        """Hata durumunu yansıtır."""
+        """Reflects error state."""
         if task_id in self.cards:
             self.cards[task_id].update_status(DownloadStatus.FAILED.value)
 
@@ -1246,10 +1246,10 @@ class MainWindow(QMainWindow):
                 status_widget.update_status(DownloadStatus.FAILED.value, 0.0)
 
     def _get_selected_task_ids(self) -> List[str]:
-        """İşaretli (checkbox) veya seçili satırlardaki tüm task_id'leri döndürür."""
+        """Returns all task_ids from checked or selected rows."""
         selected_ids: List[str] = []
 
-        # 1. Checkbox sütunu (0. sütun) işaretlenmiş satırlar
+        # 1. Checked rows in column 0
         for r in range(self.downloads_table.rowCount()):
             item = self.downloads_table.item(r, 0)
             if item and item.checkState() == Qt.CheckState.Checked:
@@ -1257,7 +1257,7 @@ class MainWindow(QMainWindow):
                 if tid and tid not in selected_ids:
                     selected_ids.append(tid)
 
-        # 2. Eğer onay kutusu işaretli satır yoksa, seçili satırlar (highlight)
+        # 2. If no checkboxes checked, use highlighted/selected rows
         if not selected_ids:
             for item in self.downloads_table.selectedItems():
                 r = item.row()
@@ -1265,7 +1265,7 @@ class MainWindow(QMainWindow):
                 if tid and tid not in selected_ids:
                     selected_ids.append(tid)
 
-        # 3. Eğer yine boşsa, aktif odaklanmış satır
+        # 3. If still empty, use current focused row
         if not selected_ids:
             curr_row = self.downloads_table.currentRow()
             if curr_row >= 0:
@@ -1276,7 +1276,7 @@ class MainWindow(QMainWindow):
         return selected_ids
 
     def _on_delete_clicked(self) -> None:
-        """Kullanıcının seçtiği indirmeleri silmek için DeleteDownloadsDialog onay penceresini açar."""
+        """Opens DeleteDownloadsDialog confirmation window to delete user-selected downloads."""
         task_ids = self._get_selected_task_ids()
         if not task_ids:
             QMessageBox.information(
@@ -1292,13 +1292,13 @@ class MainWindow(QMainWindow):
             self._delete_tasks_batch(task_ids, delete_files=delete_files)
 
     def _delete_tasks_batch(self, task_ids: List[str], delete_files: bool = False) -> None:
-        """Birden fazla görevi bellekten, tablodan ve (seçildiyse) diskten siler."""
+        """Deletes multiple tasks from memory, table, and optionally disk."""
         rows_to_remove = []
         for tid in task_ids:
-            # 1. TaskManager'dan kaldır (ve gerekirse dosyaları diskten sil)
+            # 1. Remove from TaskManager (and optionally delete files from disk)
             self.task_manager.remove_task(tid, delete_file=delete_files)
 
-            # 2. Uyumluluk kartını kaldır
+            # 2. Remove compatibility card
             if tid in self.cards:
                 card = self.cards.pop(tid)
                 card.deleteLater()
@@ -1308,12 +1308,12 @@ class MainWindow(QMainWindow):
                 win = self.detail_windows.pop(tid)
                 win.close()
 
-            # 4. Tablodaki satır indeksini kaydet
+            # 4. Record row index in table
             row = self.task_rows.get(tid)
             if row is not None:
                 rows_to_remove.append(row)
 
-        # Tablodan silerken indeks kaymalarını engellemek için ters sırada sil
+        # Delete in reverse order to prevent index shifting
         for r in sorted(set(rows_to_remove), reverse=True):
             if r < self.downloads_table.rowCount():
                 self.downloads_table.removeRow(r)
@@ -1324,18 +1324,18 @@ class MainWindow(QMainWindow):
         self._update_category_counts()
 
     def _remove_task(self, task_id: str, delete_file: bool = False) -> None:
-        """Tek bir görevi iptal edip tablodan ve listeden siler."""
+        """Cancels a single task and removes it from table and list."""
         self._delete_tasks_batch([task_id], delete_files=delete_file)
 
     def _rebuild_row_indexes(self) -> None:
-        """Satır silinmelerinden sonra indeks haritasını yeniden oluşturur."""
+        """Rebuilds the index map after row removals."""
         self.task_rows.clear()
         self.row_tasks.clear()
         for r in range(self.downloads_table.rowCount()):
             chk_item = self.downloads_table.item(r, 0)
             tid = chk_item.data(Qt.ItemDataRole.UserRole) if chk_item else None
             if not tid:
-                # Hücre 1'deki task_id veya card eşlemesiyle bul
+                # Find via cell 1 task_id or card mapping
                 for t_id, card in self.cards.items():
                     name_cell = self.downloads_table.cellWidget(r, 1)
                     if isinstance(name_cell, FileNameCellWidget) and name_cell.name_lbl.text() == card.task.filename:
@@ -1345,23 +1345,23 @@ class MainWindow(QMainWindow):
                 self.task_rows[tid] = r
                 self.row_tasks[r] = tid
 
-    # ==================== Tablo Başlık Sıralama ====================
+    # ==================== Table Header Sorting ====================
 
     def _on_header_section_clicked(self, column: int) -> None:
-        """Kullanıcı sütun başlığına tıkladığında tabloyu sıralar."""
-        if column == 0:  # Checkbox sütununu sıralama
+        """Sorts table when user clicks column header."""
+        if column == 0:  # Do not sort checkbox column
             return
 
         if self._sort_column == column:
-            # Tıklanan sütun zaten aktifse yönü tersine çevir
+            # Reverse direction if clicked column is already active
             if self._sort_order == Qt.SortOrder.AscendingOrder:
                 self._sort_order = Qt.SortOrder.DescendingOrder
             else:
                 self._sort_order = Qt.SortOrder.AscendingOrder
         else:
             self._sort_column = column
-            # İlk tıklama yönleri:
-            # DATE ve SIZE: Yeniden eskiye / büyükten küçüğe (Descending)
+            # Initial sort directions:
+            # DATE and SIZE: Newest to oldest / largest to smallest (Descending)
             # FILE NAME: Alfabetik A'dan Z'ye (Ascending)
             if column in (2, 3, 4, 6):
                 self._sort_order = Qt.SortOrder.DescendingOrder
@@ -1374,7 +1374,7 @@ class MainWindow(QMainWindow):
         self._sort_table_data()
 
     def _get_sort_key(self, task: DownloadTask, column: int):
-        """Belirtilen sütun için sıralama anahtarı üretir."""
+        """Generates sort key for the specified column."""
         if column == 1:  # FILE NAME
             return (task.filename or "").lower()
         elif column == 2:  # SIZE
@@ -1394,13 +1394,13 @@ class MainWindow(QMainWindow):
         return 0
 
     def _sort_table_data(self) -> None:
-        """Tablodaki görev satırlarını seçilen sıralama ölçütüne göre yeniden düzenler."""
+        """Rearranges table task rows according to chosen sorting criteria."""
         if self._sort_column is None:
             return
 
         reverse = (self._sort_order == Qt.SortOrder.DescendingOrder)
 
-        # Tabloda listelenen görevleri topla
+        # Collect tasks listed in table
         task_list: List[DownloadTask] = []
         for tid in list(self.task_rows.keys()):
             t = self.task_manager.get_task(tid)
@@ -1411,7 +1411,7 @@ class MainWindow(QMainWindow):
 
         task_list.sort(key=lambda t: self._get_sort_key(t, self._sort_column), reverse=reverse)
 
-        # Mevcut seçimleri ve işaretli kutuları koru
+        # Preserve current selections and checked boxes
         checked_ids = set()
         for r in range(self.downloads_table.rowCount()):
             item = self.downloads_table.item(r, 0)
@@ -1425,7 +1425,7 @@ class MainWindow(QMainWindow):
         self.task_rows.clear()
         self.row_tasks.clear()
 
-        # Eksik satır varsa ekle, fazla satır varsa sil
+        # Add missing rows or remove excess rows
         while self.downloads_table.rowCount() < len(task_list):
             self.downloads_table.insertRow(self.downloads_table.rowCount())
             self.downloads_table.setRowHeight(self.downloads_table.rowCount() - 1, 52)
@@ -1436,7 +1436,7 @@ class MainWindow(QMainWindow):
             self.task_rows[task.task_id] = r
             self.row_tasks[r] = task.task_id
 
-            # Sütun 0: Checkbox
+            # Column 0: Checkbox
             chk_item = self.downloads_table.item(r, 0)
             if not chk_item:
                 chk_item = QTableWidgetItem()
@@ -1446,7 +1446,7 @@ class MainWindow(QMainWindow):
             chk_item.setData(Qt.ItemDataRole.UserRole, task.task_id)
             chk_item.setCheckState(Qt.CheckState.Checked if task.task_id in checked_ids else Qt.CheckState.Unchecked)
 
-            # Sütun 1: İsim Hücresi (FileNameCellWidget)
+            # Column 1: Name Cell (FileNameCellWidget)
             name_cell = self.downloads_table.cellWidget(r, 1)
             if isinstance(name_cell, FileNameCellWidget):
                 name_cell.update_info(task.filename, task.category, task.category_icon, self._get_task_subtitle(task))
@@ -1459,7 +1459,7 @@ class MainWindow(QMainWindow):
                 )
                 self.downloads_table.setCellWidget(r, 1, name_cell)
 
-            # Sütun 2: Boyut
+            # Column 2: Size
             size_str = task.formatted_size_progress if task.status == DownloadStatus.DOWNLOADING and task.downloaded_size > 0 else task.formatted_total_size
             size_item = self.downloads_table.item(r, 2)
             if not size_item:
@@ -1470,7 +1470,7 @@ class MainWindow(QMainWindow):
             size_item.setText(size_str)
             size_item.setForeground(QColor("#cbd5e1"))
 
-            # Sütun 3: Durum Hücresi (StatusCellWidget)
+            # Column 3: Status Cell (StatusCellWidget)
             status_cell = self.downloads_table.cellWidget(r, 3)
             if isinstance(status_cell, StatusCellWidget):
                 status_cell.update_status(task.status.value, task.progress_percent)
@@ -1478,7 +1478,7 @@ class MainWindow(QMainWindow):
                 status_cell = StatusCellWidget(task.status, task.progress_percent)
                 self.downloads_table.setCellWidget(r, 3, status_cell)
 
-            # Sütun 4: Hız
+            # Column 4: Speed
             speed_text = f"▲ {task.formatted_speed}" if task.status == DownloadStatus.DOWNLOADING and task.formatted_speed else "--"
             speed_item = self.downloads_table.item(r, 4)
             if not speed_item:
@@ -1489,7 +1489,7 @@ class MainWindow(QMainWindow):
             speed_item.setForeground(QColor("#38bdf8") if task.status == DownloadStatus.DOWNLOADING else QColor("#64748b"))
             speed_item.setFont(QFont("JetBrains Mono", 8, QFont.Weight.DemiBold if task.status == DownloadStatus.DOWNLOADING else QFont.Weight.Normal))
 
-            # Sütun 5: Kalan Süre
+            # Column 5: Time Left
             eta_text = f"{task.formatted_eta} s" if task.status == DownloadStatus.DOWNLOADING and task.formatted_eta != "--:--" else ("Finished" if task.status == DownloadStatus.COMPLETED else ("Queued" if task.status == DownloadStatus.PAUSED else "--"))
             eta_item = self.downloads_table.item(r, 5)
             if not eta_item:
@@ -1500,7 +1500,7 @@ class MainWindow(QMainWindow):
             eta_item.setText(eta_text)
             eta_item.setForeground(QColor("#cbd5e1") if task.status == DownloadStatus.DOWNLOADING else QColor("#64748b"))
 
-            # Sütun 6: Eklenme Tarihi
+            # Column 6: Date Added
             date_item = self.downloads_table.item(r, 6)
             if not date_item:
                 date_item = QTableWidgetItem()
@@ -1509,7 +1509,7 @@ class MainWindow(QMainWindow):
             date_item.setText(task.formatted_date_added)
             date_item.setForeground(QColor("#64748b"))
 
-        # Seçili satırları geri yükle
+        # Restore selected rows
         self.downloads_table.clearSelection()
         for r in range(self.downloads_table.rowCount()):
             tid = self.row_tasks.get(r)
@@ -1519,7 +1519,7 @@ class MainWindow(QMainWindow):
         self._apply_filter()
 
     def _update_total_metrics(self) -> None:
-        """Toplam aktif hız ve görev sayısını durum çubuğuna yansıtır."""
+        """Reflects total active speed and task count on status bar."""
         total_speed_bps = 0.0
         active_count = 0
         all_tasks = self.task_manager.get_all_tasks()
@@ -1542,7 +1542,7 @@ class MainWindow(QMainWindow):
     # ==================== Filtreleme ve Arama ====================
 
     def _on_sidebar_item_clicked(self, item: QTreeWidgetItem, column: int) -> None:
-        """Kategori ağacında tıklanan öğeye göre tabloyu filtreler."""
+        """Filters table based on clicked item in category tree."""
         if not item:
             return
         cat_key = item.data(0, Qt.ItemDataRole.UserRole)
@@ -1551,7 +1551,7 @@ class MainWindow(QMainWindow):
             self._apply_filter()
 
     def _on_sidebar_current_item_changed(self, current: Optional[QTreeWidgetItem], previous: Optional[QTreeWidgetItem]) -> None:
-        """Klavye veya programatik seçim değişimini filtreye yansıtır."""
+        """Reflects keyboard or programmatic selection change to filter."""
         if not current:
             return
         cat_key = current.data(0, Qt.ItemDataRole.UserRole)
@@ -1560,12 +1560,12 @@ class MainWindow(QMainWindow):
             self._apply_filter()
 
     def _on_search_text_changed(self, text: str) -> None:
-        """Arama kutusuna yazıldıkça anında filtreleme yapar."""
+        """Performs instant filtering as user types into search box."""
         self.current_search_query = text.strip().lower()
         self._apply_filter()
 
     def _apply_filter(self) -> None:
-        """Kategori seçimi ve arama metnini birleştirerek satırları gizler/gösterir."""
+        """Combines category selection and search text to hide/show rows."""
         visible_count = 0
         query = self.current_search_query
 
@@ -1598,12 +1598,12 @@ class MainWindow(QMainWindow):
 
             is_visible = matches_cat and matches_search
 
-            # Tablo satırını gizle/göster
+            # Hide/show table row
             row = self.task_rows.get(task_id)
             if row is not None and row < self.downloads_table.rowCount():
                 self.downloads_table.setRowHidden(row, not is_visible)
 
-            # Testler ve kart uyumluluğu için
+            # For tests and card compatibility
             card.setVisible(is_visible)
 
             if is_visible:
@@ -1621,10 +1621,10 @@ class MainWindow(QMainWindow):
         self.empty_label.setVisible(visible_count == 0)
         self.downloads_table.setVisible(visible_count > 0 or len(self.cards) > 0)
 
-    # ==================== Kullanıcı Etkileşimleri ve Diyaloglar ====================
+    # ==================== User Interactions and Dialogs ====================
 
     def _on_cell_double_clicked(self, row: int, column: int) -> None:
-        """Satıra çift tıklandığında ayrıntılı detay penceresini açar."""
+        """Opens detailed download window when row is double clicked."""
         task_id = self.row_tasks.get(row)
         if not task_id:
             return
@@ -1636,7 +1636,7 @@ class MainWindow(QMainWindow):
         self._open_task_detail(task)
 
     def _open_task_detail(self, task: DownloadTask) -> None:
-        """Detay penceresini oluşturur veya öne getirir."""
+        """Creates detail window or brings existing one to front."""
         if task.task_id in self.detail_windows and self.detail_windows[task.task_id].isVisible():
             win = self.detail_windows[task.task_id]
             win.activateWindow()
@@ -1649,7 +1649,7 @@ class MainWindow(QMainWindow):
         detail_win.activateWindow()
 
     def _show_context_menu(self, pos: QPoint) -> None:
-        """Tablo üzerinde sağ tıklama menüsü."""
+        """Right-click context menu on table."""
         item = self.downloads_table.itemAt(pos)
         if not item:
             return
@@ -1690,20 +1690,20 @@ class MainWindow(QMainWindow):
         menu.exec(self.downloads_table.viewport().mapToGlobal(pos))
 
     def _open_task_file(self, task: DownloadTask) -> None:
-        """Dosyayı varsayılan sistem uygulamasıyla açar."""
+        """Opens file with system default application."""
         if os.path.exists(task.final_file_path):
             try:
                 os.startfile(os.path.normpath(task.final_file_path))
             except Exception as e:
-                self.statusBar().showMessage(f"Dosya açılamadı: {e}", 4000)
+                self.statusBar().showMessage(f"Could not open file: {e}", 4000)
         else:
             self.statusBar().showMessage(
-                f"ℹ Dosya diskte bulunamadı ({task.filename}). İndirilenler klasöründen silinmiş olabilir; indirme kaydı arayüzde korunmaktadır.",
+                f"ℹ File not found on disk ({task.filename}). It may have been deleted from downloads folder; record is preserved.",
                 6000
             )
 
     def _open_task_folder(self, task: DownloadTask) -> None:
-        """Dosyanın bulunduğu klasörü Windows Gezgini'nde açar ve varsa dosyayı seçer."""
+        """Opens folder in Windows Explorer and selects file if present."""
         if os.path.exists(task.final_file_path):
             subprocess.Popen(f'explorer /select,"{os.path.normpath(task.final_file_path)}"')
         else:
@@ -1711,12 +1711,12 @@ class MainWindow(QMainWindow):
             os.makedirs(dest, exist_ok=True)
             subprocess.Popen(f'explorer "{dest}"')
             self.statusBar().showMessage(
-                f"ℹ Dosya diskte bulunamadı, ancak hedef klasör açıldı. İndirme kaydı arayüzde korunmaktadır.",
+                f"ℹ File not found on disk, but target folder was opened. Download record is preserved.",
                 5000
             )
 
     def _select_all_rows(self, checked: bool) -> None:
-        """Tüm satırlardaki onay kutularını işaretler veya kaldırır."""
+        """Checks or unchecks checkboxes in all rows."""
         state = Qt.CheckState.Checked if checked else Qt.CheckState.Unchecked
         for r in range(self.downloads_table.rowCount()):
             item = self.downloads_table.item(r, 0)
@@ -1724,8 +1724,8 @@ class MainWindow(QMainWindow):
                 item.setCheckState(state)
 
     def _open_add_dialog(self, initial_url: str = "", filename: str = "") -> None:
-        """Referanstaki kompakt yüzen indirme penceresini açar."""
-        # Halihazırda aynı URL için açık olan pencere varsa tekrar açmak yerine öne getir
+        """Opens compact floating download window matching reference."""
+        # Bring existing window to front if one is already open for same URL
         if initial_url:
             clean_url = initial_url.strip()
             for w in list(self._active_compact_windows):
@@ -1764,20 +1764,20 @@ class MainWindow(QMainWindow):
         headers: Optional[Dict[str, str]] = None,
         page_url: Optional[str] = None
     ) -> None:
-        """Video ve medya indirme diyaloğunu açar."""
+        """Opens video and media download dialog."""
         if not initial_url:
             url, ok = QInputDialog.getText(self, "Download Video / Media", "Enter media URL (YouTube, HLS m3u8, etc.):")
             if not ok or not url.strip():
                 return
             initial_url = url.strip()
 
-        # Halihazırda aynı medya URL'si için açık olan diyalog varsa kontrol et
+        # Check if dialog is already open for same media URL
         if initial_url:
             clean_url = initial_url.strip()
             for d in list(self._active_media_windows):
                 try:
                     if hasattr(d, "url") and d.url.strip() == clean_url:
-                        # Eğer pencere hala açık ve aktif bir indirme/analiz yürütüyorsa öne getir
+                        # Bring window to front if it is still open and running active download/analysis
                         is_active = (
                             d.isVisible() and
                             not getattr(d, "is_completed", False) and
@@ -1790,7 +1790,7 @@ class MainWindow(QMainWindow):
                             d.activateWindow()
                             return
                         else:
-                            # Tamamlanmış, hata vermiş veya kapatılmış eski pencereyi listeden temizle
+                            # Clean up completed, failed, or closed stale window from list
                             if d in self._active_media_windows:
                                 self._active_media_windows.remove(d)
                             d.close()
@@ -1815,29 +1815,29 @@ class MainWindow(QMainWindow):
 
 
     def _pause_all_tasks(self) -> None:
-        """Tüm aktif indirmeleri duraklatır."""
+        """Pauses all active downloads."""
         for task in self.task_manager.get_all_tasks():
             if task.status == DownloadStatus.DOWNLOADING:
                 self.task_manager.pause_task(task.task_id)
 
     def _resume_all_tasks(self) -> None:
-        """Tüm duraklatılmış görevleri başlatır."""
+        """Resumes all paused tasks."""
         for task in self.task_manager.get_all_tasks():
             if task.status in (DownloadStatus.PAUSED, DownloadStatus.QUEUED):
                 self.task_manager.resume_task(task.task_id)
 
     def _stop_all_tasks(self) -> None:
-        """Tüm görevleri durdurur."""
+        """Stops all tasks."""
         self._pause_all_tasks()
 
     def _open_default_folder(self) -> None:
-        """İndirilenler klasörünü açar."""
+        """Opens downloads folder."""
         dest = os.path.normpath(self.task_manager.default_download_dir)
         os.makedirs(dest, exist_ok=True)
         subprocess.Popen(f'explorer "{dest}"')
 
     def _toggle_autostart(self) -> None:
-        """Windows ile başlatmayı açar veya kapatır."""
+        """Enables or disables startup with Windows."""
         new_state = not is_autostart_enabled()
         set_autostart(new_state, run_minimized=True)
         self.act_autostart.setChecked(new_state)
@@ -1845,12 +1845,12 @@ class MainWindow(QMainWindow):
             self.tray_manager.action_autostart.setChecked(new_state)
 
     def _open_settings_dialog(self) -> None:
-        """Kullanıcı referans görseline uygun Ağ Ayarları (Network settings) penceresini açar."""
+        """Opens Network Settings dialog matching user reference."""
         dialog = NetworkSettingsDialog(parent=self)
         dialog.exec()
 
     def _show_about(self) -> None:
-        """Hakkında penceresini gösterir."""
+        """Shows About dialog."""
         from app import __version__
         QMessageBox.about(
             self,
@@ -1861,7 +1861,7 @@ class MainWindow(QMainWindow):
         )
 
     def _exit_app(self) -> None:
-        """Uygulamadan tamamen çıkar."""
+        """Exits application completely."""
         self._is_forced_exit = True
         if hasattr(self, "tray_manager") and self.tray_manager and hasattr(self.tray_manager, "tray_icon"):
             try:
@@ -1891,13 +1891,13 @@ class MainWindow(QMainWindow):
         self.status_clients_lbl.setText(f"🌐 Browser Extension: {self._client_count} Connected")
 
     def _on_ext_download_requested(self, data: dict) -> None:
-        """Tarayıcıdan indirme isteği geldiğinde kompakt pencereyi açar."""
+        """Opens compact window when download request arrives from browser extension."""
         url = data.get("url", "")
         filename = data.get("filename", "")
         self._open_add_dialog(initial_url=url, filename=filename)
 
     def _on_ext_media_detected(self, data: dict) -> None:
-        """Tarayıcıdan video akışı yakalandığında indirme penceresini ana uygulamadan bağımsız açar."""
+        """Opens standalone media download window when video stream is captured from browser."""
         url = data.get("url") or data.get("media_src") or data.get("page_url") or ""
         page_url = data.get("page_url") or url
         title = data.get("title", "")
@@ -1910,7 +1910,7 @@ class MainWindow(QMainWindow):
         self._open_media_dialog(initial_url=url, title=title, headers=headers, page_url=page_url)
 
     def closeEvent(self, event) -> None:
-        """Pencere kapatıldığında arka planda çalışmaya devam eder."""
+        """Continues running in background when main window is closed."""
         if not self._is_forced_exit and self.tray_manager:
             event.ignore()
             self.hide()

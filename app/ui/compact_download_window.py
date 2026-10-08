@@ -1,11 +1,11 @@
 """
-Download Manager - Kompakt Yüzen İndirme ve Canlı İlerleme Penceresi (compact_download_window.py)
+Download Manager - Compact Floating Download and Live Progress Window (compact_download_window.py)
 
-Kullanıcının paylaştığı modern Windows 11 referans tasarımına birebir uygun olarak
-tasarlanmıştır. İki aşamalı çalışır:
-1. Aşama: URL, kayıt yeri, dosya adı ve henüz indirmeden sunucudan çekilen dosya boyutu sorgusu.
-2. Aşama: 'Download' tıklandığında AYNI PENCEREDE canlı ilerleme, anlık hız ve parçalı indirme görünümü.
-Pencere kapatılsa veya simge durumuna küçültülse dahi indirme arka planda kesintisiz devam eder.
+Designed to match the modern Windows 11 reference design.
+Operates in two stages:
+1. Stage: URL, save directory, filename, and pre-download server file size query.
+2. Stage: When 'Download' is clicked, live progress, real-time speed, and chunked download view in the SAME WINDOW.
+Even if the window is closed or minimized, downloading continues uninterrupted in the background.
 """
 
 import os
@@ -34,7 +34,7 @@ from app.utils.icon_utils import get_app_icon, get_app_pixmap
 
 
 def is_video_stream_url(url: str) -> bool:
-    """URL'nin bir video akışı (YouTube, HLS m3u8 vb.) olup olmadığını belirler."""
+    """Determines whether the URL is a video stream (YouTube, HLS m3u8, etc.)."""
     lower = url.lower().strip()
     if any(domain in lower for domain in ("youtube.com", "youtu.be", "vimeo.com", "dailymotion.com")):
         return True
@@ -44,7 +44,7 @@ def is_video_stream_url(url: str) -> bool:
 
 
 def apply_dark_title_bar(window: QWidget) -> None:
-    """Windows 10/11 üzerinde pencere başlık çubuğunu koyu (dark) temaya geçirir."""
+    """Switches the window title bar to dark theme on Windows 10/11."""
     try:
         import ctypes
         hwnd = int(window.winId())
@@ -63,7 +63,7 @@ def apply_dark_title_bar(window: QWidget) -> None:
 
 class CompactDownloadWindow(QDialog):
     """
-    IDM tarzı modern kompakt indirme ve ilerleme penceresi.
+    Modern IDM-style compact download and progress window.
     """
 
     def __init__(
@@ -87,7 +87,7 @@ class CompactDownloadWindow(QDialog):
         self._segment_boxes: List[QLabel] = []
         self._is_part_info_expanded: bool = True
 
-        # Pencere Özellikleri (Windows 11 Başlıklı, akrilik koyu tasarım)
+        # Window properties (Windows 11 header, dark acrylic styling)
         self.setWindowTitle("Add download")
         self.setWindowIcon(get_app_icon())
         self.setMinimumWidth(580)
@@ -108,22 +108,22 @@ class CompactDownloadWindow(QDialog):
         apply_dark_title_bar(self)
 
     def _init_ui(self, initial_url: str, initial_filename: str) -> None:
-        """Referans görseldeki koyu akrilik modern düzeni kurar."""
+        """Builds the modern dark acrylic layout from the reference design."""
         self.main_layout = QVBoxLayout(self)
         self.main_layout.setContentsMargins(18, 16, 18, 16)
         self.main_layout.setSpacing(12)
 
-        # ------------------- 1. SORGULAMA GÖVDESİ (QUERY MODE) -------------------
+        # ------------------- 1. QUERY BODY (QUERY MODE) -------------------
         self.query_widget = QWidget()
         query_layout = QHBoxLayout(self.query_widget)
         query_layout.setContentsMargins(0, 2, 0, 2)
         query_layout.setSpacing(14)
 
-        # Sol Giriş Alanları (URL, Klasör, Dosya Adı)
+        # Left Input Fields (URL, Folder, Filename)
         inputs_layout = QVBoxLayout()
         inputs_layout.setSpacing(8)
 
-        # A) URL Satırı + Pano Butonu
+        # A) URL Row + Clipboard Button
         url_container = QFrame()
         url_container.setObjectName("inputContainer")
         url_layout = QHBoxLayout(url_container)
@@ -138,7 +138,7 @@ class CompactDownloadWindow(QDialog):
 
         self.btn_paste = QPushButton("📋")
         self.btn_paste.setObjectName("embeddedActionBtn")
-        self.btn_paste.setToolTip("Pano içeriğini yapıştır")
+        self.btn_paste.setToolTip("Paste clipboard contents")
         self.btn_paste.setFixedSize(26, 26)
         self.btn_paste.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_paste.clicked.connect(self._paste_from_clipboard)
@@ -146,7 +146,7 @@ class CompactDownloadWindow(QDialog):
 
         inputs_layout.addWidget(url_container)
 
-        # B) Kayıt Klasörü Satırı + Gözat İkonu
+        # B) Save Folder Row + Browse Icon
         dest_container = QFrame()
         dest_container.setObjectName("inputContainer")
         dest_layout = QHBoxLayout(dest_container)
@@ -159,7 +159,7 @@ class CompactDownloadWindow(QDialog):
 
         self.btn_browse = QPushButton("📁")
         self.btn_browse.setObjectName("embeddedActionBtn")
-        self.btn_browse.setToolTip("Kayıt klasörünü seç")
+        self.btn_browse.setToolTip("Select destination folder")
         self.btn_browse.setFixedSize(26, 26)
         self.btn_browse.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_browse.clicked.connect(self._browse_folder)
@@ -167,7 +167,7 @@ class CompactDownloadWindow(QDialog):
 
         inputs_layout.addWidget(dest_container)
 
-        # C) Dosya Adı Satırı
+        # C) Filename Row
         file_container = QFrame()
         file_container.setObjectName("inputContainer")
         file_layout = QHBoxLayout(file_container)
@@ -191,7 +191,7 @@ class CompactDownloadWindow(QDialog):
         inputs_layout.addWidget(file_container)
         query_layout.addLayout(inputs_layout, stretch=3)
 
-        # Sağ Bilgi Paneli (Modern Dosya Boyutu Kartı - Kotayı net gösterir)
+        # Right Info Panel (Modern File Size Card)
         right_panel = QVBoxLayout()
         right_panel.setContentsMargins(0, 0, 0, 0)
         right_panel.setAlignment(Qt.AlignmentFlag.AlignVCenter)
@@ -202,35 +202,35 @@ class CompactDownloadWindow(QDialog):
         size_card_layout.setContentsMargins(14, 12, 14, 12)
         size_card_layout.setSpacing(6)
 
-        # Başlık ve Yenile Butonu
+        # Header and Refresh Button
         header_box = QHBoxLayout()
         header_box.setSpacing(6)
         self.size_icon = QLabel("📦")
         self.size_icon.setStyleSheet("font-size: 13px; background: transparent;")
         header_box.addWidget(self.size_icon)
 
-        size_title = QLabel("DOSYA BOYUTU")
+        size_title = QLabel("FILE SIZE")
         size_title.setStyleSheet("color: #94a3b8; font-size: 10px; font-weight: bold; letter-spacing: 0.6px; background: transparent;")
         header_box.addWidget(size_title)
         header_box.addStretch()
 
         self.btn_refresh = QPushButton("🔄")
         self.btn_refresh.setObjectName("refreshBtn")
-        self.btn_refresh.setToolTip("Boyutu yeniden sorgula")
+        self.btn_refresh.setToolTip("Re-query file size")
         self.btn_refresh.setFixedSize(22, 22)
         self.btn_refresh.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_refresh.clicked.connect(lambda: self._query_file_size_async(self.url_input.text()))
         header_box.addWidget(self.btn_refresh)
         size_card_layout.addLayout(header_box)
 
-        # Büyük ve Net Boyut Göstergesi
-        self.size_label = QLabel("Sorgulanıyor...")
+        # Large and clear size indicator
+        self.size_label = QLabel("Querying...")
         self.size_label.setFont(QFont("Segoe UI", 15, QFont.Weight.Bold))
         self.size_label.setStyleSheet("color: #38bdf8; background: transparent;")
         size_card_layout.addWidget(self.size_label)
 
-        # Durum ve Kota Açıklaması
-        self.check_icon = QLabel("Sunucuya bağlanılıyor...")
+        # Status and quota explanation
+        self.check_icon = QLabel("Connecting to server...")
         self.check_icon.setStyleSheet("color: #64748b; font-size: 11px; background: transparent;")
         size_card_layout.addWidget(self.check_icon)
 
@@ -239,14 +239,14 @@ class CompactDownloadWindow(QDialog):
 
         self.main_layout.addWidget(self.query_widget)
 
-        # ------------------- 3. İLERLEME GÖVDESİ (PROGRESS MODE - STITCH MODERN IDM) -------------------
+        # ------------------- 2. PROGRESS BODY (PROGRESS MODE - STITCH MODERN IDM) -------------------
         self.progress_widget = QWidget()
         self.progress_widget.setVisible(False)
         prog_layout = QVBoxLayout(self.progress_widget)
         prog_layout.setContentsMargins(0, 0, 0, 0)
         prog_layout.setSpacing(10)
 
-        # Sekmeli Yapı: [ ⓘ Info ] [ ⚙ Settings ]
+        # Tabbed Layout: [ ⓘ Info ] [ ⚙ Settings ]
         self.prog_tab_widget = QTabWidget()
         self.prog_tab_widget.setObjectName("detailTabs")
 
@@ -256,7 +256,7 @@ class CompactDownloadWindow(QDialog):
         info_layout.setContentsMargins(4, 10, 4, 4)
         info_layout.setSpacing(12)
 
-        # A) Metadata Kartı (Stitch Modern Grid Kartı)
+        # A) Metadata Card (Stitch Modern Grid Card)
         self.meta_card = QFrame()
         self.meta_card.setObjectName("metadataCard")
         meta_grid = QGridLayout(self.meta_card)
@@ -274,7 +274,7 @@ class CompactDownloadWindow(QDialog):
         self.name_val.setStyleSheet(val_style)
         self.name_val.setWordWrap(True)
         meta_grid.addWidget(self.name_val, 0, 1)
-        self.prog_filename_lbl = self.name_val  # Geriye dönük uyumluluk
+        self.prog_filename_lbl = self.name_val  # Backward compatibility
 
         # Row 1: Status
         meta_grid.addWidget(QLabel("Status:", styleSheet=lbl_style), 1, 0)
@@ -314,7 +314,7 @@ class CompactDownloadWindow(QDialog):
 
         info_layout.addWidget(self.meta_card)
 
-        # B) Ana Neon İlerleme Çubuğu (Stitch Slim Neon Bar)
+        # B) Main Neon Progress Bar (Stitch Slim Neon Bar)
         self.prog_bar = QProgressBar()
         self.prog_bar.setObjectName("neonProgressBar")
         self.prog_bar.setRange(0, 100)
@@ -323,7 +323,7 @@ class CompactDownloadWindow(QDialog):
         self.prog_bar.setFixedHeight(8)
         info_layout.addWidget(self.prog_bar)
 
-        # C) Parça Geçiş Butonu ve Aksiyonlar
+        # C) Parts Toggle Button and Actions
         ctrl_layout = QHBoxLayout()
         ctrl_layout.setContentsMargins(0, 2, 0, 2)
         ctrl_layout.setSpacing(10)
@@ -351,20 +351,20 @@ class CompactDownloadWindow(QDialog):
 
         self.btn_hide_to_tray = QPushButton("✕ Close")
         self.btn_hide_to_tray.setObjectName("progClosePillBtn")
-        self.btn_hide_to_tray.setToolTip("Pencereyi gizle (İndirme arka planda kesintisiz devam eder)")
+        self.btn_hide_to_tray.setToolTip("Hide window (Download continues uninterrupted in the background)")
         self.btn_hide_to_tray.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_hide_to_tray.clicked.connect(self.hide)
         ctrl_layout.addWidget(self.btn_hide_to_tray)
 
         info_layout.addLayout(ctrl_layout)
 
-        # D) 8 Parçalı Bağlantı ve İndirme Durumu Paneli (Katlanabilir)
+        # D) 8-Connection Segment and Status Panel (Collapsible)
         self.part_container = QWidget()
         part_layout = QVBoxLayout(self.part_container)
         part_layout.setContentsMargins(0, 0, 0, 0)
         part_layout.setSpacing(8)
 
-        # Canlı 8-Bağlantı Segment Çubuğu
+        # Live 8-Connection Segment Bar
         segments_layout = QHBoxLayout()
         segments_layout.setSpacing(4)
         for _ in range(8):
@@ -376,7 +376,7 @@ class CompactDownloadWindow(QDialog):
             segments_layout.addWidget(box)
         part_layout.addLayout(segments_layout)
 
-        # Canlı Parça Tablosu (# | STATUS | DOWNLOADED | TOTAL)
+        # Live Parts Table (# | STATUS | DOWNLOADED | TOTAL)
         self.part_table = QTableWidget(8, 4)
         self.part_table.setObjectName("partTable")
         self.part_table.setHorizontalHeaderLabels(["#", "STATUS", "DOWNLOADED", "TOTAL"])
@@ -396,7 +396,7 @@ class CompactDownloadWindow(QDialog):
 
         info_layout.addWidget(self.part_container)
 
-        # E) Alt Durum Çubuğu (Footer Status Bar - Stitch Referansı)
+        # E) Footer Status Bar
         footer_layout = QHBoxLayout()
         footer_layout.setContentsMargins(2, 6, 2, 2)
         self.footer_status_lbl = QLabel("● Initializing download...")
@@ -406,7 +406,7 @@ class CompactDownloadWindow(QDialog):
 
         footer_layout.addStretch()
 
-        self.footer_engine_lbl = QLabel("8 Connections • AntiGravity Engine")
+        self.footer_engine_lbl = QLabel("8 Connections • Download Manager")
         self.footer_engine_lbl.setObjectName("footerEngineLbl")
         self.footer_engine_lbl.setStyleSheet("color: #475569; font-size: 11px; font-weight: 500; background: transparent;")
         footer_layout.addWidget(self.footer_engine_lbl)
@@ -427,7 +427,7 @@ class CompactDownloadWindow(QDialog):
         set_card_layout.setContentsMargins(20, 18, 20, 18)
         set_card_layout.setSpacing(14)
 
-        # İndirme Klasörü
+        # Download Folder
         folder_group = QVBoxLayout()
         folder_lbl = QLabel("Destination Download Folder:")
         folder_lbl.setStyleSheet(lbl_style)
@@ -440,7 +440,7 @@ class CompactDownloadWindow(QDialog):
         folder_row.addWidget(self.folder_path_display)
 
         btn_browse_set = QPushButton("📁")
-        btn_browse_set.setToolTip("Klasör Değiştir")
+        btn_browse_set.setToolTip("Change Folder")
         btn_browse_set.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_browse_set.setStyleSheet("background-color: #151d2f; border: 1px solid #1a2336; border-radius: 6px; padding: 6px 12px; color: #fff;")
         btn_browse_set.clicked.connect(self._browse_folder_settings)
@@ -448,7 +448,7 @@ class CompactDownloadWindow(QDialog):
         folder_group.addLayout(folder_row)
         set_card_layout.addLayout(folder_group)
 
-        # Bağlantı Sayısı
+        # Connection Count
         conn_group = QHBoxLayout()
         conn_lbl = QLabel("Connection (Segment) Count:")
         conn_lbl.setStyleSheet(lbl_style)
@@ -464,7 +464,7 @@ class CompactDownloadWindow(QDialog):
         conn_group.addStretch()
         set_card_layout.addLayout(conn_group)
 
-        # Hız Sınırlayıcı (Speed Limiter - IDM özelliği)
+        # Speed Limiter (Speed Limiter - IDM feature)
         speed_group = QHBoxLayout()
         self.chk_speed_limit = QCheckBox("Speed Limiter (KB/s):")
         self.chk_speed_limit.setStyleSheet(lbl_style)
@@ -482,7 +482,7 @@ class CompactDownloadWindow(QDialog):
         speed_group.addStretch()
         set_card_layout.addLayout(speed_group)
 
-        # Tamamlanma Seçenekleri
+        # Completion Options
         self.chk_autoclose = QCheckBox("Automatically close this window when download completes")
         self.chk_autoclose.setStyleSheet("color: #cbd5e1; font-size: 12px;")
         set_card_layout.addWidget(self.chk_autoclose)
@@ -504,7 +504,7 @@ class CompactDownloadWindow(QDialog):
         btn_layout.setContentsMargins(0, 6, 0, 0)
         btn_layout.setSpacing(10)
 
-        # 'Add' Butonu (İndirmeyi başlatmadan kuyruğa/listeye ekler)
+        # 'Add' Button (Adds to queue without starting immediately)
         self.btn_add = QPushButton("Add")
         self.btn_add.setObjectName("secondaryBtn")
         self.btn_add.setFixedWidth(80)
@@ -513,7 +513,7 @@ class CompactDownloadWindow(QDialog):
         self.btn_add.clicked.connect(self._on_add_clicked)
         btn_layout.addWidget(self.btn_add)
 
-        # 'Download' Butonu (Referanstaki Mor-Mavi Neon Gradyan, anında başlatır)
+        # 'Download' Button (Starts download immediately)
         self.btn_download = QPushButton("Download")
         self.btn_download.setObjectName("downloadBtn")
         self.btn_download.setFixedWidth(145)
@@ -536,11 +536,11 @@ class CompactDownloadWindow(QDialog):
         self.main_layout.addWidget(self.buttons_widget)
 
     def _init_chunk_bars(self, count: int = 8) -> None:
-        """Geriye dönük uyumluluk için korunur."""
+        """Maintained for backward compatibility."""
         pass
 
     def _init_chunk_views(self, count: int = 8) -> None:
-        """IDM tarzı 8 parça segment kutularını ve tablo satırlarını sıfırlar."""
+        """Resets IDM-style 8-chunk segment boxes and table rows."""
         for box in self._segment_boxes:
             box.setStyleSheet("background-color: #101728; border: 1px solid #1a2336; border-radius: 3px;")
 
@@ -567,7 +567,7 @@ class CompactDownloadWindow(QDialog):
             self.part_table.setItem(i, 3, item_tot)
 
     def _toggle_part_info(self) -> None:
-        """Parça panelini açar veya kapatır."""
+        """Toggles the parts panel open or closed."""
         self._is_part_info_expanded = not self._is_part_info_expanded
         self.part_container.setVisible(self._is_part_info_expanded)
         self.toggle_part_btn.setText("˄ Parts Info" if self._is_part_info_expanded else "˅ Parts Info")
@@ -577,7 +577,7 @@ class CompactDownloadWindow(QDialog):
             self.resize(620, 360)
 
     def _browse_folder_settings(self) -> None:
-        """Ayarlar sekmesinden klasör seçimi."""
+        """Folder selection from the settings tab."""
         chosen = QFileDialog.getExistingDirectory(self, "Select Destination Folder", self.folder_path_display.text())
         if chosen:
             self.folder_path_display.setText(chosen)
@@ -588,16 +588,16 @@ class CompactDownloadWindow(QDialog):
                     task.destination_folder = chosen
 
     def _connect_task_manager(self) -> None:
-        """TaskManager sinyallerini dinler."""
+        """Listens for TaskManager signals."""
         self.task_manager.task_progress.connect(self._on_task_progress)
         self.task_manager.task_chunk_progress.connect(self._on_task_chunk_progress)
         self.task_manager.task_status_changed.connect(self._on_task_status_changed)
         self.task_manager.task_finished.connect(self._on_task_finished)
 
-    # ==================== Eylemler ve Ağ Sorgusu ====================
+    # ==================== Actions and Network Query ====================
 
     def _on_url_changed(self, url: str) -> None:
-        """URL değiştiğinde dosya adını tahmin eder ve boyutu sorgular."""
+        """Estimates filename and queries file size when URL changes."""
         url = url.strip()
         if not self.filename_input.text() or self.filename_input.text() == "file.bin":
             clean = url.split("?")[0].split("#")[0]
@@ -606,18 +606,18 @@ class CompactDownloadWindow(QDialog):
                 self.filename_input.setText(name)
 
         if url.startswith(("http://", "https://", "file://")):
-            # Debounce ile 400ms sonra sorgula
+            # Query after 400ms debounce
             QTimer.singleShot(400, lambda: self._query_file_size_async(url))
 
     def _query_file_size_async(self, url: str) -> None:
-        """Sunucuya HEAD/GET atarak veya yerel dosya ise diskten okuyarak dosya boyutunu belirler."""
+        """Determines file size via server HEAD/GET request or local disk inspection."""
         if not url:
-            self._update_size_ui(0, status_msg="URL giriniz")
+            self._update_size_ui(0, status_msg="Please enter URL")
             return
 
         url = url.strip()
 
-        # 1. Yerel Dosya (file:// veya doğrudan Windows yolu C:\...)
+        # 1. Local File (file:// or direct Windows path C:\...)
         if url.startswith("file://") or (len(url) > 2 and url[1] == ":" and ("\\" in url or "/" in url)):
             local_path = url
             if url.startswith("file://"):
@@ -630,30 +630,30 @@ class CompactDownloadWindow(QDialog):
                 try:
                     sz = os.path.getsize(local_path)
                     self.size_icon.setText("📦")
-                    self._update_size_ui(sz, status_msg="✓ Yerel dosya hazır")
+                    self._update_size_ui(sz, status_msg="✓ Local file ready")
                     return
                 except Exception:
                     pass
             self.size_icon.setText("📦")
-            self._update_size_ui(-1, status_msg="Yerel dosya bulunamadı")
+            self._update_size_ui(-1, status_msg="Local file not found")
             return
 
         if not url.startswith(("http://", "https://", "ftp://")):
-            self._update_size_ui(0, status_msg="Geçersiz URL")
+            self._update_size_ui(0, status_msg="Invalid URL")
             return
 
         if is_video_stream_url(url):
             self.size_icon.setText("🎬")
-            self.size_label.setText("Video Akışı")
+            self.size_label.setText("Video Stream")
             self.size_label.setStyleSheet("color: #38bdf8; font-size: 13px; font-weight: bold; background: transparent;")
-            self.check_icon.setText("🎬 Çevrimiçi video algılandı")
+            self.check_icon.setText("🎬 Online video detected")
             self.check_icon.setStyleSheet("color: #38bdf8; font-size: 11px; background: transparent;")
             return
 
         self.size_icon.setText("📦")
-        self.size_label.setText("Sorgulanıyor...")
+        self.size_label.setText("Querying...")
         self.size_label.setStyleSheet("color: #38bdf8; font-size: 15px; font-weight: bold; background: transparent;")
-        self.check_icon.setText("Sunucuya bağlanılıyor...")
+        self.check_icon.setText("Connecting to server...")
         self.check_icon.setStyleSheet("color: #64748b; font-size: 11px; background: transparent;")
 
         def worker():
@@ -668,21 +668,21 @@ class CompactDownloadWindow(QDialog):
 
             try:
                 with httpx.Client(follow_redirects=True, timeout=8.0) as client:
-                    # 1. Deneme: HEAD isteği ile boyut ve Range kontrolü
+                    # Attempt 1: HEAD request for size and Range support
                     try:
                         resp = client.head(url, headers=browser_headers)
                         if resp.status_code == 200:
                             if "Content-Length" in resp.headers and resp.headers["Content-Length"].isdigit():
                                 size = int(resp.headers["Content-Length"])
                                 is_resumable = resp.headers.get("Accept-Ranges", "").lower() == "bytes"
-                                status_text = "Kaldığı yerden devam edebilir" if is_resumable else "İndirmeye hazır"
+                                status_text = "Resume supported" if is_resumable else "Ready to download"
                         elif resp.status_code == 404:
-                            QTimer.singleShot(0, lambda: self._update_size_ui(-1, status_msg="404 Bulunamadı"))
+                            QTimer.singleShot(0, lambda: self._update_size_ui(-1, status_msg="404 Not Found"))
                             return
                     except Exception:
                         pass
 
-                    # 2. Deneme: HEAD başarısızsa veya boyut vermediyse GET Stream ile Range: bytes=0-0
+                    # Attempt 2: GET Stream with Range: bytes=0-0 if HEAD fails or provides no size
                     if size <= 0:
                         range_headers = dict(browser_headers)
                         range_headers["Range"] = "bytes=0-0"
@@ -695,25 +695,25 @@ class CompactDownloadWindow(QDialog):
                                         if tot_str.isdigit():
                                              size = int(tot_str)
                                              is_resumable = True
-                                             status_text = "Kaldığı yerden devam edebilir"
+                                             status_text = "Resume supported"
                                 elif get_resp.status_code == 200:
                                     if "Content-Length" in get_resp.headers and get_resp.headers["Content-Length"].isdigit():
                                         size = int(get_resp.headers["Content-Length"])
                                         is_resumable = get_resp.headers.get("Accept-Ranges", "").lower() == "bytes"
-                                        status_text = "Kaldığı yerden devam edebilir" if is_resumable else "İndirmeye hazır"
+                                        status_text = "Resume supported" if is_resumable else "Ready to download"
                                 elif get_resp.status_code == 404:
-                                    QTimer.singleShot(0, lambda: self._update_size_ui(-1, status_msg="404 Bulunamadı"))
+                                    QTimer.singleShot(0, lambda: self._update_size_ui(-1, status_msg="404 Not Found"))
                                     return
                         except Exception:
                             pass
 
-                    # UI iş parçacığında güncelle
+                    # Update in UI thread
                     final_size = size
                     final_resumable = is_resumable
                     final_status = status_text
                     QTimer.singleShot(0, lambda: self._update_size_ui(final_size, is_resumable=final_resumable, status_msg=final_status))
             except Exception:
-                QTimer.singleShot(0, lambda: self._update_size_ui(-1, status_msg="Bağlantı zaman aşımı"))
+                QTimer.singleShot(0, lambda: self._update_size_ui(-1, status_msg="Connection timed out"))
 
         threading.Thread(target=worker, daemon=True).start()
 
@@ -731,20 +731,20 @@ class CompactDownloadWindow(QDialog):
 
             self.size_label.setText(formatted)
             self.size_label.setStyleSheet("color: #38bdf8; font-size: 15px; font-weight: bold; background: transparent;")
-            msg = status_msg or ("✓ Resume destekliyor" if is_resumable else "✓ Sunucu hazır")
+            msg = status_msg or ("✓ Resume supported" if is_resumable else "✓ Server ready")
             self.check_icon.setText(msg)
             self.check_icon.setStyleSheet("color: #94a3b8; font-size: 11px; background: transparent;")
 
         elif size_bytes == 0:
-            self.size_label.setText("Bilinmiyor")
+            self.size_label.setText("Unknown")
             self.size_label.setStyleSheet("color: #f59e0b; font-size: 13px; font-weight: bold; background: transparent;")
-            self.check_icon.setText(status_msg or "Dinamik akış / kota bilgisi yok")
+            self.check_icon.setText(status_msg or "Dynamic stream / no size info")
             self.check_icon.setStyleSheet("color: #94a3b8; font-size: 10px; background: transparent;")
 
         else:  # Negative (error / 404 / 403)
-            self.size_label.setText("Ulaşılamadı")
+            self.size_label.setText("Unreachable")
             self.size_label.setStyleSheet("color: #ef4444; font-size: 13px; font-weight: bold; background: transparent;")
-            self.check_icon.setText(status_msg or "Adresi kontrol edin")
+            self.check_icon.setText(status_msg or "Check address")
             self.check_icon.setStyleSheet("color: #ef4444; font-size: 10px; background: transparent;")
 
     def _paste_from_clipboard(self) -> None:
@@ -762,10 +762,10 @@ class CompactDownloadWindow(QDialog):
         if chosen:
             self.dest_input.setText(chosen)
 
-    # ==================== Başlatma ve İlerlemeye Dönüşüm ====================
+    # ==================== Start and Morph to Progress ====================
 
     def _on_add_clicked(self) -> None:
-        """Kuyruğa sessizce ekler (auto_start=False) ve pencereyi kapatır."""
+        """Silently adds to queue (auto_start=False) and closes window."""
         url = self.url_input.text().strip()
         filename = sanitize_filename(self.filename_input.text().strip())
         dest = self.dest_input.text().strip() or self.default_save_dir
@@ -800,7 +800,7 @@ class CompactDownloadWindow(QDialog):
         self.accept()
 
     def _on_download_clicked(self) -> None:
-        """Download butonuna basıldığında AYNI PENCEREDE indirmeyi başlatır ve ilerleme moduna geçer."""
+        """Starts download in the SAME WINDOW when Download is clicked and switches to progress mode."""
         url = self.url_input.text().strip()
         filename = sanitize_filename(self.filename_input.text().strip())
         dest = self.dest_input.text().strip() or self.default_save_dir
@@ -833,7 +833,7 @@ class CompactDownloadWindow(QDialog):
             self.accept()
             return
 
-        # 1. Görevi TaskManager'a başlat
+        # 1. Start task in TaskManager
         self.current_task_id = self.task_manager.add_http_download(
             url=url,
             filename=filename,
@@ -842,27 +842,27 @@ class CompactDownloadWindow(QDialog):
             auto_start=True
         )
 
-        # 2. Pencereyi Canlı İlerleme Moduna Dönüştür
+        # 2. Morph window to live progress mode
         self._morph_to_progress_mode(filename)
 
     def _morph_to_progress_mode(self, filename: str) -> None:
-        """Aynı pencereyi IDM tarzı canlı ilerleme moduna sokar."""
+        """Transitions the window into IDM-style live progress mode."""
         self.is_progress_mode = True
         self.prog_filename = filename
         self.setWindowTitle(f"0% - {filename}")
 
-        # Girişleri ve Add/Download butonlarını gizle
+        # Hide inputs and Add/Download buttons
         self.query_widget.setVisible(False)
         self.buttons_widget.setVisible(False)
 
-        # Meta veri alanlarını başlangıç durumuna ayarla
+        # Initialize metadata display fields
         self.name_val.setText(filename)
         self.status_val.setText("● Downloading")
         self.status_val.setStyleSheet("color: #38bdf8; font-weight: 600; font-size: 12px; background: transparent;")
         if self.total_size_bytes > 0:
             self.size_val.setText(self._format_bytes(self.total_size_bytes))
         else:
-            self.size_val.setText("Bilinmiyor")
+            self.size_val.setText("Unknown")
         self.downloaded_val.setText("0 B ( 0 % )")
         self.speed_val.setText("0 B/s")
         self.eta_val.setText("--:--")
@@ -880,15 +880,15 @@ class CompactDownloadWindow(QDialog):
             self.footer_status_lbl.setText("● Connecting to server...")
             self.footer_status_lbl.setStyleSheet("color: #38bdf8; font-size: 11px; font-weight: 500; background: transparent;")
 
-        # Parça tablosunu ve segmentleri sıfırla
+        # Reset parts table and segments
         self._init_chunk_views(8)
 
-        # Canlı ilerleme gövdesini aç ve pencereyi boyutlandır
+        # Show live progress body and resize window
         self.progress_widget.setVisible(True)
         self.resize(620, 580)
 
     def _on_task_progress(self, data: dict) -> None:
-        """Canlı indirme verisi geldiğinde UI alanlarını besler."""
+        """Updates UI fields when live progress data arrives."""
         if not self.is_progress_mode or data.get("task_id") != self.current_task_id:
             return
 
@@ -901,7 +901,7 @@ class CompactDownloadWindow(QDialog):
         speed = data.get("speed_str", "0 B/s")
         eta = data.get("eta_str", "--:--")
 
-        self.size_val.setText(self._format_bytes(tot_bytes) if tot_bytes > 0 else "Bilinmiyor")
+        self.size_val.setText(self._format_bytes(tot_bytes) if tot_bytes > 0 else "Unknown")
         if tot_bytes > 0:
             self.downloaded_val.setText(f"{self._format_bytes(down_bytes)} ( {pct}% )")
         else:
@@ -919,7 +919,7 @@ class CompactDownloadWindow(QDialog):
         if task_id != self.current_task_id:
             return
 
-        # Tablo güncelleme
+        # Update table
         if chunk_id < self.part_table.rowCount():
             is_done = (downloaded >= total > 0)
             status_txt = "● Completed" if is_done else "● Receiving Data"
@@ -940,7 +940,7 @@ class CompactDownloadWindow(QDialog):
             if item_tot:
                 item_tot.setText(self._format_bytes(total) if total > 0 else "--")
 
-        # Segment kutusu güncelleme
+        # Update segment boxes
         if chunk_id < len(self._segment_boxes):
             box = self._segment_boxes[chunk_id]
             if downloaded >= total > 0:
@@ -992,14 +992,14 @@ class CompactDownloadWindow(QDialog):
                 self.footer_status_lbl.setText("● Download completed successfully")
                 self.footer_status_lbl.setStyleSheet("color: #10b981; font-size: 11px; font-weight: 500; background: transparent;")
 
-            # Tüm tablo satırlarını tamamlandı yap
+            # Mark all table rows completed
             for row in range(self.part_table.rowCount()):
                 item_st = self.part_table.item(row, 1)
                 if item_st:
                     item_st.setText("● Completed")
                     item_st.setForeground(QColor("#10b981"))
 
-            # Tüm segmentleri yeşile boya
+            # Color all segments green
             for box in self._segment_boxes:
                 box.setStyleSheet("background-color: #10b981; border: 1px solid #34d399; border-radius: 3px;")
 
@@ -1032,7 +1032,7 @@ class CompactDownloadWindow(QDialog):
 
     @staticmethod
     def _format_bytes(byte_count: int) -> str:
-        """Boyutu okunabilir formata dönüştürür."""
+        """Converts byte count to human-readable format."""
         if byte_count <= 0:
             return "0 B"
         elif byte_count < 1024:
@@ -1045,7 +1045,7 @@ class CompactDownloadWindow(QDialog):
             return f"{byte_count / (1024 * 1024 * 1024):.2f} GB"
 
     def closeEvent(self, event) -> None:
-        """Pencere kapatıldığında indirme arka planda asla kesilmez, sadece pencere gizlenir."""
+        """When window is closed, download continues in background; window is only hidden."""
         if self.is_progress_mode:
             self.hide()
             event.ignore()
@@ -1053,7 +1053,7 @@ class CompactDownloadWindow(QDialog):
             event.accept()
 
     def _get_style_sheet(self) -> str:
-        """Kullanıcının paylaştığı Stitch referans arayüzünün modern koyu QSS stilleri."""
+        """Modern dark QSS styles matching the Stitch reference interface."""
         return """
             QDialog {
                 background-color: #0b0f19;

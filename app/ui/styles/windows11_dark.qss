@@ -1,4 +1,4 @@
-/* Windows 11 Fluent Design - Modern Koyu Tema QSS */
+/* Windows 11 Fluent Design - Modern Dark Theme QSS */
 
 QWidget {
     background-color: #1a1a1a;
@@ -9,12 +9,12 @@ QWidget {
     selection-color: #ffffff;
 }
 
-/* Ana Pencere ve Arka Plan */
+/* Main Window and Background */
 QMainWindow {
     background-color: #121212;
 }
 
-/* Kart Panelleri ve Çerçeveler */
+/* Card Panels and Frames */
 QFrame#cardFrame {
     background-color: #202020;
     border: 1px solid #2e2e2e;
@@ -27,7 +27,7 @@ QFrame#cardFrame:hover {
     background-color: #242424;
 }
 
-/* Butonlar */
+/* Buttons */
 QPushButton {
     background-color: #2c2c2c;
     color: #ffffff;
@@ -54,7 +54,7 @@ QPushButton:disabled {
     border: 1px solid #262626;
 }
 
-/* Vurgulu Buton (Primary Accent) */
+/* Primary Accent Button */
 QPushButton#primaryBtn {
     background-color: #0078d4;
     border: 1px solid #1084d8;
@@ -70,7 +70,7 @@ QPushButton#primaryBtn:pressed {
     background-color: #005a9e;
 }
 
-/* İlerleme Çubuğu (Progress Bar) */
+/* Progress Bar */
 QProgressBar {
     background-color: #2b2b2b;
     border: 1px solid #3a3a3a;
@@ -88,7 +88,7 @@ QProgressBar::chunk {
     border-radius: 4px;
 }
 
-/* Metin Giriş Kutuları (LineEdit, TextEdit) */
+/* Text Input Fields (LineEdit, TextEdit) */
 QLineEdit, QTextEdit, QPlainTextEdit {
     background-color: #202020;
     color: #ffffff;
@@ -102,7 +102,7 @@ QLineEdit:focus, QTextEdit:focus {
     background-color: #242424;
 }
 
-/* Açılır Menü (ComboBox) */
+/* Combo Box */
 QComboBox {
     background-color: #202020;
     color: #ffffff;
@@ -130,7 +130,7 @@ QComboBox QAbstractItemView {
     selection-background-color: #0078d4;
 }
 
-/* Sol Kenar Çubuğu Listesi (ListWidget) */
+/* Sidebar List (ListWidget) */
 QListWidget#sidebarList {
     background-color: #181818;
     border: none;
@@ -159,7 +159,7 @@ QListWidget#sidebarList::item:selected {
     border-left: 3px solid #0078d4;
 }
 
-/* Kaydırma Çubuğu (ScrollBar) */
+/* Scroll Bar */
 QScrollBar:vertical {
     background-color: #181818;
     width: 10px;
@@ -181,7 +181,7 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
     height: 0px;
 }
 
-/* Durum Çubuğu (StatusBar) */
+/* Status Bar */
 QStatusBar {
     background-color: #141414;
     border-top: 1px solid #252525;
@@ -189,10 +189,11 @@ QStatusBar {
     font-size: 12px;
 }
 
-/* Araç Çubuğu (ToolBar) */
+/* Tool Bar */
 QToolBar {
     background-color: #1a1a1a;
     border-bottom: 1px solid #282828;
     padding: 8px;
     spacing: 8px;
 }
+

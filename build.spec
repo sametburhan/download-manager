@@ -7,7 +7,7 @@ import os
 
 block_cipher = None
 
-# Proje kök dizini
+# Project root directory
 ROOT = os.path.abspath('.')
 
 a = Analysis(
@@ -15,10 +15,10 @@ a = Analysis(
     pathex=[ROOT],
     binaries=[],
     datas=[
-        # QSS Tema dosyaları
+        # QSS Theme files
         (os.path.join(ROOT, 'app', 'ui', 'styles', 'ab_dark_theme.qss'),    os.path.join('app', 'ui', 'styles')),
         (os.path.join(ROOT, 'app', 'ui', 'styles', 'windows11_dark.qss'),   os.path.join('app', 'ui', 'styles')),
-        # Uygulama ikonları
+        # Application icons
         (os.path.join(ROOT, 'extension', 'icons', 'icon128.png'),  os.path.join('extension', 'icons')),
         (os.path.join(ROOT, 'extension', 'icons', 'icon48.png'),   os.path.join('extension', 'icons')),
         (os.path.join(ROOT, 'extension', 'icons', 'icon16.png'),   os.path.join('extension', 'icons')),
@@ -77,7 +77,7 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=False,        # Konsol penceresi gösterme (GUI app)
+    console=False,        # Do not show console window (GUI app)
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

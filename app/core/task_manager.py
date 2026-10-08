@@ -1,10 +1,10 @@
 """
-Download Manager - Görev Yöneticisi (task_manager.py)
+Download Manager - Task Manager (task_manager.py)
 
-Bu sınıf, tüm aktif, duraklatılmış ve tamamlanmış indirmelerin merkezi
-koordinasyon noktasıdır. Arayüzden veya WebSocket sunucusundan gelen indirme
-isteklerini kuyruğa alır, uygun motoru (HTTP veya yt-dlp) QThread olarak
-başlatır ve sinyalleri tek noktadan GUI'ye dağıtır.
+This class is the central coordination point for all active, paused,
+and completed downloads. It queues download requests coming from the GUI
+or WebSocket server, starts the appropriate engine (HTTP or yt-dlp) as a QThread,
+and dispatches signals to the GUI from a unified source.
 """
 
 import os
@@ -22,14 +22,14 @@ from app.core.config import get_tasks_file_path
 
 
 class TaskManager(QObject):
-    """İndirme motorlarını yöneten merkezi yönetici sınıf."""
+    """Central manager class orchestrating download engines."""
 
-    task_added = pyqtSignal(object)           # DownloadTask nesnesi
-    task_progress = pyqtSignal(dict)          # İlerleme sözlüğü
-    task_chunk_progress = pyqtSignal(str, int, int, int) # task_id, chunk_id, inen, toplam
-    task_status_changed = pyqtSignal(str, str)# task_id, durum
-    task_finished = pyqtSignal(str, str)      # task_id, dosya_yolu
-    task_error = pyqtSignal(str, str)         # task_id, hata
+    task_added = pyqtSignal(object)           # DownloadTask instance
+    task_progress = pyqtSignal(dict)          # Progress dictionary
+    task_chunk_progress = pyqtSignal(str, int, int, int) # task_id, chunk_id, downloaded, total
+    task_status_changed = pyqtSignal(str, str)# task_id, status
+    task_finished = pyqtSignal(str, str)      # task_id, file_path
+    task_error = pyqtSignal(str, str)         # task_id, error
 
     def __init__(
         self,
@@ -50,10 +50,10 @@ class TaskManager(QObject):
         if auto_load:
             self.load_tasks()
 
-    # ==================== Görev Kalıcılığı (Persistence) ====================
+    # ==================== Task Persistence ====================
 
     def load_tasks(self) -> None:
-        """Kayıtlı görevleri tasks.json dosyasından okuyup belleğe yükler."""
+        """Reads saved tasks from tasks.json and loads them into memory."""
         if not self.tasks_file or not os.path.exists(self.tasks_file):
             return
 
@@ -74,11 +74,11 @@ class TaskManager(QObject):
             print(f"[ERROR] Failed to load tasks from {self.tasks_file}: {e}")
 
     def save_tasks(self, force: bool = False) -> None:
-        """Kayıtlı görevleri tasks.json dosyasına atomik olarak kaydeder."""
+        """Atomically saves tasks to tasks.json."""
         if not self.tasks_file:
             return
 
-        # Çok sık disk yazımını önlemek için ilerleme güncellemelerinde debouncing uygula
+        # Debounce progress updates to avoid excessive disk writes
         now = time.time()
         if not force and (now - self._last_save_time < 2.5):
             return
@@ -108,19 +108,18 @@ class TaskManager(QObject):
         except Exception as e:
             print(f"[ERROR] Failed to save tasks to {self.tasks_file}: {e}")
 
-    # ==================== Yardımcı Metotlar ====================
+    # ==================== Helper Methods ====================
 
     @staticmethod
     def _resolve_unique_filename(dest_dir: str, filename: str) -> str:
-        """Eğer hedef klasörde aynı isimli dosya mevcutsa numaralı suföks ekler.
+        """Appends a numbered suffix if a file with the same name already exists in target directory.
 
-        Örnek: video.mp4 varsa -> video(1).mp4, o da varsa -> video(2).mp4
-        Bu sayede aynı isimli dosya yeniden indirildiğinde
-        anlık 'tamamlandı' hatası yaşanmaz.
+        Example: if video.mp4 exists -> video(1).mp4, if that exists -> video(2).mp4
+        This prevents race conditions and erroneous 'already completed' triggers.
         """
         target = os.path.join(dest_dir, filename)
         if not os.path.exists(target):
-            return filename  # Çakışma yok, aynı ismi kullan
+            return filename  # No collision, use original name
 
         base, ext = os.path.splitext(filename)
         counter = 1
@@ -139,7 +138,7 @@ class TaskManager(QObject):
         num_chunks: Optional[int] = None,
         auto_start: bool = True
     ) -> str:
-        """Yeni bir çok parçalı HTTP indirme görevi ekler ve başlatır."""
+        """Adds and starts a new multi-part HTTP download task."""
         task_id = str(uuid.uuid4())[:8]
         dest_dir = destination_folder or self.default_download_dir
         os.makedirs(dest_dir, exist_ok=True)
@@ -154,7 +153,7 @@ class TaskManager(QObject):
         if not filename:
             filename = url.split("/")[-1].split("?")[0] or f"download_{task_id}.bin"
 
-        # Aynı isimli dosya varsa çakışmayı önlemek için yeni isim ver (video(1).mp4 vb.)
+        # Resolve collisions if file already exists (e.g. video(1).mp4)
         filename = self._resolve_unique_filename(dest_dir, filename)
 
         task = DownloadTask(
@@ -176,10 +175,10 @@ class TaskManager(QObject):
         return task_id
 
     def start_http_worker(self, task: DownloadTask, num_chunks: int = 8) -> None:
-        """HTTP indirme motoru QThread'ini başlatır ve sinyallerini bağlar."""
+        """Starts HTTP download engine QThread and connects signals."""
         worker = HttpChunkDownloader(task=task, num_chunks=num_chunks)
 
-        # Sinyal bağlantıları
+        # Signal connections
         worker.progress_updated.connect(self._on_worker_progress)
         worker.chunk_progress.connect(
             lambda cid, down, tot: self.task_chunk_progress.emit(task.task_id, cid, down, tot)
@@ -201,19 +200,17 @@ class TaskManager(QObject):
         headers: Optional[Dict[str, str]] = None,
         auto_start: bool = True
     ) -> str:
-        """Yeni bir yt-dlp medya indirme görevi ekler ve başlatır."""
+        """Adds and starts a new yt-dlp media download task."""
         task_id = str(uuid.uuid4())[:8]
         dest_dir = destination_folder or self.default_download_dir
         os.makedirs(dest_dir, exist_ok=True)
 
-        # Windows geçersiz dosya adı karakterlerini temizle
+        # Sanitize Windows invalid filename characters
         safe_title = re.sub(r'[\\/*?"<>|]', "", title).strip() if title else f"media_{task_id}"
         if not safe_title:
             safe_title = f"media_{task_id}"
 
-        # Aynı isimli medya dosyası varsa çakışmayı önle
-        # Medya dosyalarında uzantı genellikle yt-dlp tarafından belirlenir;
-        # bu yüzden bilinen video uzantılarını da kontrol ederek çakışmayı önle
+        # Prevent collision with existing files
         safe_title = self._resolve_unique_media_title(dest_dir, safe_title)
 
         task = DownloadTask(
@@ -235,13 +232,11 @@ class TaskManager(QObject):
         return task_id
 
     def _resolve_unique_media_title(self, dest_dir: str, title: str) -> str:
-        """Medya başlıkları için çakışma önleme: yaygın video/ses uzantıları kontrol edilir."""
+        """Collision prevention for media titles: checks common video/audio extensions."""
         VIDEO_EXTS = (".mp4", ".mkv", ".webm", ".avi", ".mov", ".m4v",
                       ".mp3", ".m4a", ".aac", ".opus", ".flac", ".ogg")
 
-        # Eğer başlığın herhangi bir uzantıda dosyası varsa numara ekle
         def _title_exists(t: str) -> bool:
-            # Uzantsız haliyle veya bilinen uzantılardan biriyle mevcut mu?
             if os.path.exists(os.path.join(dest_dir, t)):
                 return True
             for ext in VIDEO_EXTS:
@@ -260,7 +255,7 @@ class TaskManager(QObject):
             counter += 1
 
     def start_media_worker(self, task: DownloadTask, format_id: Optional[str] = None, audio_only: bool = False) -> None:
-        """yt-dlp medya indirme motorunu başlatır."""
+        """Starts yt-dlp media downloader engine."""
         worker = MediaDownloader(task=task, format_id=format_id, audio_only=audio_only)
 
         worker.progress_updated.connect(self._on_worker_progress)
@@ -271,7 +266,7 @@ class TaskManager(QObject):
         self.workers[task.task_id] = worker
         worker.start()
 
-    # ==================== Dahili İş Parçacığı Sinyal İşleyicileri ====================
+    # ==================== Internal Worker Signal Handlers ====================
 
     def _on_worker_progress(self, data: dict) -> None:
         self.task_progress.emit(data)
@@ -290,7 +285,7 @@ class TaskManager(QObject):
         self.save_tasks(force=True)
 
     def pause_task(self, task_id: str) -> None:
-        """Görevi duraklatır."""
+        """Pauses a download task."""
         if task_id in self.workers:
             worker = self.workers[task_id]
             if hasattr(worker, "pause"):
@@ -300,7 +295,7 @@ class TaskManager(QObject):
             self.save_tasks(force=True)
 
     def resume_task(self, task_id: str) -> None:
-        """Duraklatılmış görevi kaldığı yerden devam ettirir."""
+        """Resumes a paused download task."""
         if task_id in self.tasks:
             task = self.tasks[task_id]
             if task.status == DownloadStatus.PAUSED:
@@ -311,20 +306,20 @@ class TaskManager(QObject):
                     self.start_media_worker(task, audio_only=audio_only)
 
     def cancel_task(self, task_id: str) -> None:
-        """Görevi iptal eder ve temizler."""
+        """Cancels and cleans up a task."""
         if task_id in self.workers:
             worker = self.workers[task_id]
             if hasattr(worker, "cancel"):
                 worker.cancel()
 
     def remove_task(self, task_id: str, delete_file: bool = False) -> bool:
-        """Görevi iptal eder, bellekten kaldırır ve talep edildiyse diskteki dosyaları siler."""
+        """Cancels a task, removes it from memory, and deletes disk files if requested."""
         if task_id not in self.tasks:
             return False
 
         task = self.tasks[task_id]
 
-        # 1. Aktif çalışan iş parçacığını durdur
+        # 1. Stop active worker thread
         if task_id in self.workers:
             worker = self.workers.pop(task_id)
             if hasattr(worker, "cancel"):
@@ -338,7 +333,7 @@ class TaskManager(QObject):
                 except Exception:
                     pass
 
-        # 2. Kalıcı silme talep edildiyse dosyaları diskten sil
+        # 2. Delete files from disk if requested
         if delete_file:
             candidates = set()
             if hasattr(task, "final_file_path") and task.final_file_path:
@@ -352,7 +347,7 @@ class TaskManager(QObject):
                 candidates.add(f"{base_dest}.part")
                 candidates.add(f"{base_dest}.ytdl")
 
-                # Eğer uzantısız başlıkla kaydedildiyse aynı isimli medya dosyalarını kontrol et
+                # If saved with extensionless title, check matching media files
                 try:
                     if os.path.isdir(task.destination_folder):
                         for f in os.listdir(task.destination_folder):
@@ -372,7 +367,7 @@ class TaskManager(QObject):
                     except Exception as e:
                         print(f"[WARN] Failed to delete file from disk {path}: {e}")
 
-            # Göreve ait geçici parçaların bulunduğu temp dizinini tamamen temizle
+            # Clean up task temp directory completely
             if hasattr(task, "temp_dir") and task.temp_dir and os.path.exists(task.temp_dir):
                 import shutil
                 try:
@@ -380,16 +375,17 @@ class TaskManager(QObject):
                 except Exception as e:
                     print(f"[WARN] Failed to delete task temp dir {task.temp_dir}: {e}")
 
-        # 3. Bellekten / görev havuzundan tamamen çıkar
+        # 3. Remove completely from memory / task pool
         self.tasks.pop(task_id, None)
         self.save_tasks(force=True)
         return True
 
     def get_task(self, task_id: str) -> Optional[DownloadTask]:
-        """Görev nesnesini döndürür."""
+        """Returns the download task object."""
         return self.tasks.get(task_id)
 
     def get_all_tasks(self) -> List[DownloadTask]:
-        """Tüm kayıtlı görevleri liste olarak döndürür."""
+        """Returns all saved tasks as a list."""
         return list(self.tasks.values())
+
 

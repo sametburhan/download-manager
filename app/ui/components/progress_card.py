@@ -1,9 +1,9 @@
 """
-Download Manager - İndirme Görev Kartı Bileşeni (progress_card.py)
+Download Manager - Download Task Card Component (progress_card.py)
 
-Bu bileşen, her bir aktif veya tamamlanmış indirme görevi için IDM tarzı
-çok parçalı ilerleme çubuğu, anlık hız, kalan süre ve eylem butonlarını
-barındıran modern bir PyQt6 kart widget'ıdır.
+This component is a modern PyQt6 card widget featuring an IDM-style
+multi-chunk progress indicator, live speed, remaining time (ETA),
+and action buttons for each active or completed download task.
 """
 
 import os
@@ -20,9 +20,9 @@ from app.core.models import DownloadTask, DownloadStatus, TaskType
 
 
 class DownloadCardWidget(QFrame):
-    """Her bir indirme görevinin görsel temsilini sağlayan kart widget'ı."""
+    """Card widget providing visual representation of each download task."""
 
-    # Dış dünyaya fırlatılan kullanıcı eylem sinyalleri
+    # External user action signals
     pause_requested = pyqtSignal(str)          # task_id
     resume_requested = pyqtSignal(str)         # task_id
     cancel_requested = pyqtSignal(str)         # task_id
@@ -39,15 +39,15 @@ class DownloadCardWidget(QFrame):
         self.update_from_task()
 
     def _init_ui(self) -> None:
-        """Kart arayüzünü oluşturur."""
+        """Constructs the card UI layout."""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(14, 12, 14, 12)
         layout.setSpacing(8)
 
-        # 1. Üst Satır: Dosya Türü Rozeti + Dosya Adı + Durum Rozeti
+        # 1. Top Row: File Type Badge + File Name + Status Badge
         top_layout = QHBoxLayout()
 
-        # Uzantı rozeti (örn: [ZIP], [MP4])
+        # Extension badge (e.g., [ZIP], [MP4])
         ext = os.path.splitext(self.task.filename)[1].replace(".", "").upper()
         if not ext:
             if self.task.task_type == TaskType.MEDIA_VIDEO:
@@ -67,14 +67,14 @@ class DownloadCardWidget(QFrame):
         """)
         top_layout.addWidget(self.badge_label)
 
-        # Dosya adı
+        # File name
         self.name_label = QLabel(self.task.filename)
         self.name_label.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
         self.name_label.setStyleSheet("color: #ffffff;")
         self.name_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         top_layout.addWidget(self.name_label)
 
-        # Durum rozeti
+        # Status badge
         self.status_label = QLabel(self.task.status.value)
         self.status_label.setStyleSheet("""
             background-color: #2b2b2b;
@@ -88,45 +88,45 @@ class DownloadCardWidget(QFrame):
 
         layout.addLayout(top_layout)
 
-        # 2. Ana İlerleme Çubuğu
+        # 2. Main Progress Bar
         self.main_progress = QProgressBar()
         self.main_progress.setRange(0, 100)
         self.main_progress.setValue(int(self.task.progress_percent))
         layout.addWidget(self.main_progress)
 
-        # 3. IDM Tarzı Mini Parça (Chunk) Görselleştirici Konteyneri
+        # 3. IDM-style Mini Chunk Visualizer Container
         self.chunks_container = QWidget()
         self.chunks_layout = QHBoxLayout(self.chunks_container)
         self.chunks_layout.setContentsMargins(0, 0, 0, 0)
         self.chunks_layout.setSpacing(3)
         layout.addWidget(self.chunks_container)
 
-        # Parça çubuklarını başlat
+        # Initialize chunk bars
         self._init_chunk_indicators()
 
-        # 4. Alt Satır: Hız, Boyut, ETA ve Kontrol Butonları
+        # 4. Bottom Row: Speed, Size, ETA, and Control Buttons
         bottom_layout = QHBoxLayout()
 
-        # İstatistikler etiketi
+        # Statistics label
         self.stats_label = QLabel("0 KB / 0 KB | 0 KB/s | Remaining: --:--")
         self.stats_label.setStyleSheet("color: #a0a0a0; font-size: 12px;")
         bottom_layout.addWidget(self.stats_label)
 
         bottom_layout.addStretch()
 
-        # Duraklat / Devam Et Butonu
+        # Pause / Resume Button
         self.pause_resume_btn = QPushButton("⏸️ Pause")
         self.pause_resume_btn.setStyleSheet("padding: 4px 10px; font-size: 11px;")
         self.pause_resume_btn.clicked.connect(self._on_pause_resume_clicked)
         bottom_layout.addWidget(self.pause_resume_btn)
 
-        # Klasörü Aç Butonu
+        # Open Folder Button
         self.open_folder_btn = QPushButton("📁 Open Folder")
         self.open_folder_btn.setStyleSheet("padding: 4px 10px; font-size: 11px;")
         self.open_folder_btn.clicked.connect(self._open_folder)
         bottom_layout.addWidget(self.open_folder_btn)
 
-        # İptal / Sil Butonu
+        # Cancel / Delete Button
         self.cancel_btn = QPushButton("❌")
         self.cancel_btn.setToolTip("Cancel / Delete Task")
         self.cancel_btn.setStyleSheet("""
@@ -147,13 +147,13 @@ class DownloadCardWidget(QFrame):
         layout.addLayout(bottom_layout)
 
     def _init_chunk_indicators(self) -> None:
-        """IDM benzeri parça segmentlerini oluşturur."""
-        # Eski çubukları temizle
+        """Initializes IDM-like chunk indicators."""
+        # Clean up old bars
         for bar in self._chunk_bars:
             bar.deleteLater()
         self._chunk_bars.clear()
 
-        # Görevin kaç parçası varsa o kadar mini bar oluştur (varsayılan: 8)
+        # Create chunk indicators matching task chunks (default: 8)
         chunk_count = len(self.task.chunks) if self.task.chunks else 8
         for i in range(chunk_count):
             cbar = QProgressBar()
@@ -176,11 +176,11 @@ class DownloadCardWidget(QFrame):
             self._chunk_bars.append(cbar)
 
     def update_from_task(self) -> None:
-        """Kart üzerindeki verileri mevcut görev durumuna göre yeniler."""
+        """Refreshes card UI from current task status."""
         self.update_task_info(self.task)
 
     def update_task_info(self, task: DownloadTask) -> None:
-        """Görev nesnesi güncellendiğinde kart üzerindeki etiket ve istatistikleri yeniler."""
+        """Updates labels and statistics when task object changes."""
         self.task = task
         ext = os.path.splitext(self.task.filename)[1].replace(".", "").upper()
         if not ext:
@@ -197,7 +197,7 @@ class DownloadCardWidget(QFrame):
         self._update_stats_text()
 
     def update_progress(self, data: Dict[str, Any]) -> None:
-        """İndirme motorundan gelen anlık ilerleme paketini uygular."""
+        """Applies incoming progress update dictionary from download engine."""
         percent = int(data.get("percent", 0))
         self.main_progress.setValue(percent)
 
@@ -214,14 +214,14 @@ class DownloadCardWidget(QFrame):
         )
 
     def update_chunk_progress(self, chunk_id: int, downloaded: int, total: int) -> None:
-        """Tek bir parçanın mini ilerleme göstergesini günceller."""
+        """Updates mini progress bar for a single chunk."""
         if 0 <= chunk_id < len(self._chunk_bars):
             if total > 0:
                 pct = int((downloaded / total) * 100)
                 self._chunk_bars[chunk_id].setValue(min(100, max(0, pct)))
 
     def update_status(self, status_str: str) -> None:
-        """Durum rozetini ve buton metinlerini günceller."""
+        """Updates status badge and button labels."""
         self.status_label.setText(status_str)
 
         if status_str == DownloadStatus.DOWNLOADING.value:
@@ -256,20 +256,21 @@ class DownloadCardWidget(QFrame):
         )
 
     def _on_pause_resume_clicked(self) -> None:
-        """Duraklat veya Devam Et butonuna tıklandığında çalışır."""
+        """Triggered when Pause or Resume button is clicked."""
         if self.task.status == DownloadStatus.DOWNLOADING:
             self.pause_requested.emit(self.task.task_id)
         elif self.task.status in (DownloadStatus.PAUSED, DownloadStatus.FAILED):
             self.resume_requested.emit(self.task.task_id)
 
     def _open_folder(self) -> None:
-        """Dosyanın bulunduğu klasörü Windows Gezgini'nde açar ve dosyayı seçer."""
+        """Opens destination folder in Windows Explorer and selects the file."""
         final_path = os.path.normpath(self.task.final_file_path)
         folder = os.path.normpath(self.task.destination_folder)
 
         if os.path.exists(final_path):
-            # Dosyayı seçili olarak aç
+            # Open with file selected
             subprocess.Popen(f'explorer /select,"{final_path}"')
         elif os.path.exists(folder):
-            # Henüz dosya inmediyse doğrudan klasörü aç
+            # Open folder directly if file does not exist yet
             subprocess.Popen(f'explorer "{folder}"')
+

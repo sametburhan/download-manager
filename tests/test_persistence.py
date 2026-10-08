@@ -1,13 +1,13 @@
 """
-Download Manager - Görev Kalıcılığı ve Yeniden Yükleme Testi (test_persistence.py)
+Download Manager - Task Persistence and Reload Test (test_persistence.py)
 
-Bu test:
-1. Görevlerin DownloadTask.to_dict ve from_dict ile serileştirildiğini doğrular.
-2. TaskManager'a eklenen HTTP ve Medya görevlerinin diske (tasks.json) yazıldığını doğrular.
-3. Uygulama kapandığında ve yeni bir TaskManager açıldığında görevlerin eksiksiz geri yüklendiğini doğrular.
-4. Tamamlanmamış görevlerin yeniden açılışta güvenli şekilde PAUSED durumuna geçtiğini doğrular.
-5. MainWindow açılışında kayıtlı görevlerin tabloya ve kategori sayaçlarına yansıdığını doğrular.
-6. Görev silindiğinde tasks.json dosyasının da güncellendiğini doğrular.
+This test suite:
+1. Verifies tasks are serialized with DownloadTask.to_dict and from_dict.
+2. Verifies HTTP and Media tasks added to TaskManager are written to disk (tasks.json).
+3. Verifies tasks are fully restored when app closes and a new TaskManager opens.
+4. Verifies unfinished tasks safely transition to PAUSED upon reload.
+5. Verifies recorded tasks reflect on table and category counters when MainWindow opens.
+6. Verifies tasks.json is updated when a task is deleted.
 """
 
 import os
@@ -32,7 +32,7 @@ class TestTaskPersistence(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication(sys.argv)
 
     def test_01_model_serialization(self):
-        """DownloadTask to_dict ve from_dict işlevselliğini test eder."""
+        """Tests DownloadTask to_dict and from_dict functionality."""
         task = DownloadTask(
             task_id="test_ser_1",
             url="https://example.com/video.mp4",
@@ -54,7 +54,7 @@ class TestTaskPersistence(unittest.TestCase):
         self.assertEqual(data["task_type"], "MEDIA_VIDEO")
         self.assertEqual(len(data["chunks"]), 2)
 
-        # from_dict ile geri yükle: aktif DOWNLOADING durumu PAUSED olmalı
+        # Restore via from_dict: active DOWNLOADING status must become PAUSED
         restored = DownloadTask.from_dict(data)
         self.assertEqual(restored.task_id, "test_ser_1")
         self.assertEqual(restored.task_type, TaskType.MEDIA_VIDEO)
@@ -64,11 +64,11 @@ class TestTaskPersistence(unittest.TestCase):
         self.assertTrue(restored.chunks[0].is_completed)
 
     def test_02_task_manager_save_and_reload(self):
-        """TaskManager'ın tasks.json dosyasına yazıp yeni oturumda geri yüklemesini test eder."""
+        """Tests TaskManager writing to tasks.json and restoring in a new session."""
         with tempfile.TemporaryDirectory() as tmpdir:
             tasks_file = os.path.join(tmpdir, "tasks.json")
 
-            # 1. Oturum: İki görev ekle (biri tamamlanmış, biri duraklatılmış)
+            # Session 1: Add two tasks (one completed, one paused)
             tm1 = TaskManager(default_download_dir=tmpdir, tasks_file=tasks_file, auto_load=False)
 
             task1 = DownloadTask(
@@ -102,24 +102,24 @@ class TestTaskPersistence(unittest.TestCase):
                 saved = json.load(f)
             self.assertEqual(len(saved), 2)
 
-            # 2. Oturum: Uygulama kapatıldı ve yeniden açıldı (tm2)
+            # Session 2: Application closed and reopened (tm2)
             tm2 = TaskManager(default_download_dir=tmpdir, tasks_file=tasks_file, auto_load=True)
             self.assertEqual(len(tm2.tasks), 2)
             self.assertIn("t1", tm2.tasks)
             self.assertIn("t2", tm2.tasks)
 
-            # t1 COMPLETED kalmalı
+            # t1 must remain COMPLETED
             self.assertEqual(tm2.tasks["t1"].status, DownloadStatus.COMPLETED)
-            # t2 güvenli şekilde PAUSED olmalı
+            # t2 must safely become PAUSED
             self.assertEqual(tm2.tasks["t2"].status, DownloadStatus.PAUSED)
             self.assertEqual(tm2.tasks["t2"].downloaded_size, 2000)
 
     def test_03_main_window_loads_persisted_tasks_and_shows_categories(self):
-        """MainWindow açıldığında persisted görevlerin tabloya ve kategori sayaçlarına yansıdığını test eder."""
+        """Tests that persisted tasks reflect on table and category counters when MainWindow opens."""
         with tempfile.TemporaryDirectory() as tmpdir:
             tasks_file = os.path.join(tmpdir, "tasks.json")
 
-            # Görevleri dosyaya yaz
+            # Write tasks to file
             tm_init = TaskManager(default_download_dir=tmpdir, tasks_file=tasks_file, auto_load=False)
             task_video = DownloadTask(
                 task_id="v1",
@@ -143,17 +143,17 @@ class TestTaskPersistence(unittest.TestCase):
             tm_init.tasks["i1"] = task_img
             tm_init.save_tasks(force=True)
 
-            # MainWindow başlat
+            # Launch MainWindow
             bridge = ServerBridge()
             tm = TaskManager(default_download_dir=tmpdir, tasks_file=tasks_file, auto_load=True)
             win = MainWindow(task_manager=tm, bridge=bridge)
 
-            # Tabloda 2 görev olmalı ve empty_label gizlenmeli
+            # Table must have 2 tasks and empty_label must be hidden
             self.assertEqual(win.downloads_table.rowCount(), 2)
             self.assertEqual(len(win.cards), 2)
             self.assertTrue(win.empty_label.isHidden())
 
-            # Kategori sayaçları doğru olmalı
+            # Category counters must be correct
             all_text = win.sidebar_items["ALL"][0].text(0)
             self.assertIn("(2)", all_text)
 
@@ -163,7 +163,7 @@ class TestTaskPersistence(unittest.TestCase):
             image_text = win.sidebar_items["Image"][0].text(0)
             self.assertIn("(1)", image_text)
 
-            # Silme işlemi tasks.json'ı da güncellemeli
+            # Deletion must also update tasks.json
             tm.remove_task("i1", delete_file=False)
             with open(tasks_file, "r", encoding="utf-8") as f:
                 after_delete = json.load(f)
@@ -173,17 +173,17 @@ class TestTaskPersistence(unittest.TestCase):
             win.close()
 
     def test_04_deleted_file_from_disk_preserves_task_in_app_and_tasks_json(self):
-        """Diskteki dosya silinse bile uygulamanın görevi silmediğini, tasks.json'da tuttuğunu
-        ve sadece arayüzden silindiğinde listenin güncellendiğini doğrular."""
+        """Verifies that even if file is deleted from disk, the application preserves the task, keeps it in tasks.json,
+        and only updates the list when deleted from the UI."""
         with tempfile.TemporaryDirectory() as tmpdir:
             tasks_file = os.path.join(tmpdir, "tasks.json")
             download_dir = os.path.join(tmpdir, "Downloads")
             os.makedirs(download_dir, exist_ok=True)
 
-            # 1. Tamamlanmış bir indirme simüle et ve diskte dosyasını oluştur
+            # 1. Simulate completed download and create file on disk
             real_file_path = os.path.join(download_dir, "my_video.mp4")
             with open(real_file_path, "wb") as f:
-                f.write(b"0" * (2 * 1024 * 1024))  # 2 MB dosya
+                f.write(b"0" * (2 * 1024 * 1024))  # 2 MB file
 
             tm1 = TaskManager(default_download_dir=download_dir, tasks_file=tasks_file, auto_load=False)
             completed_task = DownloadTask(
@@ -200,34 +200,34 @@ class TestTaskPersistence(unittest.TestCase):
             tm1.tasks["persist_test_1"] = completed_task
             tm1.save_tasks(force=True)
 
-            # 2. Kullanıcı dosyayı İndirilenler klasöründen siler
+            # 2. User deletes file from Downloads folder
             self.assertTrue(os.path.exists(real_file_path))
             os.remove(real_file_path)
             self.assertFalse(os.path.exists(real_file_path))
 
-            # 3. Uygulama açılır (yeni oturum / TaskManager ve MainWindow)
+            # 3. Application opens (new session / TaskManager and MainWindow)
             tm2 = TaskManager(default_download_dir=download_dir, tasks_file=tasks_file, auto_load=True)
             self.assertIn("persist_test_1", tm2.tasks)
             loaded_task = tm2.tasks["persist_test_1"]
 
-            # Görev COMPLETED kalmalı, boyutu ve adı korunmalı
+            # Task must remain COMPLETED; size and name must be preserved
             self.assertEqual(loaded_task.status, DownloadStatus.COMPLETED)
             self.assertEqual(loaded_task.filename, "my_video.mp4")
             self.assertEqual(loaded_task.formatted_total_size, "2.00 MB")
 
-            # 4. Arayüz tablosunda görev eksiksiz yer almalı
+            # 4. Task must appear completely in UI table
             bridge = ServerBridge()
             win = MainWindow(task_manager=tm2, bridge=bridge)
             self.assertEqual(win.downloads_table.rowCount(), 1)
             self.assertEqual(len(win.cards), 1)
 
-            # Kategori sayaçları Completed ve Video olarak doğru saymalı
+            # Category counters must accurately count Completed and Video
             all_text = win.sidebar_items["ALL"][0].text(0)
             self.assertIn("(1)", all_text)
             completed_text = win.sidebar_items["COMPLETED"][0].text(0)
             self.assertIn("(1)", completed_text)
 
-            # 5. tasks.json dosyasında kayıt hala korunuyor olmalı
+            # 5. Record must still be preserved in tasks.json
             with open(tasks_file, "r", encoding="utf-8") as f:
                 json_data = json.load(f)
             self.assertEqual(len(json_data), 1)
@@ -235,12 +235,12 @@ class TestTaskPersistence(unittest.TestCase):
             self.assertEqual(json_data[0]["status"], "COMPLETED")
             self.assertEqual(json_data[0]["total_size"], 2 * 1024 * 1024)
 
-            # 6. SADECE kullanıcı arayüzden sildiğinde liste güncellenmeli
+            # 6. List must update ONLY when user deletes from UI
             win._delete_tasks_batch(["persist_test_1"], delete_files=False)
             self.assertEqual(win.downloads_table.rowCount(), 0)
             self.assertEqual(len(tm2.tasks), 0)
 
-            # tasks.json güncellenmiş ve boş olmalı
+            # tasks.json must be updated and empty
             with open(tasks_file, "r", encoding="utf-8") as f:
                 updated_json = json.load(f)
             self.assertEqual(len(updated_json), 0)

@@ -1,3 +1,3 @@
 """
-Download Manager Çekirdek İndirme Motorları Modülü
+Download Manager Core Download Engines Module
 """

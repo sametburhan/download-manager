@@ -1,5 +1,5 @@
 """
-Aşama 2 Medya İndirme Motoru (yt-dlp) Doğrulama Testi
+Stage 2 Media Download Engine (yt-dlp) Verification Test
 """
 
 import sys
@@ -21,18 +21,18 @@ class TestMediaDownloader(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication(sys.argv)
 
     def test_01_yt_dlp_import_and_version(self):
-        """yt-dlp kütüphanesinin başarıyla yüklendiğini ve sürüm verebildiğini test eder."""
+        """Tests that yt-dlp library is loaded successfully and reports version."""
         import yt_dlp.version
         self.assertIsNotNone(yt_dlp.version.__version__)
 
     def test_02_media_info_extractor_signals(self):
-        """MediaInfoExtractor sınıfının QThread sinyallerinin doğru bağlandığını test eder."""
+        """Tests that MediaInfoExtractor QThread signals are properly connected."""
         extractor = MediaInfoExtractor("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
         self.assertTrue(hasattr(extractor, "metadata_ready"))
         self.assertTrue(hasattr(extractor, "error_occurred"))
 
     def test_03_media_downloader_signals(self):
-        """MediaDownloader sınıfının QThread sinyallerinin ve iptal mantığının hazır olduğunu test eder."""
+        """Tests that MediaDownloader QThread signals and cancellation logic are ready."""
         task = DownloadTask(
             task_id="media_test_01",
             url="https://example.com/video.mp4",

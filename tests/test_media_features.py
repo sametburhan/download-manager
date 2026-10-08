@@ -23,23 +23,23 @@ from app.ui.compact_download_window import is_video_stream_url
 
 
 class TestMediaFeatures(unittest.TestCase):
-    """YouTube ve Medya akışı indirme yeteneklerini test eder."""
+    """Tests YouTube and media streaming download capabilities."""
 
     def test_ffmpeg_detection(self):
-        """FFmpeg çalıştırılabilir dosyasının başarıyla tespit edildiğini doğrular."""
+        """Verifies that FFmpeg executable is successfully detected."""
         ffmpeg = get_ffmpeg_path()
         if ffmpeg is not None:
-            self.assertTrue(os.path.exists(ffmpeg), f"FFmpeg yolu mevcut bir dosya olmalıdır: {ffmpeg}")
+            self.assertTrue(os.path.exists(ffmpeg), f"FFmpeg path must be an existing file: {ffmpeg}")
 
     def test_js_runtime_detection(self):
-        """Node.js veya Deno runtime tespitini kontrol eder."""
+        """Checks Node.js or Deno runtime detection."""
         runtimes = get_js_runtimes()
         self.assertIsInstance(runtimes, dict)
         if shutil.which("node"):
             self.assertIn("node", runtimes)
 
     def test_ytdl_base_opts(self):
-        """Temel yt-dlp seçeneklerinin doğru parametreleri içerdiğini test eder."""
+        """Tests that basic yt-dlp options contain correct parameters."""
         headers = {"Referer": "https://stream-site.com", "User-Agent": "Mozilla/5.0"}
         opts = get_ytdl_base_opts(headers=headers)
 
@@ -50,7 +50,7 @@ class TestMediaFeatures(unittest.TestCase):
             self.assertIn("ffmpeg_location", opts)
 
     def test_is_video_stream_url(self):
-        """is_video_stream_url fonksiyonunun YouTube ve video akışlarını tespitini test eder."""
+        """Tests detection of YouTube and video streams by is_video_stream_url."""
         self.assertTrue(is_video_stream_url("https://www.youtube.com/watch?v=aqz-KE-bpKQ"))
         self.assertTrue(is_video_stream_url("https://youtu.be/aqz-KE-bpKQ"))
         self.assertTrue(is_video_stream_url("https://youtube.com/shorts/abcdefgh123"))
@@ -58,12 +58,12 @@ class TestMediaFeatures(unittest.TestCase):
         self.assertTrue(is_video_stream_url("https://cdn.example.com/playlist.m3u8"))
         self.assertTrue(is_video_stream_url("https://vimeo.com/12345678"))
 
-        # Standart dosya linkleri video akışı sayılmamalı
+        # Standard file links should not be considered video streams
         self.assertFalse(is_video_stream_url("https://example.com/archive.zip"))
         self.assertFalse(is_video_stream_url("https://example.com/document.pdf"))
 
     def test_task_manager_headers_forwarding(self):
-        """TaskManager.add_media_download metodunun headers parametresini göreve aktardığını test eder."""
+        """Tests that TaskManager.add_media_download forwards headers parameter to task."""
         import tempfile
         with tempfile.TemporaryDirectory() as tmpdir:
             tm = TaskManager(
@@ -86,12 +86,12 @@ class TestMediaFeatures(unittest.TestCase):
             self.assertEqual(task.headers, test_headers)
             self.assertEqual(task.task_type, TaskType.MEDIA_VIDEO)
             self.assertEqual(task.filename, "Test Movie S01E01")
-            # Kategori uzantı olmasa dahi Video olmalı, Other olmamalı
+            # Category must be Video, not Other, even without extension
             self.assertEqual(task.category, "Video")
             self.assertEqual(task.category_icon, "🎬")
 
     def test_media_task_category_and_size_resolution(self):
-        """Medya görevlerinin kategori, ikon ve boyutlarının doğru çözümlendiğini doğrular."""
+        """Verifies that category, icon, and sizes of media tasks are correctly resolved."""
         import tempfile
         with tempfile.TemporaryDirectory() as tmpdir:
             task = DownloadTask(
@@ -102,12 +102,12 @@ class TestMediaFeatures(unittest.TestCase):
                 task_type=TaskType.MEDIA_VIDEO
             )
 
-            # 1. Başlangıçta boyut bilinmediğinde Türkçe 'Bilinmiyor' değil İngilizce 'Unknown' dönmeli
+            # 1. Initially when size is unknown, should return English 'Unknown'
             self.assertEqual(task.formatted_total_size, "Unknown")
             self.assertEqual(task.category, "Video")
             self.assertEqual(task.category_icon, "🎬")
 
-            # 2. Disk üzerinde dosya oluştuğunda otomatik disk boyutunu almalı
+            # 2. Should automatically pick up file size when file exists on disk
             mp4_file = os.path.join(tmpdir, "Do NOT mess with this channel.mp4")
             with open(mp4_file, "wb") as f:
                 f.write(b"X" * (5 * 1024 * 1024))  # 5 MB
@@ -116,7 +116,7 @@ class TestMediaFeatures(unittest.TestCase):
             self.assertEqual(task.filename, "Do NOT mess with this channel.mp4")
             self.assertEqual(task.category, "Video")
 
-            # 3. Ses/Müzik görevi testi
+            # 3. Audio/Music task test
             audio_task = DownloadTask(
                 task_id="test5678",
                 url="https://www.youtube.com/watch?v=aqz-KE-bpKQ",
@@ -129,7 +129,7 @@ class TestMediaFeatures(unittest.TestCase):
             self.assertEqual(audio_task.formatted_total_size, "Unknown")
 
     def test_media_dialog_idm_progress_view(self):
-        """MediaQualityDialog'un IDM tarzı canlı ilerleme görünümüne geçişini ve alanlarını doğrular."""
+        """Verifies MediaQualityDialog transition to IDM-style live progress view and its fields."""
         import sys
         from PyQt6.QtWidgets import QApplication
         from app.ui.media_dialog import MediaQualityDialog
@@ -154,10 +154,10 @@ class TestMediaFeatures(unittest.TestCase):
         # Mock add_media_download to avoid real network thread
         tm.add_media_download = lambda **kwargs: "mock_task_123"
 
-        # 1. Başlangıçta 0. indeksteki kalite seçim sayfasında olmalı
+        # 1. Initially should be on quality selection page at index 0
         self.assertEqual(dialog.stack.currentIndex(), 0)
 
-        # 2. İndirme başlatıldığında 1. sayfaya (IDM Canlı İlerleme Görünümü) geçmeli
+        # 2. When download starts, should switch to page 1 (IDM Live Progress View)
         dialog.extracted_info = {"title": "Test Video Title"}
         dialog.format_combo.addItem("1080p FHD", "height_1080")
         dialog.format_combo.setCurrentIndex(0)
@@ -166,7 +166,7 @@ class TestMediaFeatures(unittest.TestCase):
         self.assertEqual(dialog.stack.currentIndex(), 1)
         self.assertEqual(dialog.current_task_id, "mock_task_123")
 
-        # 3. IDM alanlarının varlığını doğrula
+        # 3. Verify presence of IDM fields
         self.assertIn("Connecting", dialog.status_val.text())
         self.assertEqual(dialog.prog_title_label.text(), "Test Video Title")
         self.assertTrue(dialog.progress_bar.isVisible())
@@ -174,7 +174,7 @@ class TestMediaFeatures(unittest.TestCase):
         self.assertTrue(dialog.play_video_btn.isVisible())
         self.assertTrue(dialog.pause_btn.isVisible())
 
-        # 4. İlerleme sinyali simülasyonu
+        # 4. Simulate progress signal
         dialog._on_progress_updated({
             "task_id": dialog.current_task_id,
             "percent": 45.0,
@@ -187,7 +187,7 @@ class TestMediaFeatures(unittest.TestCase):
         self.assertIn("45.0%", dialog.downloaded_val.text())
         self.assertEqual(dialog.speed_val.text(), "5.50 MB/s")
 
-        # 5. Tamamlanma simülasyonu
+        # 5. Simulate completion
         dialog._on_finished(dialog.current_task_id, "")
         self.assertEqual(dialog.progress_bar.value(), 100)
         self.assertIn("Completed", dialog.status_val.text())

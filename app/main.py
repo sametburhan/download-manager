@@ -1,15 +1,15 @@
 """
-Download Manager - Ana Başlangıç Noktası (Application Entry Point)
+Download Manager - Application Entry Point (main.py)
 
-Bu dosya, Windows 11 Fluent tasarımına sahip modern kullanıcı arayüzünü (MainWindow),
-WebSocket haberleşme sunucusunu ve çok parçalı indirme motorunu bir araya getirerek
-uygulamayı başlatır.
+This file launches the application by bringing together the modern user interface
+with Windows 11 Fluent design (MainWindow), the WebSocket communication server,
+and the multi-chunk download engine.
 """
 
 import sys
 import os
 
-# Proje ana dizinini Python yoluna ekle (python app/main.py çalıştırıldığında 'app' paketinin bulunması için)
+# Add project root directory to Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from PyQt6.QtWidgets import QApplication
@@ -24,7 +24,7 @@ from app.utils.icon_utils import get_app_icon
 
 
 def load_stylesheet(app: QApplication) -> None:
-    """Download Manager modern QSS stil dosyasını yükler."""
+    """Loads Download Manager modern QSS stylesheet."""
     ab_qss_path = os.path.join(os.path.dirname(__file__), "ui", "styles", "ab_dark_theme.qss")
     fallback_qss_path = os.path.join(os.path.dirname(__file__), "ui", "styles", "windows11_dark.qss")
     
@@ -38,44 +38,44 @@ def load_stylesheet(app: QApplication) -> None:
 
 
 def main():
-    # 0. Windows Görev Çubuğunda Kendi Logo ve İkonumuzu Göster
+    # 0. Set Explicit AppUserModelID to display custom icon in Windows Taskbar
     try:
         import ctypes
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("downloadmanager.desktop.app.1.0")
     except Exception:
         pass
 
-    # 1. PyQt6 Uygulamasını Başlat
+    # 1. Initialize PyQt6 Application
     from app import __version__
     app = QApplication(sys.argv)
     app.setApplicationName("Download Manager")
     app.setApplicationVersion(__version__)
 
-    # Uygulama ve tüm pencereler için resmi logoyu ata
+    # Set official logo for application and all windows
     app.setWindowIcon(get_app_icon())
 
-    # Pencereler kapandığında uygulamanın sistem tepsisinde açık kalmasını sağla
+    # Ensure application stays active in system tray when windows are closed
     app.setQuitOnLastWindowClosed(False)
 
-    # 2. Modern Koyu Temayı Uygula
+    # 2. Apply Modern Dark Theme
     load_stylesheet(app)
 
-    # 3. Çekirdek Yöneticileri ve Sinyal Köprüsünü Oluştur
+    # 3. Initialize Core Managers and Signal Bridge
     bridge = ServerBridge()
     task_manager = TaskManager()
 
-    # 4. Ana Pencereyi Oluştur ve Sinyalleri Bağla
+    # 4. Create Main Window and Connect Signals
     window = MainWindow(task_manager=task_manager, bridge=bridge)
 
-    # 5. Sistem Tepsisi Yöneticisini (System Tray) Başlat
+    # 5. Initialize System Tray Manager
     tray_manager = TrayManager(main_window=window, task_manager=task_manager)
     window.tray_manager = tray_manager
 
-    # 6. WebSocket Sunucusunu Başlat
+    # 6. Start WebSocket Server
     ws_thread = WebSocketServerThread(host="127.0.0.1", port=6800, bridge=bridge)
     ws_thread.start()
 
-    # Uygulama tamamen kapatıldığında WebSocket sunucusunu temiz durdur, görevleri kaydet ve tepsi simgesini kaldır
+    # Clean shutdown hook: stop WebSocket server, save tasks, and hide tray icon
     def on_exit():
         try:
             task_manager.save_tasks(force=True)
@@ -90,7 +90,7 @@ def main():
 
     app.aboutToQuit.connect(on_exit)
 
-    # 7. Başlatma Modu: Eğer --tray veya --minimized ile açıldıysa pencereyi gösterme, tepside kal
+    # 7. Startup Mode: If opened with --tray or --minimized, stay silently in tray
     start_minimized = ("--tray" in sys.argv) or ("--minimized" in sys.argv)
     if not start_minimized:
         window.show()
@@ -100,8 +100,9 @@ def main():
             "Application started silently in system tray at Windows startup."
         )
 
-    # 8. Olay Döngüsünü Çalıştır
+    # 8. Run Event Loop
     sys.exit(app.exec())
+
 
 
 if __name__ == "__main__":

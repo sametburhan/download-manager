@@ -1,9 +1,8 @@
 """
-Download Manager - Windows Başlangıcında Otomatik Başlatma Modülü (autostart.py)
+Download Manager - Windows Autostart on Boot Module (autostart.py)
 
-Windows Kayıt Defteri (Registry) 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run'
-anahtarı üzerinden uygulamanın bilgisayar açıldığında arka planda (sistem tepsisinde)
-otomatik olarak başlatılmasını yönetir.
+Manages launching the application automatically in the background (system tray)
+on Windows logon via HKCU\Software\Microsoft\Windows\CurrentVersion\Run registry key.
 """
 
 import os
@@ -15,17 +14,17 @@ APP_REG_NAME = "DownloadManagerPro"
 
 def get_startup_command(minimized: bool = True) -> str:
     """
-    Windows açılışında çalıştırılacak tam komut satırını üretir.
-    pythonw.exe kullanılarak konsol siyah ekranının açılması engellenir.
+    Generates the complete command line to execute on Windows startup.
+    Uses pythonw.exe to prevent launching a console terminal window.
     """
     python_dir = os.path.dirname(sys.executable)
     pythonw_path = os.path.join(python_dir, "pythonw.exe")
 
-    # Eğer pythonw.exe yoksa normal python.exe kullan
+    # If pythonw.exe does not exist, fallback to sys.executable
     if not os.path.exists(pythonw_path):
         pythonw_path = sys.executable
 
-    # Proje ana run.py dosyasının yolu
+    # Absolute path to main run.py entry point
     root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
     run_py = os.path.join(root_dir, "run.py")
 
@@ -37,7 +36,7 @@ def get_startup_command(minimized: bool = True) -> str:
 
 
 def is_autostart_enabled() -> bool:
-    """Uygulamanın Windows başlangıcına ekli olup olmadığını kontrol eder."""
+    """Checks whether the application is registered in Windows startup registry."""
     try:
         key = winreg.OpenKey(
             winreg.HKEY_CURRENT_USER,
@@ -58,10 +57,10 @@ def is_autostart_enabled() -> bool:
 
 def set_autostart(enabled: bool, run_minimized: bool = True) -> bool:
     """
-    Uygulamayı Windows başlangıcına ekler veya kaldırır.
-    :param enabled: True ise açılışa ekle, False ise kaldır.
-    :param run_minimized: Açılışta doğrudan sistem tepsisinde sessiz başla.
-    :return: Başarılı ise True
+    Adds or removes the application from Windows startup.
+    :param enabled: True to register startup, False to remove.
+    :param run_minimized: Start silently minimized to the system tray.
+    :return: True if successful, False otherwise.
     """
     try:
         key = winreg.OpenKey(

@@ -1,10 +1,10 @@
 """
-Ağ Ayarları ve Yapılandırma Testleri (test_settings.py)
+Network Settings and Configuration Tests (test_settings.py)
 
-Bu test dosyası:
-1. NetworkSettings veri modelinin varsayılanlarını ve JSON kaydetme/yükleme işlemlerini doğrular.
-2. NetworkSettingsDialog arayüzünün görseldeki alanlarını (Timeout, Segments, Retries, Speed Limit, Proxy) test eder.
-3. Hız sınırı ve proxy alanlarının dinamik aktifleşme/pasifleşme mantığını test eder.
+This test suite:
+1. Verifies NetworkSettings data model defaults and JSON save/load operations.
+2. Tests NetworkSettingsDialog UI fields (Timeout, Segments, Retries, Speed Limit, Proxy).
+3. Tests dynamic enable/disable logic for speed limiter and proxy fields.
 """
 
 import sys
@@ -24,7 +24,7 @@ class TestNetworkSettings(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication(sys.argv)
 
     def test_01_default_settings(self):
-        """Varsayılan ağ ayarları değerlerini doğrular."""
+        """Verifies default network settings values."""
         s = NetworkSettings()
         self.assertEqual(s.connection_timeout, 30)
         self.assertEqual(s.segments_per_download, 8)
@@ -34,7 +34,7 @@ class TestNetworkSettings(unittest.TestCase):
         self.assertEqual(s.proxy_mode, "system")
 
     def test_02_save_and_load_settings(self):
-        """Ayarların JSON dosyasına kaydedilip geri yüklenebildiğini doğrular."""
+        """Verifies settings can be saved to and loaded from JSON file."""
         s = NetworkSettings(
             connection_timeout=45,
             segments_per_download=16,
@@ -62,11 +62,11 @@ class TestNetworkSettings(unittest.TestCase):
         self.assertEqual(loaded.proxy_user, "testuser")
         self.assertEqual(loaded.proxy_pass, "secret")
 
-        # Varsayılana geri al
+        # Revert to defaults
         save_network_settings(NetworkSettings())
 
     def test_03_settings_dialog_ui_components(self):
-        """NetworkSettingsDialog bileşenlerinin ve kullanıcı görselindeki alanların varlığını doğrular."""
+        """Verifies presence of NetworkSettingsDialog components and fields matching user reference."""
         dialog = NetworkSettingsDialog()
 
         self.assertEqual(dialog.windowTitle(), "Network settings")
@@ -74,25 +74,25 @@ class TestNetworkSettings(unittest.TestCase):
         self.assertEqual(dialog.spin_segments.value(), 8)
         self.assertEqual(dialog.spin_retry.value(), 10)
 
-        # Hız Sınırı Alanı
+        # Speed Limiter Field
         dialog.chk_speed_limit.setChecked(False)
         self.assertFalse(dialog.spin_speed_limit.isEnabled())
         dialog.chk_speed_limit.setChecked(True)
         self.assertTrue(dialog.spin_speed_limit.isEnabled())
 
-        # Proxy Modu Değişimi
-        # System Proxy -> Host ve Type pasif
+        # Proxy Mode Switching
+        # System Proxy -> Host and Type disabled
         dialog.combo_proxy.setCurrentIndex(0)
         self.assertFalse(dialog.combo_proxy_type.isEnabled())
         self.assertFalse(dialog.input_host.isEnabled())
 
-        # Manual Proxy -> Host ve Type aktif
+        # Manual Proxy -> Host and Type enabled
         dialog.combo_proxy.setCurrentIndex(2)
         self.assertTrue(dialog.combo_proxy_type.isEnabled())
         self.assertTrue(dialog.input_host.isEnabled())
         self.assertTrue(dialog.spin_port.isEnabled())
 
-        # Proxy Type seçenekleri
+        # Proxy Type options
         types = [dialog.combo_proxy_type.itemText(i) for i in range(dialog.combo_proxy_type.count())]
         self.assertIn("HTTP", types)
         self.assertIn("HTTPS", types)
@@ -102,12 +102,12 @@ class TestNetworkSettings(unittest.TestCase):
         dialog.close()
 
     def test_04_socks_proxy_settings_and_urls(self):
-        """SOCKS4 ve SOCKS5 proxy ayarlarının kaydedilmesi, URL üretimi ve transport oluşturulmasını test eder."""
+        """Tests saving SOCKS4 and SOCKS5 proxy settings, URL generation, and transport creation."""
         from app.core.http_downloader import HttpChunkDownloader
         from app.core.media_downloader import get_ytdl_base_opts
         from httpx_socks import SyncProxyTransport
 
-        # SOCKS5 Testi
+        # SOCKS5 Test
         s5 = NetworkSettings(
             proxy_mode="manual",
             proxy_type="SOCKS5",
@@ -131,7 +131,7 @@ class TestNetworkSettings(unittest.TestCase):
         opts5 = get_ytdl_base_opts()
         self.assertEqual(opts5.get("proxy"), "socks5://user:pass@127.0.0.1:1080")
 
-        # SOCKS4 Testi
+        # SOCKS4 Test
         s4 = NetworkSettings(
             proxy_mode="manual",
             proxy_type="SOCKS4",
@@ -152,7 +152,7 @@ class TestNetworkSettings(unittest.TestCase):
         opts4 = get_ytdl_base_opts()
         self.assertEqual(opts4.get("proxy"), "socks4://127.0.0.1:1080")
 
-        # Varsayılana geri al
+        # Revert to defaults
         save_network_settings(NetworkSettings())
         print("\n[OK] All Network Settings and UI tests passed successfully!")
 

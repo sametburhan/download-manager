@@ -25,7 +25,7 @@ class TestDeleteFeatures(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication(sys.argv)
 
     def test_01_delete_dialog_components_and_default_state(self):
-        """DeleteDownloadsDialog arayüz bileşenlerini, varsayılan durumunu ve özelliklerini test eder."""
+        """Tests DeleteDownloadsDialog UI components, default state, and properties."""
         dialog = DeleteDownloadsDialog(count=2)
 
         self.assertEqual(dialog.windowTitle(), "Delete downloads")
@@ -33,18 +33,18 @@ class TestDeleteFeatures(unittest.TestCase):
         self.assertFalse(dialog.chk_delete_files.isChecked())
         self.assertFalse(dialog.delete_from_disk)
 
-        # Kutucuğu işaretle
+        # Check checkbox
         dialog.chk_delete_files.setChecked(True)
         self.assertTrue(dialog.delete_from_disk)
 
-        # Butonlar
+        # Buttons
         self.assertEqual(dialog.btn_delete.text(), "Delete")
         self.assertEqual(dialog.btn_cancel.text(), "Cancel")
 
         dialog.close()
 
     def test_02_task_manager_remove_task_memory_only(self):
-        """TaskManager'dan dosya silinmeden yalnızca listeden (bellekten) silmeyi test eder."""
+        """Tests removing task from list (memory) without deleting file from disk."""
         with tempfile.TemporaryDirectory() as tmpdir:
             test_file = os.path.join(tmpdir, "sample.txt")
             with open(test_file, "w", encoding="utf-8") as f:
@@ -64,15 +64,15 @@ class TestDeleteFeatures(unittest.TestCase):
             )
             tm.tasks[task.task_id] = task
 
-            # delete_file=False ile sil
+            # Delete with delete_file=False
             result = tm.remove_task("task_mem_1", delete_file=False)
             self.assertTrue(result)
             self.assertNotIn("task_mem_1", tm.tasks)
-            # Dosya diskte kalmalı!
+            # File must remain on disk!
             self.assertTrue(os.path.exists(test_file))
 
     def test_03_task_manager_remove_task_permanent_disk_delete(self):
-        """TaskManager'dan kalıcı (diskten) silmeyi test eder."""
+        """Tests permanent deletion from disk via TaskManager."""
         with tempfile.TemporaryDirectory() as tmpdir:
             test_file = os.path.join(tmpdir, "permanent.mp4")
             with open(test_file, "wb") as f:
@@ -95,26 +95,26 @@ class TestDeleteFeatures(unittest.TestCase):
 
             self.assertTrue(os.path.exists(test_file))
 
-            # delete_file=True ile sil
+            # Delete with delete_file=True
             result = tm.remove_task("task_disk_1", delete_file=True)
             self.assertTrue(result)
             self.assertNotIn("task_disk_1", tm.tasks)
-            # Dosya diskten de tamamen silinmiş olmalı!
+            # File must be completely removed from disk as well!
             self.assertFalse(os.path.exists(test_file))
 
     def test_04_main_window_toolbar_delete_button_and_batch_selection(self):
-        """Ana penceredeki Delete butonu, onay kutusu seçimi ve toplu silme akışını test eder."""
+        """Tests Delete button in main window toolbar, checkbox selection, and batch deletion flow."""
         with tempfile.TemporaryDirectory() as tmpdir:
             bridge = ServerBridge()
             temp_tasks_file = os.path.join(tmpdir, "tasks.json")
             tm = TaskManager(tasks_file=temp_tasks_file)
             win = MainWindow(task_manager=tm, bridge=bridge)
 
-            # 1. Araç çubuğunda Delete butonu var mı?
+            # 1. Verify Delete button exists on toolbar
             self.assertIsNotNone(win.btn_delete)
             self.assertIn("Delete", win.btn_delete.text())
 
-            # 2. Görevleri ekle
+            # 2. Add tasks
             task1 = DownloadTask(task_id="t1", url="http://a.com/1.zip", destination_folder=".", filename="1.zip")
             task2 = DownloadTask(task_id="t2", url="http://a.com/2.zip", destination_folder=".", filename="2.zip")
             task3 = DownloadTask(task_id="t3", url="http://a.com/3.zip", destination_folder=".", filename="3.zip")
@@ -129,7 +129,7 @@ class TestDeleteFeatures(unittest.TestCase):
 
             self.assertEqual(win.downloads_table.rowCount(), 3)
 
-            # 3. Checkbox işaretleme simülasyonu: 1. ve 3. görevleri işaretle
+            # 3. Checkbox selection simulation: check tasks 1 and 3
             item_0 = win.downloads_table.item(0, 0)
             item_2 = win.downloads_table.item(2, 0)
             item_0.setCheckState(Qt.CheckState.Checked)
@@ -140,10 +140,10 @@ class TestDeleteFeatures(unittest.TestCase):
             self.assertIn("t3", selected_ids)
         self.assertNotIn("t2", selected_ids)
 
-        # 4. Toplu silme (batch delete) çalıştır
+        # 4. Execute batch delete
         win._delete_tasks_batch(selected_ids, delete_files=False)
 
-        # Tabloda yalnızca 1 satır (t2) kalmalı
+        # Only 1 row (t2) should remain in table
         self.assertEqual(win.downloads_table.rowCount(), 1)
         self.assertIn("t2", win.task_rows)
         self.assertNotIn("t1", win.task_rows)

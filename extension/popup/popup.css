@@ -21,7 +21,7 @@ body {
   gap: 10px;
 }
 
-/* Başlık */
+/* Header */
 .header {
   display: flex;
   justify-content: space-between;
@@ -122,7 +122,7 @@ h2 {
   line-height: 1.3;
 }
 
-/* Medya Listesi (IDM Tarzı) */
+/* Media List (IDM Style) */
 .media-card {
   background-color: #1e242a;
   border-color: #2c3845;
@@ -231,7 +231,7 @@ h2 {
   background-color: #1084d8;
 }
 
-/* Açma/Kapama Anahtarı (Switch) */
+/* Toggle Switch */
 .switch {
   position: relative;
   display: inline-block;
@@ -274,7 +274,7 @@ input:checked + .slider:before {
   transform: translateX(18px);
 }
 
-/* Giriş Alanları ve Butonlar */
+/* Input Fields and Buttons */
 .input-label {
   font-weight: 500;
   color: #cccccc;

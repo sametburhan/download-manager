@@ -1,8 +1,8 @@
 """
-Download Manager - Ayrıntılı İndirme ve Parça Bilgisi Penceresi (download_detail_window.py)
+Download Manager - Detailed Download & Chunk Info Window (download_detail_window.py)
 
-Bu pencere, görev detaylarını, canlı neon ilerleme çubuğunu, parça/bağlantı (chunk) segment
-görselleştiricisini (8 segment), parça bazlı indirme tablosunu ve görev ayarlarını barındırır.
+This window displays task details, live neon progress bar, chunk/connection segment
+visualizer (8 segments), per-chunk download table, and task settings.
 """
 
 import os
@@ -22,7 +22,7 @@ from app.utils.icon_utils import get_app_icon, get_app_pixmap
 
 
 class DownloadDetailWindow(QDialog):
-    """Ayrıntılı görev izleme ve bağlantı segmenti penceresi."""
+    """Detailed task monitoring and connection segments window."""
 
     def __init__(self, task: DownloadTask, task_manager: TaskManager, parent=None):
         super().__init__(parent)
@@ -42,14 +42,14 @@ class DownloadDetailWindow(QDialog):
         self._connect_signals()
 
     def _init_ui(self) -> None:
-        """Arayüz bileşenlerini ve sekmeleri kurar."""
+        """Sets up UI components and tabs."""
         self.setWindowTitle(f"{int(self.task.progress_percent)}%-{self.task.filename}")
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(16, 16, 16, 16)
         main_layout.setSpacing(14)
 
-        # 1. Başlık Çubuğu: Logo + Dosya Adı
+        # 1. Header Row: Logo + File Name
         header_layout = QHBoxLayout()
         icon_lbl = QLabel()
         icon_lbl.setPixmap(get_app_pixmap(24))
@@ -62,11 +62,11 @@ class DownloadDetailWindow(QDialog):
         header_layout.addStretch()
         main_layout.addLayout(header_layout)
 
-        # 2. Sekmeler (Info / Settings)
+        # 2. Tabs (Info / Settings)
         self.tab_widget = QTabWidget()
         self.tab_widget.setObjectName("detailTabs")
 
-        # --- INFO SEKME ---
+        # --- INFO TAB ---
         info_tab = QWidget()
         info_layout = QVBoxLayout(info_tab)
         info_layout.setContentsMargins(10, 14, 10, 10)
@@ -132,7 +132,7 @@ class DownloadDetailWindow(QDialog):
 
         info_layout.addLayout(grid)
 
-        # Neon Parlak İlerleme Çubuğu
+        # Neon Bright Progress Bar
         self.progress_bar = QProgressBar()
         self.progress_bar.setObjectName("neonProgressBar")
         self.progress_bar.setRange(0, 100)
@@ -153,7 +153,7 @@ class DownloadDetailWindow(QDialog):
         """)
         info_layout.addWidget(self.progress_bar)
 
-        # Kontrol Butonları ve Part Info Aç/Kapa
+        # Control Buttons and Part Info Toggle
         ctrl_layout = QHBoxLayout()
         self.toggle_part_btn = QPushButton("˄ Part Info")
         self.toggle_part_btn.setFlat(True)
@@ -205,13 +205,13 @@ class DownloadDetailWindow(QDialog):
 
         info_layout.addLayout(ctrl_layout)
 
-        # 3. Parça Bilgisi Paneli (Açılır / Kapanır)
+        # 3. Part Info Panel (Collapsible)
         self.part_container = QWidget()
         part_layout = QVBoxLayout(self.part_container)
         part_layout.setContentsMargins(0, 4, 0, 0)
         part_layout.setSpacing(10)
 
-        # Canlı Yeşil Segment Göstergeleri (8 Segment)
+        # Live Green Segment Indicators (8 Segments)
         segments_layout = QHBoxLayout()
         segments_layout.setSpacing(6)
         for i in range(8):
@@ -223,7 +223,7 @@ class DownloadDetailWindow(QDialog):
             segments_layout.addWidget(box)
         part_layout.addLayout(segments_layout)
 
-        # Parça Tablosu (# | Status | Downloaded | Total)
+        # Part Table (# | Status | Downloaded | Total)
         self.part_table = QTableWidget(0, 4)
         self.part_table.setHorizontalHeaderLabels(["#", "Status", "Downloaded", "Total"])
         self.part_table.verticalHeader().setVisible(False)
@@ -262,13 +262,14 @@ class DownloadDetailWindow(QDialog):
 
         self.tab_widget.addTab(info_tab, "ⓘ Info")
 
-        # --- SETTINGS SEKME ---
+
+        # --- SETTINGS TAB ---
         settings_tab = QWidget()
         set_layout = QVBoxLayout(settings_tab)
         set_layout.setContentsMargins(16, 16, 16, 16)
         set_layout.setSpacing(14)
 
-        # İndirme Klasörü
+        # Destination Folder
         folder_group = QVBoxLayout()
         folder_lbl = QLabel("Destination Download Folder:")
         folder_lbl.setStyleSheet(lbl_style)
@@ -288,7 +289,7 @@ class DownloadDetailWindow(QDialog):
         folder_group.addLayout(folder_row)
         set_layout.addLayout(folder_group)
 
-        # Maksimum Eşzamanlı Bağlantı Sayısı
+        # Maximum Concurrent Connections
         conn_group = QHBoxLayout()
         conn_lbl = QLabel("Connection (Segment) Count:")
         conn_lbl.setStyleSheet(lbl_style)
@@ -304,7 +305,7 @@ class DownloadDetailWindow(QDialog):
         conn_group.addStretch()
         set_layout.addLayout(conn_group)
 
-        # Otomatik Kapatma Seçeneği
+        # Auto Close Option
         self.chk_autoclose = QCheckBox("Automatically close this window when download completes")
         self.chk_autoclose.setStyleSheet("color: #cbd5e1; font-size: 12px;")
         set_layout.addWidget(self.chk_autoclose)
@@ -315,20 +316,20 @@ class DownloadDetailWindow(QDialog):
         main_layout.addWidget(self.tab_widget)
 
     def _connect_signals(self) -> None:
-        """TaskManager sinyallerini pencereye bağlar."""
+        """Connects TaskManager signals to window."""
         self.task_manager.task_progress.connect(self._on_task_progress)
         self.task_manager.task_chunk_progress.connect(self._on_chunk_progress)
         self.task_manager.task_status_changed.connect(self._on_status_changed)
         self.task_manager.task_finished.connect(self._on_task_finished)
 
     def _toggle_part_info(self) -> None:
-        """Parça panelini açar veya kapatır."""
+        """Toggles part info panel visibility."""
         self._is_part_info_expanded = not self._is_part_info_expanded
         self.part_container.setVisible(self._is_part_info_expanded)
         self.toggle_part_btn.setText("˄ Part Info" if self._is_part_info_expanded else "˅ Part Info")
 
     def _toggle_pause_resume(self) -> None:
-        """Görevi duraklatır veya devam ettirir."""
+        """Pauses or resumes the task."""
         if self.task.status == DownloadStatus.DOWNLOADING:
             self.task_manager.pause_task(self.task.task_id)
             self.pause_resume_btn.setText("▶ Resume")
@@ -337,14 +338,14 @@ class DownloadDetailWindow(QDialog):
             self.pause_resume_btn.setText("⏸ Pause")
 
     def _browse_folder(self) -> None:
-        """İndirme klasörü seçer."""
-        folder = QFileDialog.getExistingDirectory(self, "Hedef Klasör Seç", self.task.destination_folder)
+        """Opens folder browser."""
+        folder = QFileDialog.getExistingDirectory(self, "Select Destination Folder", self.task.destination_folder)
         if folder:
             self.task.destination_folder = folder
             self.folder_input.setText(folder)
 
     def _update_all_from_task(self) -> None:
-        """Tüm arayüz alanlarını mevcut görev nesnesine göre günceller."""
+        """Updates all UI fields based on current task object."""
         pct = int(self.task.progress_percent)
         title_str = f"{pct}%-{self.task.filename}"
         self.setWindowTitle(title_str)
@@ -366,11 +367,11 @@ class DownloadDetailWindow(QDialog):
 
         self.progress_bar.setValue(pct)
 
-        # Segment ve parça tablosu
+        # Chunks and segments view
         self._sync_chunks_view()
 
     def _sync_chunks_view(self) -> None:
-        """Parçaları tabloya ve segment kutularına doldurur."""
+        """Fills chunks into table and segment boxes."""
         chunks = self.task.chunks
         chunk_count = len(chunks) if chunks else 8
 
@@ -390,19 +391,19 @@ class DownloadDetailWindow(QDialog):
                 active = (self.task.status == DownloadStatus.DOWNLOADING)
                 done = False
 
-            # Tablo hücreleri
+            # Table cells
             self.part_table.setItem(i, 0, QTableWidgetItem(str(i + 1)))
             self.part_table.setItem(i, 1, QTableWidgetItem(status_txt))
             self.part_table.setItem(i, 2, QTableWidgetItem(down_txt))
             self.part_table.setItem(i, 3, QTableWidgetItem(tot_txt))
 
-            # Segment kutusu rengi
+            # Segment box color
             if i < len(self._segment_boxes):
                 box = self._segment_boxes[i]
                 if done:
-                    box.setStyleSheet("background-color: #15803d; border-radius: 3px;")  # Koyu yeşil (Tamamlandı)
+                    box.setStyleSheet("background-color: #15803d; border-radius: 3px;")  # Dark green (Completed)
                 elif active:
-                    box.setStyleSheet("background-color: #22c55e; border-radius: 3px; border: 1px solid #4ade80;")  # Parlak yeşil
+                    box.setStyleSheet("background-color: #22c55e; border-radius: 3px; border: 1px solid #4ade80;")  # Bright green
                 else:
                     box.setStyleSheet("background-color: #1e293b; border-radius: 3px;")
 
@@ -451,7 +452,7 @@ class DownloadDetailWindow(QDialog):
             self.pause_resume_btn.setText("⏸ Pause")
         elif status_str == DownloadStatus.PAUSED.value:
             self.pause_resume_btn.setText("▶ Resume")
-            # Segmentleri bekleme durumuna çek
+            # Set segments to waiting status
             for box in self._segment_boxes:
                 box.setStyleSheet("background-color: #1e293b; border-radius: 3px;")
 
@@ -466,7 +467,7 @@ class DownloadDetailWindow(QDialog):
         self.eta_val.setText("Finished")
         self.pause_resume_btn.setEnabled(False)
 
-        # Tüm segmentleri yeşile boya
+        # Set all segments to green
         for box in self._segment_boxes:
             box.setStyleSheet("background-color: #22c55e; border-radius: 3px;")
 
@@ -475,7 +476,7 @@ class DownloadDetailWindow(QDialog):
 
     @staticmethod
     def _format_bytes(byte_count: int) -> str:
-        """Boyutu okunabilir formata dönüştürür."""
+        """Formats byte count to readable string."""
         if byte_count <= 0:
             return "0 B"
         elif byte_count < 1024:
@@ -486,3 +487,4 @@ class DownloadDetailWindow(QDialog):
             return f"{byte_count / (1024 * 1024):.2f} MB"
         else:
             return f"{byte_count / (1024 * 1024 * 1024):.2f} GB"
+

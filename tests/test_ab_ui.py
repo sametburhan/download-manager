@@ -1,11 +1,11 @@
 """
-Download Manager UI ve Detay Penceresi Otomatik Testleri (test_ab_ui.py)
+Download Manager UI and Detail Window Automated Tests (test_ab_ui.py)
 
-Bu test dosyası:
-1. Download Manager arayüzünün (MainWindow) tablo, sütun ve hücre bileşenlerini doğrular.
-2. Canlı arama kutusu ve kategori ağacı filtreleme işlevlerini test eder.
-3. DownloadDetailWindow penceresinin sekme, parça tablosu ve canlı segment göstergelerini test eder.
-4. Satıra çift tıklama ile detay penceresinin açılmasını ve canlı sinyal aktarımını doğrular.
+This test suite:
+1. Verifies table, column, and cell components of the Download Manager UI (MainWindow).
+2. Tests live search box and category tree filtering functions.
+3. Tests DownloadDetailWindow tabs, parts table, and live segment indicators.
+4. Verifies opening detail window via double click on rows and live signal transmission.
 """
 
 import sys
@@ -46,13 +46,13 @@ class TestAbDownloadManagerUi(unittest.TestCase):
             pass
 
     def test_01_main_window_ab_structure(self):
-        """Download Manager ana pencere yapısının doğruluğunu test eder."""
+        """Tests validity of the Download Manager main window structure."""
         self.assertEqual(self.window.windowTitle(), "Download Manager")
         self.assertIsNotNone(self.window.search_bar)
         self.assertIsNotNone(self.window.sidebar_tree)
         self.assertIsNotNone(self.window.downloads_table)
 
-        # Tablo sütun sayısı ve başlıklar
+        # Table column count and headers
         self.assertEqual(self.window.downloads_table.columnCount(), 7)
         expected_headers = ["", "FILE NAME", "SIZE", "PROGRESS & STATUS", "SPEED", "TIME LEFT", "DATE"]
         for col_idx, expected in enumerate(expected_headers):
@@ -61,7 +61,7 @@ class TestAbDownloadManagerUi(unittest.TestCase):
             self.assertEqual(item.text(), expected)
 
     def test_02_add_task_table_row_and_widgets(self):
-        """Görevin tabloya özel hücrelerle eklendiğini doğrular."""
+        """Verifies task is added to table with custom cell widgets."""
         task = DownloadTask(
             task_id="ab_test_video",
             url="https://example.com/video.mp4",
@@ -76,23 +76,23 @@ class TestAbDownloadManagerUi(unittest.TestCase):
         self.task_manager.task_added.emit(task)
         self.app.processEvents()
 
-        # Tabloda en az 1 satır olmalı
+        # Table must have at least 1 row
         self.assertGreaterEqual(self.window.downloads_table.rowCount(), 1)
         row = self.window.task_rows.get("ab_test_video")
         self.assertIsNotNone(row)
 
-        # Sütun 1: FileNameCellWidget
+        # Column 1: FileNameCellWidget
         name_cell = self.window.downloads_table.cellWidget(row, 1)
         self.assertIsInstance(name_cell, FileNameCellWidget)
         self.assertEqual(name_cell.name_lbl.text(), "Stories-of-Shahnameh.mp4")
         self.assertTrue("Video" in name_cell.cat_lbl.text() or "example.com" in name_cell.cat_lbl.text())
 
-        # Sütun 3: StatusCellWidget
+        # Column 3: StatusCellWidget
         status_cell = self.window.downloads_table.cellWidget(row, 3)
         self.assertIsInstance(status_cell, StatusCellWidget)
 
     def test_03_live_progress_and_mini_bar_update(self):
-        """İlerleme sinyali ile tablodaki mini bar ve hız metriklerinin güncellendiğini test eder."""
+        """Tests that mini bar and speed metrics in table are updated via progress signal."""
         progress_data = {
             "task_id": "ab_test_video",
             "downloaded_bytes": 477385584,
@@ -116,8 +116,8 @@ class TestAbDownloadManagerUi(unittest.TestCase):
         self.assertIn("4.91 MB/s", speed_item.text())
 
     def test_04_live_search_filter(self):
-        """Canlı arama kutusunun satırları anında filtrelediğini test eder."""
-        # İkinci bir görev ekle
+        """Tests that live search box immediately filters rows."""
+        # Add a second task
         task2 = DownloadTask(
             task_id="ab_test_audio",
             url="https://example.com/audio.mp3",
@@ -133,20 +133,20 @@ class TestAbDownloadManagerUi(unittest.TestCase):
         row_video = self.window.task_rows["ab_test_video"]
         row_audio = self.window.task_rows["ab_test_audio"]
 
-        # 'Guitar' ara -> Sadece audio görünmeli
+        # Search 'Guitar' -> Only audio should be visible
         self.window.search_bar.setText("Guitar")
         self.app.processEvents()
         self.assertTrue(self.window.downloads_table.isRowHidden(row_video))
         self.assertFalse(self.window.downloads_table.isRowHidden(row_audio))
 
-        # Aramayı temizle -> İkisi de görünmeli
+        # Clear search -> Both should be visible
         self.window.search_bar.setText("")
         self.app.processEvents()
         self.assertFalse(self.window.downloads_table.isRowHidden(row_video))
         self.assertFalse(self.window.downloads_table.isRowHidden(row_audio))
 
     def test_05_download_detail_window(self):
-        """Ayrıntılı indirme penceresinin (DownloadDetailWindow) yapısını ve bileşenlerini test eder."""
+        """Tests structure and components of detailed download window (DownloadDetailWindow)."""
         task = self.task_manager.get_task("ab_test_video")
         task.downloaded_size = 477385584  # %39
         detail_win = DownloadDetailWindow(task=task, task_manager=self.task_manager, parent=self.window)
@@ -157,13 +157,13 @@ class TestAbDownloadManagerUi(unittest.TestCase):
         self.assertEqual(len(detail_win._segment_boxes), 8)
         self.assertEqual(detail_win.part_table.columnCount(), 4)
 
-        # Parça ilerleme güncellemesi
+        # Chunk progress update
         detail_win._on_chunk_progress("ab_test_video", 0, 67108864, 152406560)
         self.app.processEvents()
         item_status = detail_win.part_table.item(0, 1)
         self.assertEqual(item_status.text(), "Receiving Data")
 
-        # Part Info aç/kapa
+        # Toggle Part Info
         detail_win._toggle_part_info()
         self.assertTrue(detail_win.part_container.isHidden())
         detail_win._toggle_part_info()
@@ -172,7 +172,7 @@ class TestAbDownloadManagerUi(unittest.TestCase):
         detail_win.close()
 
     def test_06_app_icon_and_pixmap(self):
-        """Uygulama ikonu ve pixmap yardımcılarının geçerliliğini test eder."""
+        """Tests validity of application icon and pixmap utilities."""
         from app.utils.icon_utils import get_app_icon, get_app_pixmap
         icon = get_app_icon()
         self.assertFalse(icon.isNull())
@@ -182,9 +182,9 @@ class TestAbDownloadManagerUi(unittest.TestCase):
         self.assertEqual(pix.width(), 32)
         self.assertEqual(pix.height(), 32)
     def test_07_table_column_sorting(self):
-        """Tablo sütun başlıklarına tıklandığında isim, boyut ve tarihe göre sıralamayı test eder."""
-        # DATE sıralaması (Sütun 6)
-        # 1. Tıklama: Yeniden eskiye (Descending)
+        """Tests sorting by name, size, and date when table column headers are clicked."""
+        # DATE sorting (Column 6)
+        # Click 1: Newest to oldest (Descending)
         self.window._on_header_section_clicked(6)
         self.app.processEvents()
         self.assertEqual(self.window._sort_column, 6)
@@ -196,7 +196,7 @@ class TestAbDownloadManagerUi(unittest.TestCase):
         task_last = self.task_manager.get_task(last_tid)
         self.assertGreaterEqual(task_first.created_at, task_last.created_at)
 
-        # 2. Tıklama: Eskiden yeniye (Ascending)
+        # Click 2: Oldest to newest (Ascending)
         self.window._on_header_section_clicked(6)
         self.app.processEvents()
         self.assertEqual(self.window._sort_order, Qt.SortOrder.AscendingOrder)
@@ -206,26 +206,26 @@ class TestAbDownloadManagerUi(unittest.TestCase):
         task_last_asc = self.task_manager.get_task(last_tid_asc)
         self.assertLessEqual(task_first_asc.created_at, task_last_asc.created_at)
 
-        # FILE NAME sıralaması (Sütun 1)
-        # 1. Tıklama: A-Z (Ascending)
+        # FILE NAME sorting (Column 1)
+        # Click 1: A-Z (Ascending)
         self.window._on_header_section_clicked(1)
         self.app.processEvents()
         self.assertEqual(self.window._sort_column, 1)
         self.assertEqual(self.window._sort_order, Qt.SortOrder.AscendingOrder)
 
-        # 2. Tıklama: Z-A (Descending)
+        # Click 2: Z-A (Descending)
         self.window._on_header_section_clicked(1)
         self.app.processEvents()
         self.assertEqual(self.window._sort_order, Qt.SortOrder.DescendingOrder)
 
-        # SIZE sıralaması (Sütun 2)
-        # 1. Tıklama: Büyükten küçüğe (Descending)
+        # SIZE sorting (Column 2)
+        # Click 1: Largest to smallest (Descending)
         self.window._on_header_section_clicked(2)
         self.app.processEvents()
         self.assertEqual(self.window._sort_column, 2)
         self.assertEqual(self.window._sort_order, Qt.SortOrder.DescendingOrder)
 
-        # 2. Tıklama: Küçükten büyüğe (Ascending)
+        # Click 2: Smallest to largest (Ascending)
         self.window._on_header_section_clicked(2)
         self.app.processEvents()
         self.assertEqual(self.window._sort_order, Qt.SortOrder.AscendingOrder)

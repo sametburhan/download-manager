@@ -1,7 +1,7 @@
 """
 Download Manager Test Suite
-Birim testlerin kullanıcının gerçek tasks.json dosyasını kirletmesini önlemek amacıyla
-test oturumu boyunca izole geçici bir dosya yolu tanımlar.
+Configures an isolated temporary file path for the duration of the test session
+to prevent unit tests from polluting the user's actual tasks.json file.
 """
 
 import os

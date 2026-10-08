@@ -1,8 +1,8 @@
 """
-Download Manager - Ağ ve Uygulama Ayarları Yapılandırması (config.py)
+Download Manager - Network and Application Configuration (config.py)
 
-Kullanıcının ağ ayarları (zaman aşımı, parça sayısı, hız limiti, proxy vb.)
-bu modül aracılığıyla JSON formatında saklanır ve yönetilir.
+User network parameters (timeouts, connection segments, speed limits, proxies, etc.)
+are serialized and managed in JSON format via this module.
 """
 
 import os
@@ -13,34 +13,34 @@ from typing import Optional
 
 @dataclass
 class NetworkSettings:
-    """Ağ ve indirme parametreleri."""
-    connection_timeout: int = 30               # Saniye cinsinden bağlantı zaman aşımı
-    segments_per_download: int = 8             # İndirme başına eşzamanlı parça (segment) sayısı
-    max_retries: int = 10                      # Maksimum yeniden deneme sınırı
-    speed_limit_enabled: bool = False          # Hız limiti aktif mi?
-    speed_limit_kbs: int = 2600                # KB/sn cinsinden hız sınırı (0 = sınırsız)
+    """Network and download parameter configuration."""
+    connection_timeout: int = 30               # Connection timeout in seconds
+    segments_per_download: int = 8             # Concurrent chunk segments per download
+    max_retries: int = 10                      # Maximum retry attempts
+    speed_limit_enabled: bool = False          # Whether speed limiter is enabled
+    speed_limit_kbs: int = 2600                # Speed limit in KB/s (0 = unlimited)
     proxy_mode: str = "system"                 # "system", "none", "manual"
     proxy_type: str = "HTTP"                   # "HTTP", "HTTPS", "SOCKS4", "SOCKS5"
-    proxy_host: str = ""                       # Proxy sunucu adresi
-    proxy_port: int = 0                        # Proxy portu
-    proxy_user: str = ""                       # Proxy kullanıcı adı
-    proxy_pass: str = ""                       # Proxy parolası
+    proxy_host: str = ""                       # Proxy server hostname/IP
+    proxy_port: int = 0                        # Proxy port
+    proxy_user: str = ""                       # Proxy username
+    proxy_pass: str = ""                       # Proxy password
 
 
 def get_config_dir() -> str:
-    """Ayarların kaydedileceği dizini döndürür ve yoksa oluşturur."""
+    """Returns the directory where configurations are stored, creating it if necessary."""
     config_dir = os.path.join(os.path.expanduser("~"), ".download_manager")
     os.makedirs(config_dir, exist_ok=True)
     return config_dir
 
 
 def get_config_file_path() -> str:
-    """settings.json dosyasının tam yolunu döndürür."""
+    """Returns the full path to settings.json."""
     return os.path.join(get_config_dir(), "settings.json")
 
 
 def get_tasks_file_path() -> str:
-    """tasks.json dosyasının tam yolunu döndürür."""
+    """Returns the full path to tasks.json."""
     custom_path = os.environ.get("DOWNLOAD_MANAGER_TASKS_FILE")
     if custom_path:
         return custom_path
@@ -48,14 +48,14 @@ def get_tasks_file_path() -> str:
 
 
 def get_temp_dir() -> str:
-    """Geçici parça (.part) ve meta dosyalarının tutulacağı sistem dizinini döndürür ve yoksa oluşturur."""
+    """Returns the directory for temporary chunk (.part) and metadata files, creating it if needed."""
     temp_dir = os.path.join(get_config_dir(), "temp")
     os.makedirs(temp_dir, exist_ok=True)
     return temp_dir
 
 
 def load_network_settings() -> NetworkSettings:
-    """settings.json dosyasından ayarları yükler, dosya yoksa varsayılanı döndürür."""
+    """Loads settings from settings.json; returns default settings if file is absent or corrupted."""
     file_path = get_config_file_path()
     if os.path.exists(file_path):
         try:

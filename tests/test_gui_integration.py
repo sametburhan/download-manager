@@ -1,11 +1,11 @@
 """
-Aşama 3 Kullanıcı Arayüzü (GUI) ve Entegrasyon Otomatik Testi
+Stage 3 User Interface (GUI) and Integration Automated Test
 
-Bu test:
-1. QSS tema yüklemesini test eder.
-2. MainWindow, DownloadCardWidget ve AddDownloadDialog bileşenlerini test eder.
-3. TaskManager üzerinden görev ekleme ve sinyallerin GUI kartına yansımasını doğrular.
-4. Filtreleme mantığını (ALL, DOWNLOADING, PAUSED, COMPLETED) test eder.
+This test suite:
+1. Tests QSS theme loading.
+2. Tests MainWindow, DownloadCardWidget, and AddDownloadDialog components.
+3. Verifies adding tasks via TaskManager and reflection of signals on GUI card.
+4. Tests filtering logic (ALL, DOWNLOADING, PAUSED, COMPLETED).
 """
 
 import sys
@@ -34,13 +34,13 @@ class TestGuiIntegration(unittest.TestCase):
         cls.window = MainWindow(task_manager=cls.task_manager, bridge=cls.bridge)
 
     def test_01_main_window_initialization(self):
-        """Ana pencerenin ve bileşenlerinin sorunsuz yüklendiğini test eder."""
+        """Tests that main window and its components load smoothly."""
         self.assertIsNotNone(self.window)
         self.assertEqual(len(self.window.cards), 0)
         self.assertFalse(self.window.empty_label.isHidden())
 
     def test_02_add_task_creates_card(self):
-        """TaskManager'a görev eklendiğinde GUI'de kartın otomatik oluştuğunu test eder."""
+        """Tests that a card is automatically created in GUI when a task is added to TaskManager."""
         task = DownloadTask(
             task_id="gui_test_01",
             url="https://example.com/testfile.zip",
@@ -60,7 +60,7 @@ class TestGuiIntegration(unittest.TestCase):
         self.assertFalse(self.window.empty_label.isVisible())
 
     def test_03_card_progress_and_speed_update(self):
-        """İlerleme sinyali fırlatıldığında kartın ve toplam hızın güncellendiğini test eder."""
+        """Tests that card and total speed are updated when progress signal is emitted."""
         card = self.window.cards["gui_test_01"]
 
         progress_data = {
@@ -80,27 +80,27 @@ class TestGuiIntegration(unittest.TestCase):
         self.assertIn("2.5 MB", card.stats_label.text())
 
     def test_04_sidebar_filtering(self):
-        """Sol menü filtrelerinin kart görünürlüğünü doğru değiştirdiğini test eder."""
+        """Tests that sidebar filters properly change card visibility."""
         card = self.window.cards["gui_test_01"]
         card.task.status = DownloadStatus.DOWNLOADING
 
-        # 1. DOWNLOADING filtresi uygula (Kart görünmeli)
+        # 1. Apply DOWNLOADING filter (Card should be visible)
         self.window.current_filter = "DOWNLOADING"
         self.window._apply_filter()
         self.assertFalse(card.isHidden())
 
-        # 2. PAUSED filtresi uygula (Kart gizlenmeli)
+        # 2. Apply PAUSED filter (Card should be hidden)
         self.window.current_filter = "PAUSED"
         self.window._apply_filter()
         self.assertTrue(card.isHidden())
 
-        # 3. ALL filtresi uygula (Kart tekrar görünmeli)
+        # 3. Apply ALL filter (Card should be visible again)
         self.window.current_filter = "ALL"
         self.window._apply_filter()
         self.assertFalse(card.isHidden())
 
     def test_05_add_download_dialog_defaults(self):
-        """Yeni indirme diyaloğunun başlangıç değerlerini test eder."""
+        """Tests default values of the new download dialog."""
         dialog = AddDownloadDialog(
             initial_url="https://speed.hetzner.de/100MB.bin",
             initial_filename="100MB.bin"

@@ -1,3 +1,4 @@
 """
-Download Manager Yeniden Kullanılabilir UI Bileşenleri Modülü
+Download Manager Reusable UI Components Module
 """
+

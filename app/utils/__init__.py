@@ -1,3 +1,4 @@
 """
-Download Manager Yardımcı Araçlar Modülü
+Download Manager Utility Tools Module
 """
+

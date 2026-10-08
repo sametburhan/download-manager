@@ -1,3 +1,4 @@
 """
-Download Manager PyQt6 Kullanıcı Arayüzü Modülü
+Download Manager PyQt6 User Interface Module
 """
+

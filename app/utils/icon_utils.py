@@ -1,8 +1,8 @@
 """
-Download Manager - İkon ve Logo Yöneticisi (icon_utils.py)
+Download Manager - Icon & Logo Utilities (icon_utils.py)
 
-extension/icons dizinindeki resmi logo ve ikonları masaüstü uygulamasına,
-pencere başlıklarına, Windows görev çubuğuna ve sistem tepsisine bağlar.
+Binds official logos and icons in extension/icons directory to desktop application,
+window titles, Windows taskbar, and system tray.
 """
 
 import os
@@ -11,14 +11,14 @@ from PyQt6.QtCore import Qt
 
 
 def get_app_icon_path(size: int = 128) -> str:
-    """Uygulama logosunun dosya yolunu döndürür."""
+    """Returns the file path of the application logo."""
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
     icon_filename = f"icon{size}.png"
     target_path = os.path.join(base_dir, "extension", "icons", icon_filename)
     if os.path.exists(target_path):
         return target_path
 
-    # Alternatif boyutları dene
+    # Try alternative sizes
     for s in (128, 48, 16):
         alt_path = os.path.join(base_dir, "extension", "icons", f"icon{s}.png")
         if os.path.exists(alt_path):
@@ -27,7 +27,7 @@ def get_app_icon_path(size: int = 128) -> str:
 
 
 def get_app_icon() -> QIcon:
-    """Tüm pencereler ve Windows görev çubuğu için çok çözünürlüklü QIcon üretir."""
+    """Generates multi-resolution QIcon for all windows and Windows taskbar."""
     icon = QIcon()
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
     for s in (16, 48, 128):
@@ -38,7 +38,7 @@ def get_app_icon() -> QIcon:
 
 
 def get_app_pixmap(size: int = 32) -> QPixmap:
-    """Pencere içi logo görselleştirmesi için ölçeklenmiş QPixmap döndürür."""
+    """Returns scaled QPixmap for in-window logo visualization."""
     path = get_app_icon_path(128)
     if path and os.path.exists(path):
         pix = QPixmap(path)
@@ -52,7 +52,7 @@ def get_app_pixmap(size: int = 32) -> QPixmap:
 
 
 def get_search_icon(size: int = 14, color: str = "#94a3b8") -> QIcon:
-    """Arama kutuları için modern büyüteç ikonu üretir."""
+    """Generates modern magnifying glass icon for search inputs."""
     try:
         from PyQt6.QtSvg import QSvgRenderer
         from PyQt6.QtCore import QByteArray
@@ -90,3 +90,4 @@ def get_search_icon(size: int = 14, color: str = "#94a3b8") -> QIcon:
             return QIcon(pixmap)
         except Exception:
             return QIcon()
+

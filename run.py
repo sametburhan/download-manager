@@ -1,15 +1,16 @@
 """
-Download Manager - Ana Başlatıcı (Root Launcher)
+Download Manager - Root Launcher (run.py)
 
-Kök dizinden tek komutla çalıştırmak için:
+To run from the root directory with a single command:
     python run.py
 """
 
 import sys
 import os
 
-# Proje kök dizinini garantiye al
+# Ensure project root directory is in sys.path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 
 from app.main import main
 

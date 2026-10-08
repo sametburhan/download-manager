@@ -12,8 +12,8 @@ from app.utils.icon_utils import get_app_icon
 
 class DeleteDownloadsDialog(QDialog):
     """
-    Kullanıcının indirmeleri listeden (bellekten) veya kalıcı olarak diskten
-    silmesini sağlayan onay penceresi.
+    Confirmation dialog enabling the user to delete downloads from
+    the task list (memory) or permanently from disk.
     """
 
     def __init__(self, count: int = 1, parent: Optional[QWidget] = None):
@@ -30,13 +30,13 @@ class DeleteDownloadsDialog(QDialog):
         layout.setContentsMargins(24, 22, 24, 18)
         layout.setSpacing(16)
 
-        # 1. Başlık / Onay Sorusunu İçeren Etiket
+        # 1. Title / Confirmation Question Label
         self.msg_label = QLabel("Are you sure you want to delete selected downloads?")
         self.msg_label.setObjectName("confirmQuestion")
         self.msg_label.setWordWrap(True)
         layout.addWidget(self.msg_label)
 
-        # 2. Kalıcı Silme (Diskten Silme) Onay Kutusu
+        # 2. Permanent Delete (From Disk) Checkbox
         self.chk_delete_files = QCheckBox("Delete files from disk")
         self.chk_delete_files.setObjectName("deleteFilesChk")
         self.chk_delete_files.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -44,7 +44,7 @@ class DeleteDownloadsDialog(QDialog):
 
         layout.addStretch()
 
-        # 3. Butonlar Satırı (Sağa Yaslı: Delete & Cancel)
+        # 3. Action Buttons Row (Right Aligned: Delete & Cancel)
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(12)
         btn_layout.addStretch()
@@ -65,11 +65,11 @@ class DeleteDownloadsDialog(QDialog):
 
     @property
     def delete_from_disk(self) -> bool:
-        """Kullanıcının 'Delete files from disk' kutusunu işaretleyip işaretlemediğini döndürür."""
+        """Returns whether 'Delete files from disk' checkbox is checked."""
         return self.chk_delete_files.isChecked()
 
     def _get_styles(self) -> str:
-        """Referans görseldeki koyu Fluent arayüz stili."""
+        """Dark Fluent UI theme style."""
         return """
             QDialog {
                 background-color: #141720;

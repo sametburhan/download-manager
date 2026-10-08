@@ -1,3 +1,4 @@
 """
-Download Manager Yerel WebSocket Haberleşme Sunucusu Modülü
+Download Manager Local WebSocket Communication Server Module
 """
+
