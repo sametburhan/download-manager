@@ -165,7 +165,7 @@ An interactive script is provided to compile the standalone binary with PyInstal
 
 ### Option B: Automated Cloud Build & Release (GitHub Actions)
 The repository includes a ready-to-use **GitHub Actions CI/CD pipeline** (`.github/workflows/build-release.yml`):
-* **Trigger via Git Tag:** Push a tag like `git tag v1.1.0 && git push origin v1.1.0`.
+* **Trigger via Git Tag:** Push a tag like `git tag v1.2.0 && git push origin v1.2.0`.
 * **Trigger Manually:** Navigate to the **Actions** tab in GitHub, select **"Build & Release Download Manager"**, click **"Run workflow"**, and enter your version number.
 * GitHub Actions will automatically:
   1. Run all 51 automated tests on a Windows runner.

@@ -10,9 +10,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release Version (e.g. 1.1.0)'
+        description: 'Release Version (e.g. 1.2.0)'
         required: true
-        default: '1.1.0'
+        default: '1.2.0'
       publish_release:
         description: 'Publish as GitHub Release?'
         required: true
@@ -75,7 +75,7 @@ jobs:
           elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             VERSION="${GITHUB_REF#refs/tags/v}"
           else
-            VERSION="1.1.0"
+            VERSION="1.2.0"
           fi
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "Target build version: $VERSION"

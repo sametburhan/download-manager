@@ -44,7 +44,7 @@ goto parse_args
 :args_done
 
 REM 2. Detect default version
-set "DEFAULT_VERSION=1.1.0"
+set "DEFAULT_VERSION=1.2.0"
 if exist "app\__init__.py" (
     for /f "tokens=2 delims==" %%v in ('findstr /i "__version__" app\__init__.py') do (
         set "TEMP_VER=%%v"

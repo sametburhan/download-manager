@@ -81,7 +81,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
       const data = await res.json();
-      const tagName = data.tag_name || "v1.1.0";
+      const tagName = data.tag_name || "v1.2.0";
 
       // Find the Windows installer (.exe)
       const exeAsset = data.assets && data.assets.find(
