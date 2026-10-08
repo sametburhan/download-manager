@@ -27,10 +27,23 @@ from app.ui.download_detail_window import DownloadDetailWindow
 class TestAbDownloadManagerUi(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        import tempfile
         cls.app = QApplication.instance() or QApplication(sys.argv)
+        cls._tmp_dir = tempfile.TemporaryDirectory()
         cls.bridge = ServerBridge()
-        cls.task_manager = TaskManager()
+        cls.task_manager = TaskManager(
+            tasks_file=os.path.join(cls._tmp_dir.name, "tasks.json"),
+            auto_load=False
+        )
         cls.window = MainWindow(task_manager=cls.task_manager, bridge=cls.bridge)
+
+    @classmethod
+    def tearDownClass(cls):
+        try:
+            cls.window.close()
+            cls._tmp_dir.cleanup()
+        except Exception:
+            pass
 
     def test_01_main_window_ab_structure(self):
         """Download Manager ana pencere yapısının doğruluğunu test eder."""

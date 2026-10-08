@@ -21,9 +21,21 @@ from app.server.bridge import ServerBridge
 class TestCompactAndAutostart(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        import tempfile
         cls.app = QApplication.instance() or QApplication(sys.argv)
-        cls.task_manager = TaskManager()
+        cls._tmp_dir = tempfile.TemporaryDirectory()
+        cls.task_manager = TaskManager(
+            tasks_file=os.path.join(cls._tmp_dir.name, "tasks.json"),
+            auto_load=False
+        )
         cls.bridge = ServerBridge()
+
+    @classmethod
+    def tearDownClass(cls):
+        try:
+            cls._tmp_dir.cleanup()
+        except Exception:
+            pass
 
     def test_01_autostart_command_generation(self):
         """Otomatik başlatma komut satırının doğru oluşturulduğunu test eder."""

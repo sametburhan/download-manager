@@ -6,6 +6,7 @@ import unittest
 import os
 import sys
 import shutil
+import tempfile
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -63,25 +64,31 @@ class TestMediaFeatures(unittest.TestCase):
 
     def test_task_manager_headers_forwarding(self):
         """TaskManager.add_media_download metodunun headers parametresini göreve aktardığını test eder."""
-        tm = TaskManager(default_download_dir="test_downloads")
-        test_headers = {"Referer": "https://vidmoly.to/", "User-Agent": "TestBrowser/1.0"}
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tm = TaskManager(
+                default_download_dir=tmpdir,
+                tasks_file=os.path.join(tmpdir, "tasks.json"),
+                auto_load=False
+            )
+            test_headers = {"Referer": "https://vidmoly.to/", "User-Agent": "TestBrowser/1.0"}
 
-        task_id = tm.add_media_download(
-            url="https://cdn.test/master.m3u8",
-            title="Test Movie S01E01",
-            destination_folder="test_downloads",
-            headers=test_headers,
-            auto_start=False
-        )
+            task_id = tm.add_media_download(
+                url="https://cdn.test/master.m3u8",
+                title="Test Movie S01E01",
+                destination_folder=tmpdir,
+                headers=test_headers,
+                auto_start=False
+            )
 
-        task = tm.get_task(task_id)
-        self.assertIsNotNone(task)
-        self.assertEqual(task.headers, test_headers)
-        self.assertEqual(task.task_type, TaskType.MEDIA_VIDEO)
-        self.assertEqual(task.filename, "Test Movie S01E01")
-        # Kategori uzantı olmasa dahi Video olmalı, Other olmamalı
-        self.assertEqual(task.category, "Video")
-        self.assertEqual(task.category_icon, "🎬")
+            task = tm.get_task(task_id)
+            self.assertIsNotNone(task)
+            self.assertEqual(task.headers, test_headers)
+            self.assertEqual(task.task_type, TaskType.MEDIA_VIDEO)
+            self.assertEqual(task.filename, "Test Movie S01E01")
+            # Kategori uzantı olmasa dahi Video olmalı, Other olmamalı
+            self.assertEqual(task.category, "Video")
+            self.assertEqual(task.category_icon, "🎬")
 
     def test_media_task_category_and_size_resolution(self):
         """Medya görevlerinin kategori, ikon ve boyutlarının doğru çözümlendiğini doğrular."""
@@ -128,12 +135,17 @@ class TestMediaFeatures(unittest.TestCase):
         from app.ui.media_dialog import MediaQualityDialog
 
         app = QApplication.instance() or QApplication(sys.argv)
-        tm = TaskManager(default_download_dir="test_downloads")
+        tmp_dir = tempfile.TemporaryDirectory()
+        tm = TaskManager(
+            default_download_dir=tmp_dir.name,
+            tasks_file=os.path.join(tmp_dir.name, "tasks.json"),
+            auto_load=False
+        )
 
         dialog = MediaQualityDialog(
             url="https://www.youtube.com/watch?v=aqz-KE-bpKQ",
             initial_title="Test Video Title",
-            default_save_dir="test_downloads",
+            default_save_dir=tmp_dir.name,
             task_manager=tm,
             auto_start_analysis=False
         )
@@ -188,6 +200,7 @@ class TestMediaFeatures(unittest.TestCase):
         dialog.close()
         dialog.deleteLater()
         app.processEvents()
+        tmp_dir.cleanup()
 
 
 if __name__ == "__main__":

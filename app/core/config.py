@@ -41,6 +41,9 @@ def get_config_file_path() -> str:
 
 def get_tasks_file_path() -> str:
     """tasks.json dosyasının tam yolunu döndürür."""
+    custom_path = os.environ.get("DOWNLOAD_MANAGER_TASKS_FILE")
+    if custom_path:
+        return custom_path
     return os.path.join(get_config_dir(), "tasks.json")
 
 

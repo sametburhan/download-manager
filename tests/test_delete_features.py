@@ -50,7 +50,11 @@ class TestDeleteFeatures(unittest.TestCase):
             with open(test_file, "w", encoding="utf-8") as f:
                 f.write("test content")
 
-            tm = TaskManager(default_download_dir=tmpdir)
+            tm = TaskManager(
+                default_download_dir=tmpdir,
+                tasks_file=os.path.join(tmpdir, "tasks.json"),
+                auto_load=False
+            )
             task = DownloadTask(
                 task_id="task_mem_1",
                 url="https://example.com/sample.txt",
@@ -74,7 +78,11 @@ class TestDeleteFeatures(unittest.TestCase):
             with open(test_file, "wb") as f:
                 f.write(b"permanent video stream content")
 
-            tm = TaskManager(default_download_dir=tmpdir)
+            tm = TaskManager(
+                default_download_dir=tmpdir,
+                tasks_file=os.path.join(tmpdir, "tasks.json"),
+                auto_load=False
+            )
             task = DownloadTask(
                 task_id="task_disk_1",
                 url="https://example.com/permanent.mp4",
