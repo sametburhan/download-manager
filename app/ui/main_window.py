@@ -414,6 +414,13 @@ class MainWindow(QMainWindow):
         self.shortcut_delete = QShortcut(QKeySequence(Qt.Key.Key_Delete), self.downloads_table)
         self.shortcut_delete.activated.connect(self._on_delete_clicked)
 
+        # Keyboard Select All shortcut (Ctrl+A)
+        self.shortcut_select_all = QShortcut(QKeySequence.StandardKey.SelectAll, self.downloads_table)
+        self.shortcut_select_all.activated.connect(self._toggle_select_all)
+
+        # Listen to checkbox toggles in table
+        self.downloads_table.itemChanged.connect(self._on_table_item_changed)
+
         # Column Widths and Responsive Behavior
         header = self.downloads_table.horizontalHeader()
         header.setSectionsClickable(True)
@@ -665,6 +672,14 @@ class MainWindow(QMainWindow):
         btn_add.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_add.clicked.connect(lambda: self._open_add_dialog())
         toolbar.addWidget(btn_add)
+
+        # ☑️ Select All Butonu
+        self.btn_select_all = QPushButton("☑ Select All")
+        self.btn_select_all.setObjectName("toolSelectAllBtn")
+        self.btn_select_all.setToolTip("Select or deselect all downloads (Ctrl+A)")
+        self.btn_select_all.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_select_all.clicked.connect(self._toggle_select_all)
+        toolbar.addWidget(self.btn_select_all)
 
         # 🗑️ Delete Butonu
         self.btn_delete = QPushButton("🗑 Delete")
@@ -1348,8 +1363,9 @@ class MainWindow(QMainWindow):
     # ==================== Table Header Sorting ====================
 
     def _on_header_section_clicked(self, column: int) -> None:
-        """Sorts table when user clicks column header."""
-        if column == 0:  # Do not sort checkbox column
+        """Sorts table when user clicks column header, or toggles selection for column 0."""
+        if column == 0:  # Checkbox column toggles select/deselect all
+            self._toggle_select_all()
             return
 
         if self._sort_column == column:
@@ -1620,6 +1636,7 @@ class MainWindow(QMainWindow):
 
         self.empty_label.setVisible(visible_count == 0)
         self.downloads_table.setVisible(visible_count > 0 or len(self.cards) > 0)
+        self._update_select_all_btn_text()
 
     # ==================== User Interactions and Dialogs ====================
 
@@ -1715,13 +1732,51 @@ class MainWindow(QMainWindow):
                 5000
             )
 
-    def _select_all_rows(self, checked: bool) -> None:
-        """Checks or unchecks checkboxes in all rows."""
-        state = Qt.CheckState.Checked if checked else Qt.CheckState.Unchecked
+    def _is_all_visible_selected(self) -> bool:
+        """Returns True if all visible rows are currently checked, False otherwise."""
+        has_visible = False
         for r in range(self.downloads_table.rowCount()):
-            item = self.downloads_table.item(r, 0)
-            if item:
-                item.setCheckState(state)
+            if not self.downloads_table.isRowHidden(r):
+                has_visible = True
+                item = self.downloads_table.item(r, 0)
+                if not item or item.checkState() != Qt.CheckState.Checked:
+                    return False
+        return has_visible
+
+    def _toggle_select_all(self) -> None:
+        """Toggles select all / deselect all for visible rows in downloads table."""
+        if self._is_all_visible_selected():
+            self._select_all_rows(False)
+        else:
+            self._select_all_rows(True)
+
+    def _update_select_all_btn_text(self) -> None:
+        """Updates the text and tooltip of btn_select_all based on selection state."""
+        if not hasattr(self, "btn_select_all") or self.btn_select_all is None:
+            return
+        if self._is_all_visible_selected():
+            self.btn_select_all.setText("☐ Deselect All")
+            self.btn_select_all.setToolTip("Deselect all visible downloads (Ctrl+A)")
+        else:
+            self.btn_select_all.setText("☑ Select All")
+            self.btn_select_all.setToolTip("Select all visible downloads (Ctrl+A)")
+
+    def _on_table_item_changed(self, item: QTableWidgetItem) -> None:
+        """Handles item change events, updating select all button if checkbox state changes."""
+        if item.column() == 0:
+            self._update_select_all_btn_text()
+
+    def _select_all_rows(self, checked: bool) -> None:
+        """Checks or unchecks checkboxes in all visible rows."""
+        state = Qt.CheckState.Checked if checked else Qt.CheckState.Unchecked
+        self.downloads_table.blockSignals(True)
+        for r in range(self.downloads_table.rowCount()):
+            if not self.downloads_table.isRowHidden(r):
+                item = self.downloads_table.item(r, 0)
+                if item:
+                    item.setCheckState(state)
+        self.downloads_table.blockSignals(False)
+        self._update_select_all_btn_text()
 
     def _open_add_dialog(self, initial_url: str = "", filename: str = "") -> None:
         """Opens compact floating download window matching reference."""

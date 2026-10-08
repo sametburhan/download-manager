@@ -113,6 +113,28 @@ QPushButton#toolDeleteBtn:pressed {
     border-color: #ef4444;
 }
 
+/* Select All Button */
+QPushButton#toolSelectAllBtn {
+    background-color: rgba(30, 41, 59, 0.6);
+    color: #cbd5e1;
+    border: 1px solid rgba(51, 65, 85, 0.7);
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+QPushButton#toolSelectAllBtn:hover {
+    background-color: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.4);
+}
+
+QPushButton#toolSelectAllBtn:pressed {
+    background-color: rgba(56, 189, 248, 0.25);
+    border-color: #0284c7;
+}
+
 /* Secondary Action Buttons (Capture, Start Queue, Stop Queue, Stop All, Settings) */
 QPushButton#toolActionBtn,
 QPushButton#toolCaptureBtn,

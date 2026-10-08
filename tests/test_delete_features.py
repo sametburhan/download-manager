@@ -152,6 +152,62 @@ class TestDeleteFeatures(unittest.TestCase):
 
         win.close()
 
+    def test_05_select_all_toolbar_button_and_toggle(self):
+        """Tests Select All button in toolbar, toggle state changes, and header section click."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            bridge = ServerBridge()
+            temp_tasks_file = os.path.join(tmpdir, "tasks.json")
+            tm = TaskManager(tasks_file=temp_tasks_file)
+            win = MainWindow(task_manager=tm, bridge=bridge)
+
+            # 1. Verify Select All button exists on toolbar
+            self.assertIsNotNone(win.btn_select_all)
+            self.assertIn("Select All", win.btn_select_all.text())
+
+            # 2. Add tasks
+            t1 = DownloadTask(task_id="sa1", url="http://a.com/1.zip", destination_folder=".", filename="1.zip")
+            t2 = DownloadTask(task_id="sa2", url="http://a.com/2.zip", destination_folder=".", filename="2.zip")
+            t3 = DownloadTask(task_id="sa3", url="http://a.com/3.zip", destination_folder=".", filename="3.zip")
+            tm.tasks["sa1"] = t1
+            tm.tasks["sa2"] = t2
+            tm.tasks["sa3"] = t3
+
+            win._on_task_added(t1)
+            win._on_task_added(t2)
+            win._on_task_added(t3)
+
+            self.assertEqual(win.downloads_table.rowCount(), 3)
+            self.assertEqual(win.btn_select_all.text(), "☑ Select All")
+
+            # 3. Click Select All button -> all should be checked
+            win.btn_select_all.click()
+            self.assertEqual(win.btn_select_all.text(), "☐ Deselect All")
+            self.assertEqual(win.downloads_table.item(0, 0).checkState(), Qt.CheckState.Checked)
+            self.assertEqual(win.downloads_table.item(1, 0).checkState(), Qt.CheckState.Checked)
+            self.assertEqual(win.downloads_table.item(2, 0).checkState(), Qt.CheckState.Checked)
+
+            selected_ids = win._get_selected_task_ids()
+            self.assertEqual(set(selected_ids), {"sa1", "sa2", "sa3"})
+
+            # 4. Click again -> all should be unchecked
+            win.btn_select_all.click()
+            self.assertEqual(win.btn_select_all.text(), "☑ Select All")
+            self.assertEqual(win.downloads_table.item(0, 0).checkState(), Qt.CheckState.Unchecked)
+            self.assertEqual(win.downloads_table.item(1, 0).checkState(), Qt.CheckState.Unchecked)
+            self.assertEqual(win.downloads_table.item(2, 0).checkState(), Qt.CheckState.Unchecked)
+
+            # 5. Column 0 header click toggles selection
+            win._on_header_section_clicked(0)
+            self.assertEqual(win.btn_select_all.text(), "☐ Deselect All")
+            self.assertEqual(win.downloads_table.item(0, 0).checkState(), Qt.CheckState.Checked)
+
+            # 6. Bulk delete all selected tasks
+            win._delete_tasks_batch(win._get_selected_task_ids(), delete_files=False)
+            self.assertEqual(win.downloads_table.rowCount(), 0)
+            self.assertEqual(win.btn_select_all.text(), "☑ Select All")
+
+            win.close()
+
 
 if __name__ == "__main__":
     unittest.main()
