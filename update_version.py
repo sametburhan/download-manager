@@ -101,12 +101,26 @@ VSVersionInfo(
         except Exception as e:
             print(f"[WARNING] Error updating setup.iss: {e}")
 
-    # 6. Update website/index.html fallback download URLs
+    # 6. Update build.bat DEFAULT_VERSION
+    build_bat_path = os.path.join(root, "build.bat")
+    if os.path.exists(build_bat_path):
+        try:
+            with open(build_bat_path, "r", encoding="utf-8") as f:
+                bat_content = f.read()
+            bat_content = re.sub(r'set\s+"DEFAULT_VERSION=[^"]+"', f'set "DEFAULT_VERSION={version_str}"', bat_content)
+            with open(build_bat_path, "w", encoding="utf-8") as f:
+                f.write(bat_content)
+            print(f"[OK] build.bat -> DEFAULT_VERSION = \"{version_str}\"")
+        except Exception as e:
+            print(f"[WARNING] Error updating build.bat: {e}")
+
+    # 7. Update website/index.html
     index_html_path = os.path.join(root, "website", "index.html")
     if os.path.exists(index_html_path):
         try:
             with open(index_html_path, "r", encoding="utf-8") as f:
                 html_content = f.read()
+            # Update download links
             html_content = re.sub(
                 r'href="https://github\.com/sametburhan/download-manager/releases/(?:latest/download|download/[^/]+)/DownloadManagerSetup[^"]*\.exe"',
                 f'href="https://github.com/sametburhan/download-manager/releases/latest/download/DownloadManagerSetup-v{version_str}.exe"',
@@ -122,11 +136,64 @@ VSVersionInfo(
                 f'href="https://github.com/sametburhan/download-manager/releases/latest/download/DownloadManager-Extension-v{version_str}.zip"',
                 html_content
             )
+            # Update badges and text
+            html_content = re.sub(
+                r'id="heroVersionBadge">Engineered for Windows 10 & 11 • v[^<]+</span>',
+                f'id="heroVersionBadge">Engineered for Windows 10 & 11 • v{version_str}</span>',
+                html_content
+            )
+            html_content = re.sub(
+                r'id="downloadMetaVersion">v[^<]+</span>',
+                f'id="downloadMetaVersion">v{version_str}</span>',
+                html_content
+            )
+            html_content = re.sub(
+                r'id="footerDownloadLink" class="footer-link">Download v[^<]+ \((\.exe)\)</a>',
+                f'id="footerDownloadLink" class="footer-link">Download v{version_str} (\\1)</a>',
+                html_content
+            )
+            html_content = re.sub(
+                r'id="toastDetails">DownloadManagerSetup-v[^<]+ is downloading\.</span>',
+                f'id="toastDetails">DownloadManagerSetup-v{version_str}.exe is downloading.</span>',
+                html_content
+            )
             with open(index_html_path, "w", encoding="utf-8") as f:
                 f.write(html_content)
-            print(f"[OK] website/index.html -> updated release asset URLs to v{version_str}")
+            print(f"[OK] website/index.html -> updated release asset URLs, badges, and labels to v{version_str}")
         except Exception as e:
             print(f"[WARNING] Error updating website/index.html: {e}")
+
+    # 8. Update website/app.js
+    app_js_path = os.path.join(root, "website", "app.js")
+    if os.path.exists(app_js_path):
+        try:
+            with open(app_js_path, "r", encoding="utf-8") as f:
+                js_content = f.read()
+            js_content = re.sub(
+                r'const tagName = data\.tag_name \|\| "v[^"]+";',
+                f'const tagName = data.tag_name || "v{version_str}";',
+                js_content
+            )
+            js_content = re.sub(
+                r'DownloadManagerSetup-v[0-9a-zA-Z._-]+\.exe is downloading\.',
+                f'DownloadManagerSetup-v{version_str}.exe is downloading.',
+                js_content
+            )
+            js_content = re.sub(
+                r'DownloadManager-Portable-v[0-9a-zA-Z._-]+\.zip is downloading\.',
+                f'DownloadManager-Portable-v{version_str}.zip is downloading.',
+                js_content
+            )
+            js_content = re.sub(
+                r'DownloadManager-Extension-v[0-9a-zA-Z._-]+\.zip is downloading\.',
+                f'DownloadManager-Extension-v{version_str}.zip is downloading.',
+                js_content
+            )
+            with open(app_js_path, "w", encoding="utf-8") as f:
+                f.write(js_content)
+            print(f"[OK] website/app.js -> updated fallback tag and toast texts to v{version_str}")
+        except Exception as e:
+            print(f"[WARNING] Error updating website/app.js: {e}")
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:

@@ -47,19 +47,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (mainDownloadBtn) {
     mainDownloadBtn.addEventListener("click", () => {
-      triggerDownloadFeedback(mainDownloadBtn, "Starting Download...", "DownloadManagerSetup-v1.2.0.exe is downloading.");
+      triggerDownloadFeedback(mainDownloadBtn, "Starting Download...", "DownloadManagerSetup-v1.2.1.exe is downloading.");
     });
   }
 
   if (portableDownloadBtn) {
     portableDownloadBtn.addEventListener("click", () => {
-      triggerDownloadFeedback(portableDownloadBtn, "Starting Download...", "DownloadManager-Portable-v1.2.0.zip is downloading.");
+      triggerDownloadFeedback(portableDownloadBtn, "Starting Download...", "DownloadManager-Portable-v1.2.1.zip is downloading.");
     });
   }
 
   if (extensionDownloadBtn) {
     extensionDownloadBtn.addEventListener("click", () => {
-      triggerDownloadFeedback(extensionDownloadBtn, "Starting Download...", "DownloadManager-Extension-v1.2.0.zip is downloading.");
+      triggerDownloadFeedback(extensionDownloadBtn, "Starting Download...", "DownloadManager-Extension-v1.2.1.zip is downloading.");
     });
   }
 
@@ -81,7 +81,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
       const data = await res.json();
-      const tagName = data.tag_name || "v1.2.0";
+      const tagName = data.tag_name || "v1.2.1";
 
       // Find the Windows installer (.exe)
       const exeAsset = data.assets && data.assets.find(

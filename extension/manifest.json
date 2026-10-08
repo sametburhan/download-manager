@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Download Manager - Integration Extension",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Captures browser download links and video streams, forwarding them to the Download Manager desktop application.",
   "permissions": [
     "downloads",
