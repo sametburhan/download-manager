@@ -17,8 +17,11 @@ from PyQt6.QtWidgets import (
     QMenu, QStatusBar, QToolBar, QMessageBox, QInputDialog,
     QCheckBox, QSplitter, QFrame, QSizePolicy, QApplication
 )
-from PyQt6.QtCore import Qt, QSize, pyqtSlot, QPoint, QRectF
-from PyQt6.QtGui import QFont, QIcon, QAction, QColor, QKeySequence, QShortcut, QPainter, QPen, QBrush
+from PyQt6.QtCore import Qt, QSize, pyqtSlot, QPoint, QRectF, QEvent, QObject
+from PyQt6.QtGui import (
+    QFont, QIcon, QAction, QColor, QKeySequence, QShortcut,
+    QPainter, QPen, QBrush, QFontMetrics, QResizeEvent, QShowEvent
+)
 
 from app.core.models import DownloadTask, DownloadStatus, TaskType
 from app.core.task_manager import TaskManager
@@ -33,14 +36,51 @@ from app.core.autostart import is_autostart_enabled, set_autostart
 from app.utils.icon_utils import get_app_icon, get_app_pixmap, get_search_icon
 
 
+class ElidedLabel(QLabel):
+    """Metin hücre genişliğini aştığında '...' ile estetik kırpan responsive etiket."""
+
+    def __init__(self, text: str = "", text_color: str = "#f1f5f9", parent=None):
+        super().__init__(text, parent)
+        self._full_text = text
+        self._text_color = QColor(text_color)
+        self.setStyleSheet("background: transparent; border: none; padding: 0;")
+        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        self.setToolTip(text)
+
+    def text(self) -> str:
+        return self._full_text
+
+    def setText(self, text: str) -> None:
+        self._full_text = text
+        self.setToolTip(text)
+        super().setText(text)
+        self.update()
+
+    def set_color(self, color_str: str) -> None:
+        self._text_color = QColor(color_str)
+        self.update()
+
+    def paintEvent(self, event) -> None:
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.TextAntialiasing)
+        metrics = QFontMetrics(self.font())
+        avail_w = max(0, self.width())
+        elided = metrics.elidedText(self._full_text, Qt.TextElideMode.ElideRight, avail_w)
+        painter.setFont(self.font())
+        painter.setPen(self._text_color)
+        painter.drawText(self.rect(), Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, elided)
+        painter.end()
+
+
 class CategoryBadgeWidget(QLabel):
     """Pürüzsüz (anti-aliased) kenarlı ve renkli kategori rozeti."""
 
     def __init__(self, icon_str: str, category: str, parent=None):
         super().__init__(icon_str, parent)
-        self.setFixedSize(32, 32)
+        self.setFixedSize(30, 30)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.setFont(QFont("Segoe UI Emoji", 13))
+        self.setFont(QFont("Segoe UI Emoji", 12))
         self.setStyleSheet("background: transparent; border: none;")
         self.bg_color = QColor(244, 63, 94, 38)
         self.border_color = QColor(244, 63, 94, 90)
@@ -94,31 +134,30 @@ class FileNameCellWidget(QWidget):
         super().__init__(parent)
         self.setStyleSheet("background: transparent;")
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(8, 4, 8, 4)
-        layout.setSpacing(10)
+        layout.setContentsMargins(6, 4, 6, 4)
+        layout.setSpacing(8)
 
-        # Kategori İkonu Rozeti (32x32 Anti-aliased rounded)
+        # Kategori İkonu Rozeti (30x30 Anti-aliased rounded)
         self.icon_lbl = CategoryBadgeWidget(icon_str, category)
         layout.addWidget(self.icon_lbl)
 
         # Başlık ve Kategori / Subtitle (Dikey Düzen)
         text_layout = QVBoxLayout()
         text_layout.setContentsMargins(0, 0, 0, 0)
-        text_layout.setSpacing(2)
+        text_layout.setSpacing(1)
 
-        self.name_lbl = QLabel(filename)
+        self.name_lbl = ElidedLabel(filename, text_color="#f1f5f9")
         self.name_lbl.setFont(QFont("Inter", 10, QFont.Weight.DemiBold))
-        self.name_lbl.setStyleSheet("color: #f1f5f9; background: transparent; border: none; padding: 0;")
         text_layout.addWidget(self.name_lbl)
 
         sub_text = subtitle if subtitle is not None else category
-        self.cat_lbl = QLabel(sub_text)
-        self.cat_lbl.setFont(QFont("Inter", 8))
-        self.cat_lbl.setStyleSheet("color: #64748b; font-weight: 500; background: transparent; border: none; padding: 0;")
+        self.cat_lbl = ElidedLabel(sub_text, text_color="#64748b")
+        self.cat_lbl.setFont(QFont("Inter", 8, QFont.Weight.Medium))
         text_layout.addWidget(self.cat_lbl)
 
-        layout.addLayout(text_layout)
-        layout.addStretch()
+        layout.addLayout(text_layout, 1)
+
+        self.setToolTip(filename)
 
     def _apply_icon_style(self, category: str) -> None:
         if isinstance(self.icon_lbl, CategoryBadgeWidget):
@@ -130,6 +169,7 @@ class FileNameCellWidget(QWidget):
         self.cat_lbl.setText(subtitle if subtitle is not None else category)
         self.icon_lbl.setText(icon_str)
         self._apply_icon_style(category)
+        self.setToolTip(filename)
 
 
 class StatusCellWidget(QWidget):
@@ -288,7 +328,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Download Manager")
         self.setWindowIcon(get_app_icon())
         self.resize(1080, 680)
-        self.setMinimumSize(850, 520)
+        self.setMinimumSize(700, 480)
 
         self._init_ui()
         self._connect_signals()
@@ -325,7 +365,8 @@ class MainWindow(QMainWindow):
         # --- SOL KENAR ÇUBUĞU (Kategori Ağacı + Disk Kartı) ---
         sidebar_container = QWidget()
         sidebar_container.setObjectName("sidebarContainer")
-        sidebar_container.setFixedWidth(230)
+        sidebar_container.setMinimumWidth(165)
+        sidebar_container.setMaximumWidth(250)
         sidebar_layout = QVBoxLayout(sidebar_container)
         sidebar_layout.setContentsMargins(0, 0, 0, 0)
         sidebar_layout.setSpacing(0)
@@ -378,20 +419,16 @@ class MainWindow(QMainWindow):
         header.setSectionsClickable(True)
         header.setSortIndicatorShown(False)
         header.sectionClicked.connect(self._on_header_section_clicked)
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
-        self.downloads_table.setColumnWidth(0, 38)  # Checkbox sütunu
+        header.setMinimumSectionSize(36)
 
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)  # Dosya adı sütunu responsive esner
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)
-        self.downloads_table.setColumnWidth(2, 165)  # Size ("33.50 MB / 79.78 MB")
-        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Interactive)
-        self.downloads_table.setColumnWidth(3, 175)  # Progress & Status
-        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Interactive)
-        self.downloads_table.setColumnWidth(4, 105)  # Speed
-        header.setSectionResizeMode(5, QHeaderView.ResizeMode.Interactive)
-        self.downloads_table.setColumnWidth(5, 100)  # Time Left
-        header.setSectionResizeMode(6, QHeaderView.ResizeMode.Interactive)
-        self.downloads_table.setColumnWidth(6, 110)  # Date
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
+        self.downloads_table.setColumnWidth(0, 36)  # Checkbox sütunu
+
+        for col in range(1, 7):
+            header.setSectionResizeMode(col, QHeaderView.ResizeMode.Interactive)
+
+        # Viewport resize olayını dinlemek için eventFilter kur
+        self.downloads_table.viewport().installEventFilter(self)
 
         table_layout.addWidget(self.downloads_table)
 
@@ -404,11 +441,116 @@ class MainWindow(QMainWindow):
         splitter.addWidget(table_container)
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
+        splitter.setSizes([195, 885])
+        splitter.setCollapsible(0, False)
+        splitter.setCollapsible(1, False)
+        splitter.splitterMoved.connect(lambda pos, index: self._adjust_table_columns())
 
         main_layout.addWidget(splitter)
 
+        # İlk sütun genişliklerini hesapla
+        self._adjust_table_columns()
+
         # 4. Alt Durum Çubuğu (Status Bar)
         self._create_statusbar()
+
+    def _adjust_table_columns(self) -> None:
+        """Pencere yatayda daraldığında bile dosya adını koruyan akıllı responsive sütun yerleşimi."""
+        if getattr(self, "_is_adjusting_columns", False):
+            return
+        if not hasattr(self, "downloads_table") or self.downloads_table is None:
+            return
+
+        self._is_adjusting_columns = True
+        try:
+            viewport_w = self.downloads_table.viewport().width()
+            if viewport_w < 80:
+                return
+
+            # Sütun 0: Checkbox
+            col0_w = 36
+            self.downloads_table.setColumnWidth(0, col0_w)
+
+            # Responsive kademeler:
+            # 1. Geniş pencere (viewport >= 880): Tüm 7 sütun ferah görünür
+            # 2. Orta pencere (700 <= viewport < 880): Tarih gizlenir, alana dosya adı geçer
+            # 3. Dar pencere (520 <= viewport < 700): Tarih ve Kalan Süre gizlenir, dosya adına devasa alan kalır
+            # 4. Çok dar pencere (viewport < 520): Yalnızca Dosya Adı, Boyut ve İlerleme görünür
+            if viewport_w >= 880:
+                self.downloads_table.setColumnHidden(6, False)  # Date
+                self.downloads_table.setColumnHidden(5, False)  # Time Left
+                self.downloads_table.setColumnHidden(4, False)  # Speed
+                col2_w = 125  # Size
+                col3_w = 155  # Progress & Status
+                col4_w = 90   # Speed
+                col5_w = 85   # Time Left
+                col6_w = 95   # Date
+            elif viewport_w >= 700:
+                self.downloads_table.setColumnHidden(6, True)   # Date gizli
+                self.downloads_table.setColumnHidden(5, False)  # Time Left
+                self.downloads_table.setColumnHidden(4, False)  # Speed
+                col2_w = 110  # Size
+                col3_w = 140  # Progress & Status
+                col4_w = 85   # Speed
+                col5_w = 75   # Time Left
+                col6_w = 0
+            elif viewport_w >= 520:
+                self.downloads_table.setColumnHidden(6, True)   # Date gizli
+                self.downloads_table.setColumnHidden(5, True)   # Time Left gizli
+                self.downloads_table.setColumnHidden(4, False)  # Speed
+                col2_w = 100  # Size
+                col3_w = 125  # Progress & Status
+                col4_w = 80   # Speed
+                col5_w = 0
+                col6_w = 0
+            else:
+                self.downloads_table.setColumnHidden(6, True)   # Date gizli
+                self.downloads_table.setColumnHidden(5, True)   # Time Left gizli
+                self.downloads_table.setColumnHidden(4, True)   # Speed gizli
+                col2_w = 95   # Size
+                col3_w = 115  # Progress & Status
+                col4_w = 0
+                col5_w = 0
+                col6_w = 0
+
+            self.downloads_table.setColumnWidth(2, col2_w)
+            self.downloads_table.setColumnWidth(3, col3_w)
+            if not self.downloads_table.isColumnHidden(4):
+                self.downloads_table.setColumnWidth(4, col4_w)
+            if not self.downloads_table.isColumnHidden(5):
+                self.downloads_table.setColumnWidth(5, col5_w)
+            if not self.downloads_table.isColumnHidden(6):
+                self.downloads_table.setColumnWidth(6, col6_w)
+
+            # Diğer görünür sütunların toplam genişliği
+            other_w = (
+                col0_w +
+                col2_w +
+                col3_w +
+                (col4_w if not self.downloads_table.isColumnHidden(4) else 0) +
+                (col5_w if not self.downloads_table.isColumnHidden(5) else 0) +
+                (col6_w if not self.downloads_table.isColumnHidden(6) else 0)
+            )
+
+            # Dosya adı sütunu en az 180px olacak şekilde kalan TÜM genişliği alır!
+            name_w = max(180, viewport_w - other_w)
+            self.downloads_table.setColumnWidth(1, name_w)
+        finally:
+            self._is_adjusting_columns = False
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        if hasattr(self, "downloads_table") and self.downloads_table is not None:
+            if watched == self.downloads_table.viewport() and event.type() == QEvent.Type.Resize:
+                self._adjust_table_columns()
+        return super().eventFilter(watched, event)
+
+    def resizeEvent(self, event: QResizeEvent) -> None:
+        super().resizeEvent(event)
+        self._adjust_table_columns()
+
+    def showEvent(self, event: QShowEvent) -> None:
+        super().showEvent(event)
+        self._adjust_table_columns()
 
     def _create_menubar(self) -> None:
         """Üst modern Cyber-Slate menü çubuğunu ve sol logo rozetini oluşturur."""
