@@ -47,19 +47,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (mainDownloadBtn) {
     mainDownloadBtn.addEventListener("click", () => {
-      triggerDownloadFeedback(mainDownloadBtn, "Starting Download...", "DownloadManagerSetup.exe is downloading.");
+      triggerDownloadFeedback(mainDownloadBtn, "Starting Download...", "DownloadManagerSetup-v1.2.0.exe is downloading.");
     });
   }
 
   if (portableDownloadBtn) {
     portableDownloadBtn.addEventListener("click", () => {
-      triggerDownloadFeedback(portableDownloadBtn, "Starting Download...", "DownloadManager-Portable.zip is downloading.");
+      triggerDownloadFeedback(portableDownloadBtn, "Starting Download...", "DownloadManager-Portable-v1.2.0.zip is downloading.");
     });
   }
 
   if (extensionDownloadBtn) {
     extensionDownloadBtn.addEventListener("click", () => {
-      triggerDownloadFeedback(extensionDownloadBtn, "Starting Download...", "DownloadManager-Extension.zip is downloading.");
+      triggerDownloadFeedback(extensionDownloadBtn, "Starting Download...", "DownloadManager-Extension-v1.2.0.zip is downloading.");
     });
   }
 

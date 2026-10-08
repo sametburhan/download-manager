@@ -123,19 +123,17 @@ jobs:
         shell: pwsh
         run: |
           Compress-Archive -Path extension\* -DestinationPath "dist\DownloadManager-Extension-v${{ env.VERSION }}.zip" -Force
-          Copy-Item "dist\DownloadManager-Extension-v${{ env.VERSION }}.zip" "dist\DownloadManager-Extension.zip" -Force
 
       - name: Package Portable Application ZIP
         shell: pwsh
         run: |
           Compress-Archive -Path dist\DownloadManager\* -DestinationPath "dist\DownloadManager-Portable-v${{ env.VERSION }}.zip" -Force
-          Copy-Item "dist\DownloadManager-Portable-v${{ env.VERSION }}.zip" "dist\DownloadManager-Portable.zip" -Force
 
       - name: Prepare Installer Artifact
         shell: pwsh
         run: |
           if (Test-Path "dist\DownloadManagerSetup.exe") {
-            Copy-Item "dist\DownloadManagerSetup.exe" "dist\DownloadManagerSetup-v${{ env.VERSION }}.exe" -Force
+            Move-Item "dist\DownloadManagerSetup.exe" "dist\DownloadManagerSetup-v${{ env.VERSION }}.exe" -Force
           }
 
       - name: Upload Build Artifacts to GitHub Actions
@@ -144,11 +142,8 @@ jobs:
           name: DownloadManager-v${{ env.VERSION }}
           path: |
             dist/DownloadManagerSetup-v${{ env.VERSION }}.exe
-            dist/DownloadManagerSetup.exe
             dist/DownloadManager-Portable-v${{ env.VERSION }}.zip
-            dist/DownloadManager-Portable.zip
             dist/DownloadManager-Extension-v${{ env.VERSION }}.zip
-            dist/DownloadManager-Extension.zip
 
       - name: Publish GitHub Release
         if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_release == true)
@@ -161,8 +156,5 @@ jobs:
           generate_release_notes: true
           files: |
             dist/DownloadManagerSetup-v${{ env.VERSION }}.exe
-            dist/DownloadManagerSetup.exe
             dist/DownloadManager-Portable-v${{ env.VERSION }}.zip
-            dist/DownloadManager-Portable.zip
             dist/DownloadManager-Extension-v${{ env.VERSION }}.zip
-            dist/DownloadManager-Extension.zip

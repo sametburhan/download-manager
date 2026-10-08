@@ -1,5 +1,5 @@
 """
-Download Manager - Versiyon Senkronizasyon Scripti (update_version.py)
+Download Manager - Version Synchronization Script (update_version.py)
 """
 import sys
 import re
@@ -9,10 +9,10 @@ import os
 def update_version(version_str: str):
     version_str = version_str.strip()
     if not version_str:
-        print("[HATA] Gecersiz versiyon dizesi.")
+        print("[ERROR] Invalid version string.")
         sys.exit(1)
 
-    # 1. Parcalari hesapla (ornek: 1.1.0 -> 1, 1, 0, 0)
+    # 1. Parse version parts (e.g. 1.2.0 -> 1, 2, 0, 0)
     parts = []
     for p in version_str.split("."):
         clean_p = "".join(filter(str.isdigit, p))
@@ -24,7 +24,7 @@ def update_version(version_str: str):
 
     root = os.path.dirname(os.path.abspath(__file__))
 
-    # 2. app/__init__.py guncelle
+    # 2. Update app/__init__.py
     init_path = os.path.join(root, "app", "__init__.py")
     if os.path.exists(init_path):
         with open(init_path, "r", encoding="utf-8") as f:
@@ -37,7 +37,7 @@ def update_version(version_str: str):
             f.write(new_content)
         print(f"[OK] app/__init__.py -> __version__ = \"{version_str}\"")
 
-    # 3. extension/manifest.json guncelle
+    # 3. Update extension/manifest.json
     manifest_path = os.path.join(root, "extension", "manifest.json")
     if os.path.exists(manifest_path):
         try:
@@ -49,9 +49,9 @@ def update_version(version_str: str):
                 json.dump(data, f, indent=2, ensure_ascii=False)
             print(f"[OK] extension/manifest.json -> version = \"{data['version']}\"")
         except Exception as e:
-            print(f"[UYARI] manifest.json guncellenirken hata: {e}")
+            print(f"[WARNING] Error updating manifest.json: {e}")
 
-    # 4. PyInstaller Windows EXE VersionInfo dosyasi (file_version_info.txt)
+    # 4. PyInstaller Windows EXE VersionInfo file (file_version_info.txt)
     version_info_content = f"""# UTF-8
 #
 VSVersionInfo(
@@ -86,9 +86,9 @@ VSVersionInfo(
     ver_info_path = os.path.join(root, "file_version_info.txt")
     with open(ver_info_path, "w", encoding="utf-8") as f:
         f.write(version_info_content)
-    print(f"[OK] file_version_info.txt olusturuldu (Versiyon: {version_str})")
+    print(f"[OK] file_version_info.txt generated (Version: {version_str})")
 
-    # 5. installer/setup.iss guncelle
+    # 5. Update installer/setup.iss
     setup_iss_path = os.path.join(root, "installer", "setup.iss")
     if os.path.exists(setup_iss_path):
         try:
@@ -99,11 +99,38 @@ VSVersionInfo(
                 f.write(new_iss)
             print(f"[OK] installer/setup.iss -> MyAppVersion = \"{version_str}\"")
         except Exception as e:
-            print(f"[UYARI] setup.iss guncellenirken hata: {e}")
+            print(f"[WARNING] Error updating setup.iss: {e}")
+
+    # 6. Update website/index.html fallback download URLs
+    index_html_path = os.path.join(root, "website", "index.html")
+    if os.path.exists(index_html_path):
+        try:
+            with open(index_html_path, "r", encoding="utf-8") as f:
+                html_content = f.read()
+            html_content = re.sub(
+                r'href="https://github\.com/sametburhan/download-manager/releases/(?:latest/download|download/[^/]+)/DownloadManagerSetup[^"]*\.exe"',
+                f'href="https://github.com/sametburhan/download-manager/releases/latest/download/DownloadManagerSetup-v{version_str}.exe"',
+                html_content
+            )
+            html_content = re.sub(
+                r'href="https://github\.com/sametburhan/download-manager/releases/(?:latest/download|download/[^/]+)/DownloadManager-Portable[^"]*\.zip"',
+                f'href="https://github.com/sametburhan/download-manager/releases/latest/download/DownloadManager-Portable-v{version_str}.zip"',
+                html_content
+            )
+            html_content = re.sub(
+                r'href="https://github\.com/sametburhan/download-manager/releases/(?:latest/download|download/[^/]+)/DownloadManager-Extension[^"]*\.zip"',
+                f'href="https://github.com/sametburhan/download-manager/releases/latest/download/DownloadManager-Extension-v{version_str}.zip"',
+                html_content
+            )
+            with open(index_html_path, "w", encoding="utf-8") as f:
+                f.write(html_content)
+            print(f"[OK] website/index.html -> updated release asset URLs to v{version_str}")
+        except Exception as e:
+            print(f"[WARNING] Error updating website/index.html: {e}")
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         update_version(sys.argv[1])
     else:
-        print("Kullanim: python update_version.py <versiyon>")
+        print("Usage: python update_version.py <version>")
         sys.exit(1)
