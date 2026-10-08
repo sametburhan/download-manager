@@ -3,22 +3,22 @@ setlocal enabledelayedexpansion
 title Download Manager - Build Pipeline
 
 echo ============================================================
-echo   Download Manager - Otomatik Derleme ve Paketleme
+echo   Download Manager - Automated Build and Packaging Pipeline
 echo ============================================================
 echo.
 
-REM 0. Kilitli dosyalari onlemek icin acik uygulamayi kapat
+REM 0. Terminate any running application instances to prevent locked files
 taskkill /F /IM DownloadManager.exe >nul 2>&1
 
-REM 1. Python Sanal Ortami Kontrolu
+REM 1. Check Python Virtual Environment
 if exist "venv\Scripts\activate.bat" (
-    echo [Ortam] Sanal ortam etkinlestiriliyor: venv
+    echo [Environment] Activating virtual environment: venv
     call venv\Scripts\activate.bat
 ) else (
-    echo [Ortam] venv bulunamadi, sistem Python kullanilacak.
+    echo [Environment] venv not found, using system Python.
 )
 
-REM Argumanlari ayristir
+REM Parse command-line arguments
 set "QUICK_MODE=0"
 set "USER_VERSION="
 
@@ -43,7 +43,7 @@ shift
 goto parse_args
 :args_done
 
-REM 2. Varsayilan versiyonu tespit et
+REM 2. Detect default version
 set "DEFAULT_VERSION=1.1.0"
 if exist "app\__init__.py" (
     for /f "tokens=2 delims==" %%v in ('findstr /i "__version__" app\__init__.py') do (
@@ -55,69 +55,69 @@ if exist "app\__init__.py" (
     )
 )
 
-REM 3. Kullanicidan Versiyon Bilgisi Isteme
+REM 3. Prompt user for version
 if "!USER_VERSION!"=="" (
     echo.
     echo ============================================================
-    set /p USER_VERSION="Lutfen uygulama versiyonunu girin [Varsayilan: !DEFAULT_VERSION!]: "
+    set /p USER_VERSION="Please enter application version [Default: !DEFAULT_VERSION!]: "
     echo ============================================================
 )
 
 if "!USER_VERSION!"=="" set "USER_VERSION=!DEFAULT_VERSION!"
 echo.
-echo [Versiyon] Uygulama versiyonu: !USER_VERSION!
+echo [Version] Application version: !USER_VERSION!
 
-REM 4. Versiyonu Kod Dosyalarina ve EXE Bilgisine Senkronize Et
+REM 4. Synchronize version with source files and EXE metadata
 python update_version.py !USER_VERSION!
 if errorlevel 1 (
-    echo [HATA] Versiyon guncelleme basarisiz oldu.
+    echo [ERROR] Failed to update version.
     pause
     exit /b 1
 )
 
 if "!QUICK_MODE!"=="1" goto inno_step
 
-REM 5. Ikon Olusturma
+REM 5. Generate Application Icon
 echo.
-echo [1/5] Uygulama ikonu hazirlaniyor: build_icon.py
+echo [1/5] Preparing application icon: build_icon.py
 python build_icon.py
 if errorlevel 1 (
-    echo [HATA] Ikon donusturme islemi basarisiz oldu.
+    echo [ERROR] Icon generation failed.
     pause
     exit /b 1
 )
 
-REM 6. Eski Derleme ve Onbellek Temizligi
+REM 6. Clean previous build artifacts and cache
 echo.
-echo [2/5] Eski derleme kalintilari temizleniyor...
+echo [2/5] Cleaning old build artifacts...
 if exist "build" rmdir /s /q "build"
 if exist "dist\DownloadManager" rmdir /s /q "dist\DownloadManager"
 if exist "dist\DownloadManagerSetup.exe" del /f /q "dist\DownloadManagerSetup.exe"
 
-REM 7. PyInstaller ile Yeni Python Kodlarinin EXE Olarak Derlenmesi
+REM 7. Compile Python code to EXE using PyInstaller
 echo.
-echo [3/5] Guncel Python kodlari PyInstaller ile derleniyor (v!USER_VERSION!)...
-echo       Kaynak kodlar taranip EXE olusturuluyor, bu islem biraz surebilir...
+echo [3/5] Building latest Python source with PyInstaller (v!USER_VERSION!)...
+echo       Analyzing dependencies and creating executable, this may take a moment...
 python -m PyInstaller build.spec --clean --noconfirm
 if errorlevel 1 (
     echo.
-    echo [HATA] PyInstaller derleme islemi basarisiz oldu!
+    echo [ERROR] PyInstaller build failed!
     pause
     exit /b 1
 )
 
 if not exist "dist\DownloadManager\DownloadManager.exe" (
     echo.
-    echo [HATA] dist\DownloadManager\DownloadManager.exe bulunamadi!
+    echo [ERROR] dist\DownloadManager\DownloadManager.exe not found!
     pause
     exit /b 1
 )
-echo       =^> Guncel DownloadManager.exe basariyla olusturuldu (v!USER_VERSION!).
+echo       =^> DownloadManager.exe created successfully (v!USER_VERSION!).
 
 :inno_step
-REM 8. Inno Setup ile Windows Kurulum Paketinin Olusturulmasi
+REM 8. Build Windows installer package using Inno Setup
 echo.
-echo [4/5] Inno Setup ile kurulum paketi derleniyor (v!USER_VERSION!)...
+echo [4/5] Building installer package with Inno Setup (v!USER_VERSION!)...
 
 set "ISCC="
 if exist "C:\Program Files\Inno Setup 7\ISCC.exe"       set "ISCC=C:\Program Files\Inno Setup 7\ISCC.exe"
@@ -132,45 +132,45 @@ if "!ISCC!"=="" (
 
 if "!ISCC!"=="" (
     echo.
-    echo [UYARI] Inno Setup bulunamadi.
-    echo         Derlenen guncel uygulama klasoru hazir: dist\DownloadManager\
-    echo         Installer olusturmak icin Inno Setup kurabilirsiniz.
+    echo [WARNING] Inno Setup compiler (ISCC.exe) not found.
+    echo           Compiled application directory is ready: dist\DownloadManager\
+    echo           Install Inno Setup to create an installer package.
     goto done
 )
 
 "!ISCC!" "/dMyAppVersion=!USER_VERSION!" installer\setup.iss
 if errorlevel 1 (
     echo.
-    echo [HATA] Inno Setup kurulum paketi olusturulamadi.
+    echo [ERROR] Failed to create Inno Setup installer package.
     pause
     exit /b 1
 )
-echo       =^> dist\DownloadManagerSetup.exe basariyla olusturuldu (v!USER_VERSION!).
+echo       =^> dist\DownloadManagerSetup.exe created successfully (v!USER_VERSION!).
 
-REM 9. Web Sitesi Indirme Dosyasinin Guncellenmesi
+REM 9. Synchronize Website Download Assets
 echo.
-echo [5/5] Web sitesi indirme dosyasi senkronize ediliyor...
+echo [5/5] Synchronizing website download assets...
 if exist "dist\DownloadManagerSetup.exe" (
     if exist "website\assets" (
         copy /y "dist\DownloadManagerSetup.exe" "website\assets\DownloadManagerSetup.exe" >nul
-        echo       =^> website\assets\DownloadManagerSetup.exe guncellendi!
+        echo       =^> website\assets\DownloadManagerSetup.exe updated!
     )
 )
 
 :done
 echo.
 echo ============================================================
-echo   TUM DERLEME ISLEMLERI BASARIYLA TAMAMLANDI!
+echo   ALL BUILD TASKS COMPLETED SUCCESSFULLY!
 echo ============================================================
-echo  [Versiyon Etiketi] !USER_VERSION!
+echo  [Version Tag]        !USER_VERSION!
 if exist "dist\DownloadManagerSetup.exe" (
-    echo  [Kurulum Dosyasi] dist\DownloadManagerSetup.exe
+    echo  [Installer Package]  dist\DownloadManagerSetup.exe
     if exist "website\assets\DownloadManagerSetup.exe" (
-        echo  [Web Dagitimi]   website\assets\DownloadManagerSetup.exe
+        echo  [Website Asset]      website\assets\DownloadManagerSetup.exe
     )
 ) else (
-    echo  [Uygulama Dizini] dist\DownloadManager\
-    echo  [Calistirilabilir] dist\DownloadManager\DownloadManager.exe
+    echo  [App Directory]      dist\DownloadManager\
+    echo  [Executable]         dist\DownloadManager\DownloadManager.exe
 )
 echo ============================================================
 echo.
