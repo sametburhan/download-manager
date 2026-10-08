@@ -39,6 +39,37 @@ chrome.storage.onChanged.addListener((changes, area) => {
 });
 
 /**
+ * Extracts a normalized, canonical identifier for a media URL.
+ * YouTube videos are normalized to 'yt:VIDEO_ID', Vimeo to 'vimeo:VIDEO_ID'.
+ */
+function getMediaCanonicalKey(url, pageUrl) {
+  const target = (url || pageUrl || "").trim();
+  if (!target) return "";
+
+  // 1. YouTube videoId
+  const ytMatch = target.match(/(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?.*v=|shorts\/|embed\/|live\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i);
+  if (ytMatch) {
+    return `yt:${ytMatch[1]}`;
+  }
+
+  // 2. Vimeo videoId
+  const vimeoMatch = target.match(/(?:https?:\/\/)?(?:www\.)?vimeo\.com\/(\d+)/i);
+  if (vimeoMatch) {
+    return `vimeo:${vimeoMatch[1]}`;
+  }
+
+  // 3. Strip query tracking parameters & hash for standard streams
+  try {
+    const u = new URL(target);
+    const paramsToRemove = ["t", "ab_channel", "feature", "si", "fbclid", "gclid", "ref"];
+    paramsToRemove.forEach(p => u.searchParams.delete(p));
+    return u.origin + u.pathname + (u.search ? u.search : "");
+  } catch (e) {
+    return target.split("#")[0];
+  }
+}
+
+/**
  * Clean up page title removing notification numbers and platform suffixes.
  */
 function getCleanPageTitle() {
@@ -136,8 +167,14 @@ function detectAllPageMedia() {
     const ytVideo = document.querySelector("video.html5-main-video") || document.querySelector("video");
     const resBadge = ytVideo ? getResolutionBadge(ytVideo) : "YouTube (UHD / MP3)";
 
+    let cleanUrl = pageUrl;
+    const ytMatch = pageUrl.match(/(?:watch\?.*v=|shorts\/|embed\/|live\/)([a-zA-Z0-9_-]{11})/i);
+    if (ytMatch) {
+      cleanUrl = `https://www.youtube.com/watch?v=${ytMatch[1]}`;
+    }
+
     mediaList.push({
-      url: pageUrl,
+      url: cleanUrl,
       page_url: pageUrl,
       referrer: document.referrer || pageUrl,
       title: ytTitle,
@@ -219,10 +256,16 @@ function syncDetectedMediaToBackground() {
   if (!autoCaptureEnabled) return;
   const found = detectAllPageMedia();
   found.forEach(item => {
+    const canonKey = getMediaCanonicalKey(item.url, item.page_url);
     const cleanUrl = (item.url || "").split("#")[0];
-    const key = item.url + "|" + item.title;
+    const key = (canonKey || cleanUrl) + "|" + item.title;
+
     // Suppress videos that the user explicitly cleared on this page
-    if (clearedMediaKeys.has(cleanUrl) || clearedMediaKeys.has(key)) {
+    if (
+      (canonKey && clearedMediaKeys.has(canonKey)) ||
+      (cleanUrl && clearedMediaKeys.has(cleanUrl)) ||
+      clearedMediaKeys.has(key)
+    ) {
       return;
     }
     if (!reportedMediaMap.has(key)) {
@@ -347,7 +390,7 @@ function attachFloatingDownloadButton(video) {
         setTimeout(() => {
           btn.innerHTML = "⚡ Download This Video";
           btn.style.backgroundColor = "rgba(15, 17, 23, 0.90)";
-        }, 3000);
+        }, 1500);
         return;
       }
 
@@ -357,7 +400,7 @@ function attachFloatingDownloadButton(video) {
         setTimeout(() => {
           btn.innerHTML = "⚡ Download This Video";
           btn.style.backgroundColor = "rgba(15, 17, 23, 0.90)";
-        }, 3000);
+        }, 1500);
         return;
       }
 
@@ -366,7 +409,7 @@ function attachFloatingDownloadButton(video) {
       setTimeout(() => {
         btn.innerHTML = "⚡ Download This Video";
         btn.style.backgroundColor = "rgba(15, 17, 23, 0.90)";
-      }, 2500);
+      }, 1500);
     });
   });
 
@@ -379,25 +422,38 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.type === "SCAN_MEDIA" || request.type === "GET_PAGE_VIDEOS") {
     if (request.resetCleared) {
       clearedMediaKeys.clear();
+      reportedMediaMap.clear();
     }
     const all = detectAllPageMedia();
     const list = all.filter(item => {
+      const canonKey = getMediaCanonicalKey(item.url, item.page_url);
       const cleanUrl = (item.url || "").split("#")[0];
-      const key = item.url + "|" + item.title;
-      return !clearedMediaKeys.has(cleanUrl) && !clearedMediaKeys.has(key);
+      const key = (canonKey || cleanUrl) + "|" + item.title;
+      return !(
+        (canonKey && clearedMediaKeys.has(canonKey)) ||
+        (cleanUrl && clearedMediaKeys.has(cleanUrl)) ||
+        clearedMediaKeys.has(key)
+      );
     });
     sendResponse({ mediaList: list, isTop: window === window.top });
   } else if (request.type === "CLEAR_PAGE_MEDIA") {
     // Snapshot all currently detectable items as cleared
     const current = detectAllPageMedia();
     current.forEach(item => {
+      const canonKey = getMediaCanonicalKey(item.url, item.page_url);
+      if (canonKey) clearedMediaKeys.add(canonKey);
       if (item.url) clearedMediaKeys.add(item.url.split("#")[0]);
-      clearedMediaKeys.add(item.url + "|" + item.title);
+      if (item.page_url) clearedMediaKeys.add(item.page_url.split("#")[0]);
+      clearedMediaKeys.add((canonKey || item.url) + "|" + item.title);
     });
     // Also include any explicitly passed URLs from popup
     if (Array.isArray(request.clearedUrls)) {
       request.clearedUrls.forEach(u => {
-        if (u) clearedMediaKeys.add(u.split("#")[0]);
+        if (u) {
+          const canonKey = getMediaCanonicalKey(u, u);
+          if (canonKey) clearedMediaKeys.add(canonKey);
+          clearedMediaKeys.add(u.split("#")[0]);
+        }
       });
     }
     // Retain reportedMediaMap keys in cleared set to prevent re-discovery
@@ -420,10 +476,21 @@ const observer = new MutationObserver(() => {
 observer.observe(document.body || document.documentElement, { childList: true, subtree: true });
 
 // YouTube and SPA Navigation Event Listeners
+let lastRecordedCanon = getMediaCanonicalKey(window.location.href, window.location.href);
 let lastRecordedHref = window.location.href;
+
 function handleSpaNavigation() {
-  if (window.location.href !== lastRecordedHref) {
-    lastRecordedHref = window.location.href;
+  const currentCanon = getMediaCanonicalKey(window.location.href, window.location.href);
+  const currentHref = window.location.href;
+
+  // Only reset clearedMediaKeys when navigation moves to a genuinely DIFFERENT video or different pathname!
+  const isDifferentVideo = currentCanon
+    ? (currentCanon !== lastRecordedCanon)
+    : (currentHref.split("?")[0] !== lastRecordedHref.split("?")[0]);
+
+  if (isDifferentVideo) {
+    lastRecordedCanon = currentCanon;
+    lastRecordedHref = currentHref;
     clearedMediaKeys.clear();
     reportedMediaMap.clear();
     setTimeout(() => {

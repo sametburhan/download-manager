@@ -206,9 +206,9 @@ class MediaQualityDialog(QDialog):
 
         self.current_task_id: Optional[str] = None
         self.final_title: str = initial_title or "Media Download"
-        self.final_dest: str = self.default_save_dir
         self.final_downloaded_path: str = ""
         self.is_completed: bool = False
+        self.is_failed: bool = False
 
         # Bağımsız üst düzey pencere (kendi görev çubuğu girdisi ve küçültme butonu olan)
         self.setWindowFlags(
@@ -216,6 +216,7 @@ class MediaQualityDialog(QDialog):
             Qt.WindowType.WindowCloseButtonHint |
             Qt.WindowType.WindowMinimizeButtonHint
         )
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
         self.setWindowTitle("Media Download · Quality & Format Selection")
         self.setWindowIcon(get_app_icon())
         self.resize(740, 570)
@@ -1227,6 +1228,7 @@ class MediaQualityDialog(QDialog):
             self._start_analysis(self.page_url)
             return
 
+        self.is_failed = True
         self.status_bar.setVisible(False)
         self.status_pill.setText("❌ Extraction Failed")
         self.status_pill.setStyleSheet("""
@@ -1487,10 +1489,27 @@ class MediaQualityDialog(QDialog):
         if task_id != self.current_task_id:
             return
 
+        self.is_failed = True
         self.status_val.setText(f"❌ Error: {err_msg[:60]}...")
         self.status_val.setStyleSheet("color: #f87171; font-weight: bold; font-size: 12px;")
         self.status_val.setToolTip(err_msg)
         self.pause_btn.setEnabled(False)
+
+    def closeEvent(self, event) -> None:
+        """Pencere kapatıldığında arka plan analiz ve küçük resim iş parçacıklarını güvenle durdurur."""
+        if hasattr(self, "extractor") and self.extractor and self.extractor.isRunning():
+            try:
+                self.extractor.terminate()
+                self.extractor.wait(200)
+            except Exception:
+                pass
+        if hasattr(self, "_thumb_thread") and self._thumb_thread and self._thumb_thread.isRunning():
+            try:
+                self._thumb_thread.terminate()
+                self._thumb_thread.wait(200)
+            except Exception:
+                pass
+        super().closeEvent(event)
 
     def _toggle_pause(self) -> None:
         """Duraklat / Devam Et eylemi."""

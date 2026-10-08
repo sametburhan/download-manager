@@ -1629,17 +1629,29 @@ class MainWindow(QMainWindow):
                 return
             initial_url = url.strip()
 
-        # Halihazırda aynı medya URL'si için açık olan diyalog varsa öne getir
+        # Halihazırda aynı medya URL'si için açık olan diyalog varsa kontrol et
         if initial_url:
             clean_url = initial_url.strip()
             for d in list(self._active_media_windows):
                 try:
                     if hasattr(d, "url") and d.url.strip() == clean_url:
-                        d.setWindowState(d.windowState() & ~Qt.WindowState.WindowMinimized | Qt.WindowState.WindowActive)
-                        d.show()
-                        d.raise_()
-                        d.activateWindow()
-                        return
+                        # Eğer pencere hala açık ve aktif bir indirme/analiz yürütüyorsa öne getir
+                        is_active = (
+                            d.isVisible() and
+                            not getattr(d, "is_completed", False) and
+                            not getattr(d, "is_failed", False)
+                        )
+                        if is_active:
+                            d.setWindowState(d.windowState() & ~Qt.WindowState.WindowMinimized | Qt.WindowState.WindowActive)
+                            d.show()
+                            d.raise_()
+                            d.activateWindow()
+                            return
+                        else:
+                            # Tamamlanmış, hata vermiş veya kapatılmış eski pencereyi listeden temizle
+                            if d in self._active_media_windows:
+                                self._active_media_windows.remove(d)
+                            d.close()
                 except Exception:
                     pass
 

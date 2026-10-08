@@ -217,25 +217,7 @@ document.addEventListener("DOMContentLoaded", () => {
           setTimeout(() => {
             btn.textContent = "⬇️ Download";
             btn.style.backgroundColor = "#0078d4";
-          }, 3000);
-          return;
-        }
-
-        // 2. If currently disconnected, reject immediately with red feedback
-        if (!isAppConnected) {
-          btn.textContent = "No App ⚠️";
-          btn.style.backgroundColor = "#ef4444";
-          showFeedback("Desktop app is not connected! Please start Download Manager.", "error", "media");
-
-          // Trigger background reconnect attempt
-          chrome.runtime.sendMessage({ type: "RECONNECT" }, () => {
-            setTimeout(refreshStatus, 800);
-          });
-
-          setTimeout(() => {
-            btn.textContent = "⬇️ Download";
-            btn.style.backgroundColor = "#0078d4";
-          }, 3000);
+          }, 2000);
           return;
         }
 
@@ -257,6 +239,7 @@ document.addEventListener("DOMContentLoaded", () => {
           if (response && response.reason === "AUTO_CAPTURE_DISABLED") {
             btn.textContent = "Enable Switch ⚠️";
             btn.style.backgroundColor = "#ef4444";
+            btn.disabled = false;
             showFeedback("Automatic Download Interception is disabled! Please enable it to download.", "error", "media");
             highlightAutoCaptureRow();
 
@@ -264,22 +247,25 @@ document.addEventListener("DOMContentLoaded", () => {
               btn.textContent = "⬇️ Download";
               btn.style.backgroundColor = "#0078d4";
               btn.disabled = false;
-            }, 3000);
+            }, 1500);
             return;
           }
 
           // Check for actual success response from desktop WebSocket
           if (chrome.runtime.lastError || !response || !response.success) {
             updateStatusUI(false);
-            btn.textContent = "Failed ❌";
+            btn.textContent = "Retry 🔄";
             btn.style.backgroundColor = "#ef4444";
-            showFeedback("Desktop app connection failed! Please check if Download Manager is running.", "error", "media");
+            btn.disabled = false;
+            showFeedback("Desktop app connection failed! Reconnecting...", "error", "media");
+
+            chrome.runtime.sendMessage({ type: "RECONNECT" });
 
             setTimeout(() => {
               btn.textContent = "⬇️ Download";
               btn.style.backgroundColor = "#0078d4";
               btn.disabled = false;
-            }, 3000);
+            }, 1500);
             return;
           }
 
@@ -291,7 +277,7 @@ document.addEventListener("DOMContentLoaded", () => {
             btn.textContent = "⬇️ Download";
             btn.style.backgroundColor = "#0078d4";
             btn.disabled = false;
-          }, 3500);
+          }, 1500);
         });
       };
 
@@ -315,7 +301,11 @@ document.addEventListener("DOMContentLoaded", () => {
       clearMediaBtn.style.transform = "scale(0.85)";
       setTimeout(() => { clearMediaBtn.style.transform = "scale(1)"; }, 200);
 
-      const urlsToClear = currentDisplayedMedia.map(m => m.url).filter(Boolean);
+      const urlsToClear = [];
+      currentDisplayedMedia.forEach(m => {
+        if (m.url) urlsToClear.push(m.url);
+        if (m.page_url) urlsToClear.push(m.page_url);
+      });
 
       if (currentTabId) {
         // Clear background service worker cache and remember cleared URLs

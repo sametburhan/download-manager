@@ -250,6 +250,33 @@ function updateTabBadge(tabId) {
 
 // ==================== 2. Media Tracking Registry ====================
 
+function getMediaCanonicalKey(url, pageUrl) {
+  const target = (url || pageUrl || "").trim();
+  if (!target) return "";
+
+  // 1. YouTube videoId
+  const ytMatch = target.match(/(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?.*v=|shorts\/|embed\/|live\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i);
+  if (ytMatch) {
+    return `yt:${ytMatch[1]}`;
+  }
+
+  // 2. Vimeo videoId
+  const vimeoMatch = target.match(/(?:https?:\/\/)?(?:www\.)?vimeo\.com\/(\d+)/i);
+  if (vimeoMatch) {
+    return `vimeo:${vimeoMatch[1]}`;
+  }
+
+  // 3. Strip query tracking parameters & hash for standard streams
+  try {
+    const u = new URL(target);
+    const paramsToRemove = ["t", "ab_channel", "feature", "si", "fbclid", "gclid", "ref"];
+    paramsToRemove.forEach(p => u.searchParams.delete(p));
+    return u.origin + u.pathname + (u.search ? u.search : "");
+  } catch (e) {
+    return target.split("#")[0];
+  }
+}
+
 function parsePlatformMedia(url, title) {
   if (!url) return null;
 
@@ -297,19 +324,31 @@ function parsePlatformMedia(url, title) {
 function recordMediaForTab(tabId, mediaItem) {
   if (!tabId || tabId < 0 || !autoCaptureEnabled) return;
 
+  const canonKey = getMediaCanonicalKey(mediaItem.url, mediaItem.page_url);
   const cleanItemUrl = (mediaItem.url || "").split("#")[0];
+  const cleanPageUrl = (mediaItem.page_url || "").split("#")[0];
 
-  // If user explicitly cleared this URL on this tab, ignore it
-  if (clearedMediaUrlsByTab[tabId] && clearedMediaUrlsByTab[tabId].has(cleanItemUrl)) {
-    return;
+  // If user explicitly cleared this URL/video on this tab, suppress it until new video/stream or explicit rescan
+  if (clearedMediaUrlsByTab[tabId]) {
+    if (
+      (canonKey && clearedMediaUrlsByTab[tabId].has(canonKey)) ||
+      (cleanItemUrl && clearedMediaUrlsByTab[tabId].has(cleanItemUrl)) ||
+      (cleanPageUrl && clearedMediaUrlsByTab[tabId].has(cleanPageUrl))
+    ) {
+      return;
+    }
   }
 
   if (!tabMedia[tabId]) {
     tabMedia[tabId] = [];
   }
 
-  // Deduplicate by clean stream URL
-  const exists = tabMedia[tabId].some(item => item.url.split("#")[0] === cleanItemUrl);
+  // Deduplicate by canonical key or clean stream URL
+  const exists = tabMedia[tabId].some(item => {
+    const itemCanon = getMediaCanonicalKey(item.url, item.page_url);
+    return (canonKey && itemCanon === canonKey) || (cleanItemUrl && item.url.split("#")[0] === cleanItemUrl);
+  });
+
   if (!exists) {
     tabMedia[tabId].push(mediaItem);
     updateTabBadge(tabId);
@@ -335,8 +374,14 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   const currentTitle = changeInfo.title || (tab && tab.title);
 
   if (changeInfo.url) {
-    tabMedia[tabId] = [];
-    delete clearedMediaUrlsByTab[tabId];
+    const oldCanon = tabMedia[tabId] && tabMedia[tabId][0] ? getMediaCanonicalKey(tabMedia[tabId][0].url, tabMedia[tabId][0].page_url) : "";
+    const newCanon = getMediaCanonicalKey(changeInfo.url, changeInfo.url);
+
+    // Only clear user's cleared list if URL actually navigates to a DIFFERENT video/page!
+    if (!oldCanon || oldCanon !== newCanon) {
+      tabMedia[tabId] = [];
+      delete clearedMediaUrlsByTab[tabId];
+    }
     const platformMedia = parsePlatformMedia(changeInfo.url, currentTitle);
     if (platformMedia) {
       recordMediaForTab(tabId, platformMedia);
@@ -346,12 +391,20 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   } else if (changeInfo.title && currentUrl) {
     const platformMedia = parsePlatformMedia(currentUrl, changeInfo.title);
     if (platformMedia) {
-      if (!tabMedia[tabId] || tabMedia[tabId].length === 0) {
-        recordMediaForTab(tabId, platformMedia);
-      } else {
-        const item = tabMedia[tabId].find(m => m.source_type === "youtube" || m.url === platformMedia.url);
-        if (item) {
-          item.title = platformMedia.title;
+      const canon = getMediaCanonicalKey(platformMedia.url, currentUrl);
+      const isCleared = clearedMediaUrlsByTab[tabId] && (
+        (canon && clearedMediaUrlsByTab[tabId].has(canon)) ||
+        clearedMediaUrlsByTab[tabId].has(platformMedia.url.split("#")[0]) ||
+        clearedMediaUrlsByTab[tabId].has(currentUrl.split("#")[0])
+      );
+      if (!isCleared) {
+        if (!tabMedia[tabId] || tabMedia[tabId].length === 0) {
+          recordMediaForTab(tabId, platformMedia);
+        } else {
+          const item = tabMedia[tabId].find(m => m.source_type === "youtube" || m.url === platformMedia.url);
+          if (item) {
+            item.title = platformMedia.title;
+          }
         }
       }
     }
@@ -650,9 +703,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (!chrome.runtime.lastError && tab && tab.url) {
           const platformMedia = parsePlatformMedia(tab.url, tab.title);
           if (platformMedia) {
+            const canon = getMediaCanonicalKey(platformMedia.url, platformMedia.page_url);
             const cleanUrl = platformMedia.url.split("#")[0];
-            // Only auto-record if not previously cleared by user on this tab
-            if (!clearedMediaUrlsByTab[tabId] || !clearedMediaUrlsByTab[tabId].has(cleanUrl)) {
+            const cleanTabUrl = tab.url.split("#")[0];
+            const isCleared = clearedMediaUrlsByTab[tabId] && (
+              (canon && clearedMediaUrlsByTab[tabId].has(canon)) ||
+              clearedMediaUrlsByTab[tabId].has(cleanUrl) ||
+              clearedMediaUrlsByTab[tabId].has(cleanTabUrl)
+            );
+            if (!isCleared) {
               recordMediaForTab(tabId, platformMedia);
               sendResponse({ mediaList: [platformMedia] });
               return;
@@ -673,18 +732,25 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       if (!clearedMediaUrlsByTab[tabId]) {
         clearedMediaUrlsByTab[tabId] = new Set();
       }
-      // Snapshot all current tab media URLs into cleared set
+      // Snapshot all current tab media URLs into cleared set with canonical keys
       if (tabMedia[tabId]) {
         tabMedia[tabId].forEach(item => {
-          if (item && item.url) {
-            clearedMediaUrlsByTab[tabId].add(item.url.split("#")[0]);
+          if (item) {
+            const canon = getMediaCanonicalKey(item.url, item.page_url);
+            if (canon) clearedMediaUrlsByTab[tabId].add(canon);
+            if (item.url) clearedMediaUrlsByTab[tabId].add(item.url.split("#")[0]);
+            if (item.page_url) clearedMediaUrlsByTab[tabId].add(item.page_url.split("#")[0]);
           }
         });
       }
       // Also add any URLs explicitly passed in request
       if (Array.isArray(request.clearedUrls)) {
         request.clearedUrls.forEach(u => {
-          if (u) clearedMediaUrlsByTab[tabId].add(u.split("#")[0]);
+          if (u) {
+            const canon = getMediaCanonicalKey(u, u);
+            if (canon) clearedMediaUrlsByTab[tabId].add(canon);
+            clearedMediaUrlsByTab[tabId].add(u.split("#")[0]);
+          }
         });
       }
 
@@ -727,8 +793,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       return;
     }
 
-    // Download action triggered by user from popup or floating button
-    if (!isConnected) connectWebSocket();
+    // Connect immediately if not currently connected
+    if (!isConnected || !socket || socket.readyState !== WebSocket.OPEN) {
+      connectWebSocket();
+    }
     const payload = {
       ...request.payload,
       user_agent: navigator.userAgent
