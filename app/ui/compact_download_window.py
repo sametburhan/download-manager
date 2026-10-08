@@ -43,6 +43,24 @@ def is_video_stream_url(url: str) -> bool:
     return False
 
 
+def apply_dark_title_bar(window: QWidget) -> None:
+    """Windows 10/11 üzerinde pencere başlık çubuğunu koyu (dark) temaya geçirir."""
+    try:
+        import ctypes
+        hwnd = int(window.winId())
+        DWMWA_USE_IMMERSIVE_DARK_MODE = 20
+        value = ctypes.c_int(1)
+        res = ctypes.windll.dwmapi.DwmSetWindowAttribute(
+            hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ctypes.byref(value), ctypes.sizeof(value)
+        )
+        if res != 0:
+            ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                hwnd, 19, ctypes.byref(value), ctypes.sizeof(value)
+            )
+    except Exception:
+        pass
+
+
 class CompactDownloadWindow(QDialog):
     """
     IDM tarzı modern kompakt indirme ve ilerleme penceresi.
@@ -72,8 +90,8 @@ class CompactDownloadWindow(QDialog):
         # Pencere Özellikleri (Windows 11 Başlıklı, akrilik koyu tasarım)
         self.setWindowTitle("Add download")
         self.setWindowIcon(get_app_icon())
-        self.setMinimumWidth(560)
-        self.resize(560, 240)
+        self.setMinimumWidth(580)
+        self.resize(580, 240)
         self.setWindowFlags(self.windowFlags() | Qt.WindowType.WindowStaysOnTopHint)
         self.setStyleSheet(self._get_style_sheet())
 
@@ -84,6 +102,10 @@ class CompactDownloadWindow(QDialog):
             self._query_file_size_async(initial_url)
         else:
             self._check_clipboard()
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        apply_dark_title_bar(self)
 
     def _init_ui(self, initial_url: str, initial_filename: str) -> None:
         """Referans görseldeki koyu akrilik modern düzeni kurar."""
@@ -105,7 +127,8 @@ class CompactDownloadWindow(QDialog):
         url_container = QFrame()
         url_container.setObjectName("inputContainer")
         url_layout = QHBoxLayout(url_container)
-        url_layout.setContentsMargins(8, 0, 8, 0)
+        url_layout.setContentsMargins(10, 0, 8, 0)
+        url_layout.setSpacing(6)
 
         self.url_input = QLineEdit(initial_url)
         self.url_input.setPlaceholderText("https://...")
@@ -114,9 +137,10 @@ class CompactDownloadWindow(QDialog):
         url_layout.addWidget(self.url_input)
 
         self.btn_paste = QPushButton("📋")
-        self.btn_paste.setToolTip("Paste from clipboard")
-        self.btn_paste.setFixedSize(24, 24)
-        self.btn_paste.setStyleSheet("background: transparent; border: none; font-size: 13px;")
+        self.btn_paste.setObjectName("embeddedActionBtn")
+        self.btn_paste.setToolTip("Pano içeriğini yapıştır")
+        self.btn_paste.setFixedSize(26, 26)
+        self.btn_paste.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_paste.clicked.connect(self._paste_from_clipboard)
         url_layout.addWidget(self.btn_paste)
 
@@ -126,16 +150,18 @@ class CompactDownloadWindow(QDialog):
         dest_container = QFrame()
         dest_container.setObjectName("inputContainer")
         dest_layout = QHBoxLayout(dest_container)
-        dest_layout.setContentsMargins(8, 0, 8, 0)
+        dest_layout.setContentsMargins(10, 0, 8, 0)
+        dest_layout.setSpacing(6)
 
         self.dest_input = QLineEdit(self.default_save_dir)
         self.dest_input.setStyleSheet("border: none; background: transparent;")
         dest_layout.addWidget(self.dest_input)
 
         self.btn_browse = QPushButton("📁")
-        self.btn_browse.setToolTip("Select folder")
-        self.btn_browse.setFixedSize(24, 24)
-        self.btn_browse.setStyleSheet("background: transparent; border: none; font-size: 13px;")
+        self.btn_browse.setObjectName("embeddedActionBtn")
+        self.btn_browse.setToolTip("Kayıt klasörünü seç")
+        self.btn_browse.setFixedSize(26, 26)
+        self.btn_browse.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_browse.clicked.connect(self._browse_folder)
         dest_layout.addWidget(self.btn_browse)
 
@@ -145,7 +171,7 @@ class CompactDownloadWindow(QDialog):
         file_container = QFrame()
         file_container.setObjectName("inputContainer")
         file_layout = QHBoxLayout(file_container)
-        file_layout.setContentsMargins(8, 0, 8, 0)
+        file_layout.setContentsMargins(10, 0, 8, 0)
 
         if not initial_filename and initial_url:
             clean = initial_url.split("?")[0].split("#")[0]
@@ -178,32 +204,21 @@ class CompactDownloadWindow(QDialog):
 
         # Başlık ve Yenile Butonu
         header_box = QHBoxLayout()
-        header_box.setSpacing(4)
+        header_box.setSpacing(6)
         self.size_icon = QLabel("📦")
         self.size_icon.setStyleSheet("font-size: 13px; background: transparent;")
         header_box.addWidget(self.size_icon)
 
         size_title = QLabel("DOSYA BOYUTU")
-        size_title.setStyleSheet("color: #94a3b8; font-size: 10px; font-weight: bold; letter-spacing: 0.5px; background: transparent;")
+        size_title.setStyleSheet("color: #94a3b8; font-size: 10px; font-weight: bold; letter-spacing: 0.6px; background: transparent;")
         header_box.addWidget(size_title)
         header_box.addStretch()
 
         self.btn_refresh = QPushButton("🔄")
+        self.btn_refresh.setObjectName("refreshBtn")
         self.btn_refresh.setToolTip("Boyutu yeniden sorgula")
         self.btn_refresh.setFixedSize(22, 22)
-        self.btn_refresh.setStyleSheet("""
-            QPushButton {
-                background: transparent;
-                border: none;
-                border-radius: 4px;
-                color: #94a3b8;
-                font-size: 11px;
-            }
-            QPushButton:hover {
-                background-color: #232838;
-                color: #ffffff;
-            }
-        """)
+        self.btn_refresh.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_refresh.clicked.connect(lambda: self._query_file_size_async(self.url_input.text()))
         header_box.addWidget(self.btn_refresh)
         size_card_layout.addLayout(header_box)
@@ -461,17 +476,21 @@ class CompactDownloadWindow(QDialog):
         btn_layout.setContentsMargins(0, 6, 0, 0)
         btn_layout.setSpacing(10)
 
-        # 'Add' Butonu
+        # 'Add' Butonu (İndirmeyi başlatmadan kuyruğa/listeye ekler)
         self.btn_add = QPushButton("Add")
         self.btn_add.setObjectName("secondaryBtn")
         self.btn_add.setFixedWidth(80)
+        self.btn_add.setFixedHeight(38)
+        self.btn_add.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_add.clicked.connect(self._on_add_clicked)
         btn_layout.addWidget(self.btn_add)
 
-        # 'Download' Butonu (Referanstaki Mor-Mavi Neon Gradyan)
+        # 'Download' Butonu (Referanstaki Mor-Mavi Neon Gradyan, anında başlatır)
         self.btn_download = QPushButton("Download")
         self.btn_download.setObjectName("downloadBtn")
-        self.btn_download.setFixedWidth(130)
+        self.btn_download.setFixedWidth(145)
+        self.btn_download.setFixedHeight(38)
+        self.btn_download.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_download.clicked.connect(self._on_download_clicked)
         btn_layout.addWidget(self.btn_download)
 
@@ -481,6 +500,8 @@ class CompactDownloadWindow(QDialog):
         self.btn_cancel = QPushButton("Cancel")
         self.btn_cancel.setObjectName("secondaryBtn")
         self.btn_cancel.setFixedWidth(80)
+        self.btn_cancel.setFixedHeight(38)
+        self.btn_cancel.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_cancel.clicked.connect(self.close)
         btn_layout.addWidget(self.btn_cancel)
 
@@ -596,7 +617,7 @@ class CompactDownloadWindow(QDialog):
 
         self.size_icon.setText("📦")
         self.size_label.setText("Sorgulanıyor...")
-        self.size_label.setStyleSheet("color: #cbd5e1; font-size: 13px; font-weight: bold; background: transparent;")
+        self.size_label.setStyleSheet("color: #38bdf8; font-size: 15px; font-weight: bold; background: transparent;")
         self.check_icon.setText("Sunucuya bağlanılıyor...")
         self.check_icon.setStyleSheet("color: #64748b; font-size: 11px; background: transparent;")
 
@@ -637,9 +658,9 @@ class CompactDownloadWindow(QDialog):
                                     if "/" in cr:
                                         tot_str = cr.split("/")[-1].strip()
                                         if tot_str.isdigit():
-                                            size = int(tot_str)
-                                            is_resumable = True
-                                            status_text = "Kaldığı yerden devam edebilir"
+                                             size = int(tot_str)
+                                             is_resumable = True
+                                             status_text = "Kaldığı yerden devam edebilir"
                                 elif get_resp.status_code == 200:
                                     if "Content-Length" in get_resp.headers and get_resp.headers["Content-Length"].isdigit():
                                         size = int(get_resp.headers["Content-Length"])
@@ -663,6 +684,7 @@ class CompactDownloadWindow(QDialog):
 
     def _update_size_ui(self, size_bytes: int, is_resumable: bool = False, status_msg: str = "") -> None:
         self.total_size_bytes = max(0, size_bytes)
+        self._is_resumable = is_resumable
 
         if size_bytes > 0:
             if size_bytes < 1024 * 1024:
@@ -673,10 +695,10 @@ class CompactDownloadWindow(QDialog):
                 formatted = f"{size_bytes / (1024 * 1024 * 1024):.2f} GB"
 
             self.size_label.setText(formatted)
-            self.size_label.setStyleSheet("color: #22c55e; font-size: 15px; font-weight: bold; background: transparent;")
-            msg = status_msg or ("✓ Kaldığı yerden devam edebilir" if is_resumable else "✓ İndirmeye hazır")
+            self.size_label.setStyleSheet("color: #38bdf8; font-size: 15px; font-weight: bold; background: transparent;")
+            msg = status_msg or ("✓ Resume destekliyor" if is_resumable else "✓ Sunucu hazır")
             self.check_icon.setText(msg)
-            self.check_icon.setStyleSheet("color: #22c55e; font-size: 11px; background: transparent;")
+            self.check_icon.setStyleSheet("color: #94a3b8; font-size: 11px; background: transparent;")
 
         elif size_bytes == 0:
             self.size_label.setText("Bilinmiyor")
@@ -708,36 +730,58 @@ class CompactDownloadWindow(QDialog):
     # ==================== Başlatma ve İlerlemeye Dönüşüm ====================
 
     def _on_add_clicked(self) -> None:
-        """Kuyruğa sessizce ekler ve pencereyi kapatır."""
+        """Kuyruğa sessizce ekler (auto_start=False) ve pencereyi kapatır."""
         url = self.url_input.text().strip()
         filename = sanitize_filename(self.filename_input.text().strip())
-        dest = self.dest_input.text().strip()
+        dest = self.dest_input.text().strip() or self.default_save_dir
 
-        if url:
-            if is_video_stream_url(url):
-                self.task_manager.add_media_download(
-                    url=url,
-                    title=filename or None,
-                    destination_folder=dest,
-                    auto_start=True
-                )
-            else:
-                self.task_manager.add_http_download(
-                    url=url,
-                    filename=filename,
-                    destination_folder=dest,
-                    auto_start=True
-                )
-            self.accept()
+        if not url:
+            return
+
+        if not filename:
+            clean = url.split("?")[0].split("#")[0]
+            name = clean.split("/")[-1]
+            if name:
+                try:
+                    name = urllib.parse.unquote(name)
+                except Exception:
+                    pass
+                filename = sanitize_filename(name) or "download.bin"
+
+        if is_video_stream_url(url):
+            self.task_manager.add_media_download(
+                url=url,
+                title=filename or None,
+                destination_folder=dest,
+                auto_start=False
+            )
+        else:
+            self.task_manager.add_http_download(
+                url=url,
+                filename=filename,
+                destination_folder=dest,
+                auto_start=False
+            )
+        self.accept()
 
     def _on_download_clicked(self) -> None:
         """Download butonuna basıldığında AYNI PENCEREDE indirmeyi başlatır ve ilerleme moduna geçer."""
         url = self.url_input.text().strip()
         filename = sanitize_filename(self.filename_input.text().strip())
-        dest = self.dest_input.text().strip()
+        dest = self.dest_input.text().strip() or self.default_save_dir
 
         if not url:
             return
+
+        if not filename:
+            clean = url.split("?")[0].split("#")[0]
+            name = clean.split("/")[-1]
+            if name:
+                try:
+                    name = urllib.parse.unquote(name)
+                except Exception:
+                    pass
+                filename = sanitize_filename(name) or "download.bin"
 
         if is_video_stream_url(url):
             from app.ui.media_dialog import MediaQualityDialog
@@ -946,8 +990,8 @@ class CompactDownloadWindow(QDialog):
         """Kullanıcının paylaştığı referans arayüzün özel QSS stilleri."""
         return """
             QDialog {
-                background-color: #0f1117;
-                border: 1px solid #1e2433;
+                background-color: #0f1420;
+                border: 1px solid #1e2638;
                 border-radius: 12px;
             }
             QTabWidget#detailTabs::pane {
@@ -1038,67 +1082,103 @@ class CompactDownloadWindow(QDialog):
                 border-color: #dc2626;
             }
             QFrame#inputContainer {
-                background-color: #171a23;
-                border: 1px solid #232838;
+                background-color: #121826;
+                border: 1px solid #1f2b3e;
                 border-radius: 8px;
                 min-height: 38px;
                 max-height: 38px;
             }
             QFrame#inputContainer:hover {
-                border: 1px solid #333c52;
-                background-color: #1c202c;
+                border: 1px solid #334460;
+                background-color: #151d2e;
             }
-            QFrame#sizeCard {
-                background-color: #171a23;
-                border: 1px solid #232838;
-                border-radius: 10px;
-                min-width: 155px;
-            }
-            QFrame#sizeCard:hover {
-                border: 1px solid #333c52;
-                background-color: #1a1e2a;
+            QFrame#inputContainer:focus-within {
+                border: 1px solid #3b82f6;
+                background-color: #151d2e;
             }
             QLineEdit {
                 color: #f1f5f9;
                 font-family: "Segoe UI", sans-serif;
-                font-size: 12px;
+                font-size: 13px;
+                selection-background-color: #2563eb;
+                selection-color: #ffffff;
+            }
+            QPushButton#embeddedActionBtn {
+                background: transparent;
+                border: none;
+                border-radius: 4px;
+                font-size: 13px;
+                color: #cbd5e1;
+            }
+            QPushButton#embeddedActionBtn:hover {
+                background-color: #243048;
+                color: #ffffff;
+            }
+            QFrame#sizeCard {
+                background-color: #131926;
+                border: 1px solid #1f2b3e;
+                border-radius: 10px;
+                min-width: 175px;
+            }
+            QFrame#sizeCard:hover {
+                border: 1px solid #2e3e5c;
+                background-color: #161e30;
+            }
+            QPushButton#refreshBtn {
+                background-color: #1d4ed8;
+                border: none;
+                border-radius: 4px;
+                color: #ffffff;
+                font-size: 11px;
+                font-weight: bold;
+            }
+            QPushButton#refreshBtn:hover {
+                background-color: #2563eb;
             }
             QPushButton#downloadBtn {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #1e3a8a, stop:1 #581c87);
-                border: 1px solid #818cf8;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #2563eb, stop:1 #7c3aed);
+                border: 1px solid #6366f1;
                 color: #ffffff;
+                font-family: "Segoe UI", sans-serif;
                 font-weight: bold;
-                font-size: 12px;
+                font-size: 13px;
                 border-radius: 8px;
-                padding: 8px 16px;
+                padding: 8px 18px;
             }
             QPushButton#downloadBtn:hover {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #2563eb, stop:1 #7c3aed);
-                border: 1px solid #a5b4fc;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #3b82f6, stop:1 #8b5cf6);
+                border: 1px solid #a78bfa;
+            }
+            QPushButton#downloadBtn:pressed {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #1d4ed8, stop:1 #6d28d9);
             }
             QPushButton#secondaryBtn {
-                background-color: #171a23;
-                border: 1px solid #272f44;
-                color: #94a3b8;
-                font-size: 12px;
+                background-color: #131825;
+                border: 1px solid #1f2a3e;
+                color: #cbd5e1;
+                font-family: "Segoe UI", sans-serif;
+                font-size: 13px;
                 font-weight: 600;
                 border-radius: 8px;
-                padding: 7px 14px;
+                padding: 7px 16px;
             }
             QPushButton#secondaryBtn:hover {
-                background-color: #212738;
-                color: #f8fafc;
-                border-color: #384564;
+                background-color: #1e2638;
+                color: #ffffff;
+                border-color: #384666;
+            }
+            QPushButton#secondaryBtn:pressed {
+                background-color: #10141f;
             }
             QPushButton#iconBtn {
-                background-color: #171a23;
-                border: 1px solid #272f44;
+                background-color: #131825;
+                border: 1px solid #1f2a3e;
                 border-radius: 6px;
                 font-size: 12px;
                 color: #94a3b8;
             }
             QPushButton#iconBtn:hover {
-                background-color: #252b3d;
+                background-color: #1e2638;
                 color: #ffffff;
             }
         """

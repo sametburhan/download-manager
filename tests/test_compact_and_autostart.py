@@ -54,6 +54,31 @@ class TestCompactAndAutostart(unittest.TestCase):
         self.assertFalse(win.progress_widget.isHidden())
         win.close()
 
+    def test_02b_compact_download_add_vs_download_buttons(self):
+        """Add ve Download butonlarının kuyruklama ve indirme davranışını test eder."""
+        win = CompactDownloadWindow(
+            task_manager=self.task_manager,
+            initial_url="https://example.com/testfile.bin",
+            initial_filename="testfile.bin"
+        )
+        self.assertTrue(hasattr(win, "btn_add"))
+        self.assertTrue(hasattr(win, "btn_download"))
+        self.assertTrue(hasattr(win, "btn_cancel"))
+        self.assertEqual(win.btn_add.text(), "Add")
+        self.assertEqual(win.btn_download.text(), "Download")
+        self.assertEqual(win.btn_cancel.text(), "Cancel")
+
+        # 'Add' tıklandığında görev auto_start=False ile eklenir (kuyruğa alınır)
+        initial_tasks_count = len(self.task_manager.tasks)
+        win._on_add_clicked()
+        self.assertEqual(len(self.task_manager.tasks), initial_tasks_count + 1)
+        newest_task = list(self.task_manager.tasks.values())[-1]
+        self.assertEqual(newest_task.url, "https://example.com/testfile.bin")
+        self.assertEqual(newest_task.filename, "testfile.bin")
+        # İndirme hemen başlatılmamalı (workers içinde olmamalı)
+        self.assertNotIn(newest_task.task_id, self.task_manager.workers)
+        win.close()
+
     def test_03_tray_manager_actions(self):
         """Sistem tepsisi menüsünün ve eylemlerinin tanımlı olduğunu test eder."""
         main_win = MainWindow(task_manager=self.task_manager, bridge=self.bridge)
