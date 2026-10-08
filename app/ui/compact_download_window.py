@@ -358,26 +358,26 @@ class CompactDownloadWindow(QDialog):
 
         info_layout.addLayout(ctrl_layout)
 
-        # D) 8-Connection Segment and Status Panel (Collapsible)
+        # D) Dynamic Connection Segment and Status Panel (Collapsible)
+        try:
+            from app.core.config import load_network_settings
+            initial_chunks = load_network_settings().segments_per_download
+        except Exception:
+            initial_chunks = 8
+        initial_chunks = max(1, initial_chunks)
+
         self.part_container = QWidget()
         part_layout = QVBoxLayout(self.part_container)
         part_layout.setContentsMargins(0, 0, 0, 0)
         part_layout.setSpacing(8)
 
-        # Live 8-Connection Segment Bar
-        segments_layout = QHBoxLayout()
-        segments_layout.setSpacing(4)
-        for _ in range(8):
-            box = QLabel()
-            box.setFixedHeight(12)
-            box.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-            box.setStyleSheet("background-color: #101728; border: 1px solid #1a2336; border-radius: 3px;")
-            self._segment_boxes.append(box)
-            segments_layout.addWidget(box)
-        part_layout.addLayout(segments_layout)
+        # Live Segment Bar
+        self.segments_layout = QHBoxLayout()
+        self.segments_layout.setSpacing(4)
+        part_layout.addLayout(self.segments_layout)
 
         # Live Parts Table (# | STATUS | DOWNLOADED | TOTAL)
-        self.part_table = QTableWidget(8, 4)
+        self.part_table = QTableWidget(0, 4)
         self.part_table.setObjectName("partTable")
         self.part_table.setHorizontalHeaderLabels(["#", "STATUS", "DOWNLOADED", "TOTAL"])
         self.part_table.verticalHeader().setVisible(False)
@@ -391,7 +391,6 @@ class CompactDownloadWindow(QDialog):
         self.part_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
         self.part_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
 
-        self._init_chunk_views(8)
         part_layout.addWidget(self.part_table)
 
         info_layout.addWidget(self.part_container)
@@ -406,12 +405,14 @@ class CompactDownloadWindow(QDialog):
 
         footer_layout.addStretch()
 
-        self.footer_engine_lbl = QLabel("8 Connections • Download Manager")
+        self.footer_engine_lbl = QLabel(f"{initial_chunks} {'Connection' if initial_chunks == 1 else 'Connections'} • Download Manager")
         self.footer_engine_lbl.setObjectName("footerEngineLbl")
         self.footer_engine_lbl.setStyleSheet("color: #475569; font-size: 11px; font-weight: 500; background: transparent;")
         footer_layout.addWidget(self.footer_engine_lbl)
 
         info_layout.addLayout(footer_layout)
+
+        self._init_chunk_views(initial_chunks)
 
         self.prog_tab_widget.addTab(info_tab, "ⓘ Info")
 
@@ -456,10 +457,11 @@ class CompactDownloadWindow(QDialog):
 
         self.conn_spin = QSpinBox()
         self.conn_spin.setRange(1, 32)
-        self.conn_spin.setValue(8)
+        self.conn_spin.setValue(initial_chunks)
         self.conn_spin.setFixedWidth(90)
         self.conn_spin.setFixedHeight(30)
         self.conn_spin.setStyleSheet("background-color: #101625; border: 1px solid #1a2336; border-radius: 6px; padding: 4px 8px; color: #f1f5f9; font-size: 12px;")
+        self.conn_spin.valueChanged.connect(self._on_conn_spin_changed)
         conn_group.addWidget(self.conn_spin)
         conn_group.addStretch()
         set_card_layout.addLayout(conn_group)
@@ -539,32 +541,75 @@ class CompactDownloadWindow(QDialog):
         """Maintained for backward compatibility."""
         pass
 
-    def _init_chunk_views(self, count: int = 8) -> None:
-        """Resets IDM-style 8-chunk segment boxes and table rows."""
-        for box in self._segment_boxes:
+    def _on_conn_spin_changed(self, value: int) -> None:
+        """Saves new segment count to settings and updates preview if not currently downloading."""
+        try:
+            from app.core.config import load_network_settings, save_network_settings
+            settings = load_network_settings()
+            settings.segments_per_download = value
+            save_network_settings(settings)
+            if not self.is_progress_mode:
+                self._init_chunk_views(value)
+        except Exception:
+            pass
+
+    def _init_chunk_views(self, count: Optional[int] = None) -> None:
+        """Resets and dynamically builds IDM-style segment indicator boxes and table rows."""
+        if count is None or count <= 0:
+            try:
+                from app.core.config import load_network_settings
+                count = load_network_settings().segments_per_download
+            except Exception:
+                count = 8
+        count = max(1, count)
+
+        # 1. Clear existing boxes
+        if hasattr(self, "segments_layout"):
+            while self.segments_layout.count():
+                item = self.segments_layout.takeAt(0)
+                widget = item.widget()
+                if widget:
+                    widget.deleteLater()
+        self._segment_boxes = []
+
+        # 2. Add count segment indicator boxes
+        for _ in range(count):
+            box = QLabel()
+            box.setFixedHeight(12)
+            box.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
             box.setStyleSheet("background-color: #101728; border: 1px solid #1a2336; border-radius: 3px;")
+            self._segment_boxes.append(box)
+            if hasattr(self, "segments_layout"):
+                self.segments_layout.addWidget(box)
 
-        self.part_table.setRowCount(count)
-        for i in range(count):
-            item_num = QTableWidgetItem(str(i + 1))
-            item_num.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            item_num.setForeground(QColor("#64748b"))
+        # 3. Setup table rows
+        if hasattr(self, "part_table"):
+            self.part_table.setRowCount(count)
+            for i in range(count):
+                item_num = QTableWidgetItem(str(i + 1))
+                item_num.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                item_num.setForeground(QColor("#64748b"))
 
-            item_status = QTableWidgetItem("● Idle")
-            item_status.setForeground(QColor("#64748b"))
+                item_status = QTableWidgetItem("● Idle")
+                item_status.setForeground(QColor("#64748b"))
 
-            item_down = QTableWidgetItem("--")
-            item_down.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-            item_down.setForeground(QColor("#f1f5f9"))
+                item_down = QTableWidgetItem("--")
+                item_down.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+                item_down.setForeground(QColor("#f1f5f9"))
 
-            item_tot = QTableWidgetItem("--")
-            item_tot.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-            item_tot.setForeground(QColor("#64748b"))
+                item_tot = QTableWidgetItem("--")
+                item_tot.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+                item_tot.setForeground(QColor("#64748b"))
 
-            self.part_table.setItem(i, 0, item_num)
-            self.part_table.setItem(i, 1, item_status)
-            self.part_table.setItem(i, 2, item_down)
-            self.part_table.setItem(i, 3, item_tot)
+                self.part_table.setItem(i, 0, item_num)
+                self.part_table.setItem(i, 1, item_status)
+                self.part_table.setItem(i, 2, item_down)
+                self.part_table.setItem(i, 3, item_tot)
+
+        # 4. Update footer label
+        if hasattr(self, "footer_engine_lbl"):
+            label_conn = "Connection" if count == 1 else "Connections"
+            self.footer_engine_lbl.setText(f"{count} {label_conn} • Download Manager")
 
     def _toggle_part_info(self) -> None:
         """Toggles the parts panel open or closed."""
@@ -833,12 +878,18 @@ class CompactDownloadWindow(QDialog):
             self.accept()
             return
 
-        # 1. Start task in TaskManager
+        # 1. Start task in TaskManager using configured segments
+        try:
+            from app.core.config import load_network_settings
+            num_chunks = load_network_settings().segments_per_download
+        except Exception:
+            num_chunks = 8
+
         self.current_task_id = self.task_manager.add_http_download(
             url=url,
             filename=filename,
             destination_folder=dest,
-            num_chunks=8,
+            num_chunks=num_chunks,
             auto_start=True
         )
 
@@ -880,8 +931,18 @@ class CompactDownloadWindow(QDialog):
             self.footer_status_lbl.setText("● Connecting to server...")
             self.footer_status_lbl.setStyleSheet("color: #38bdf8; font-size: 11px; font-weight: 500; background: transparent;")
 
-        # Reset parts table and segments
-        self._init_chunk_views(8)
+        # Reset parts table and segments based on task chunks or configured count
+        task = self.task_manager.get_task(self.current_task_id) if self.current_task_id else None
+        if task and task.chunks:
+            chunk_count = len(task.chunks)
+        else:
+            try:
+                from app.core.config import load_network_settings
+                chunk_count = load_network_settings().segments_per_download
+            except Exception:
+                chunk_count = 8
+
+        self._init_chunk_views(chunk_count)
 
         # Show live progress body and resize window
         self.progress_widget.setVisible(True)
@@ -891,6 +952,10 @@ class CompactDownloadWindow(QDialog):
         """Updates UI fields when live progress data arrives."""
         if not self.is_progress_mode or data.get("task_id") != self.current_task_id:
             return
+
+        task = self.task_manager.get_task(self.current_task_id) if self.current_task_id else None
+        if task and task.chunks and len(task.chunks) != len(self._segment_boxes):
+            self._init_chunk_views(len(task.chunks))
 
         pct = int(data.get("percent", 0))
         self.prog_bar.setValue(pct)
@@ -918,6 +983,12 @@ class CompactDownloadWindow(QDialog):
     def _on_task_chunk_progress(self, task_id: str, chunk_id: int, downloaded: int, total: int) -> None:
         if task_id != self.current_task_id:
             return
+
+        task = self.task_manager.get_task(task_id) if hasattr(self, "task_manager") else None
+        if task and task.chunks and len(task.chunks) != len(self._segment_boxes):
+            self._init_chunk_views(len(task.chunks))
+        elif chunk_id >= len(self._segment_boxes):
+            self._init_chunk_views(chunk_id + 1)
 
         # Update table
         if chunk_id < self.part_table.rowCount():

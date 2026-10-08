@@ -154,6 +154,65 @@ class TestNetworkSettings(unittest.TestCase):
 
         # Revert to defaults
         save_network_settings(NetworkSettings())
+
+    def test_06_segments_per_download_dynamic_application(self):
+        """Tests that changing segments_per_download to 6 dynamically shapes download engine and UI windows."""
+        import tempfile
+        from app.core.models import DownloadTask
+        from app.core.http_downloader import HttpChunkDownloader
+        from app.core.task_manager import TaskManager
+        from app.ui.compact_download_window import CompactDownloadWindow
+        from app.ui.download_detail_window import DownloadDetailWindow
+
+        # 1. Set segments to 6 in settings
+        custom_settings = NetworkSettings(segments_per_download=6)
+        save_network_settings(custom_settings)
+        loaded = load_network_settings()
+        self.assertEqual(loaded.segments_per_download, 6)
+
+        # 2. HttpChunkDownloader defaults to 6
+        task = DownloadTask(task_id="t_seg_6", url="http://example.com/test.zip", destination_folder=".", filename="test.zip")
+        downloader = HttpChunkDownloader(task=task)
+        self.assertEqual(downloader.num_chunks, 6)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tm = TaskManager(tasks_file=os.path.join(tmpdir, "tasks.json"), auto_load=False)
+
+            # 3. TaskManager.start_http_worker defaults to 6
+            task2 = DownloadTask(task_id="t_tm_6", url="http://example.com/test2.zip", destination_folder=tmpdir, filename="test2.zip")
+            tm.tasks[task2.task_id] = task2
+            tm.start_http_worker(task2)
+            self.assertIn("t_tm_6", tm.workers)
+            self.assertEqual(tm.workers["t_tm_6"].num_chunks, 6)
+            tm.remove_task("t_tm_6")
+
+            # 4. CompactDownloadWindow shapes to 6 segments
+            compact_win = CompactDownloadWindow(
+                task_manager=tm,
+                initial_url="http://example.com/file6.zip",
+                initial_filename="file6.zip"
+            )
+            self.assertEqual(len(compact_win._segment_boxes), 6)
+            self.assertEqual(compact_win.part_table.rowCount(), 6)
+            self.assertIn("6 Connections", compact_win.footer_engine_lbl.text())
+            self.assertEqual(compact_win.conn_spin.value(), 6)
+
+            # 5. DownloadDetailWindow shapes to 6 segments
+            detail_win = DownloadDetailWindow(task=task, task_manager=tm)
+            self.assertEqual(len(detail_win._segment_boxes), 6)
+            self.assertEqual(detail_win.part_table.rowCount(), 6)
+            detail_win.close()
+
+            # 6. Adjust conn_spin in CompactDownloadWindow to 12 -> shapes to 12
+            compact_win.conn_spin.setValue(12)
+            self.assertEqual(load_network_settings().segments_per_download, 12)
+            self.assertEqual(len(compact_win._segment_boxes), 12)
+            self.assertEqual(compact_win.part_table.rowCount(), 12)
+            self.assertIn("12 Connections", compact_win.footer_engine_lbl.text())
+            compact_win.close()
+
+        # Revert to defaults
+        save_network_settings(NetworkSettings())
         print("\n[OK] All Network Settings and UI tests passed successfully!")
 
 

@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
     QDialog, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QProgressBar, QPushButton, QTableWidget, QTableWidgetItem,
     QHeaderView, QTabWidget, QGridLayout, QFrame, QSpinBox,
-    QLineEdit, QCheckBox, QFileDialog
+    QLineEdit, QCheckBox, QFileDialog, QSizePolicy
 )
 from PyQt6.QtCore import Qt, pyqtSlot
 from PyQt6.QtGui import QFont, QColor
@@ -211,17 +211,21 @@ class DownloadDetailWindow(QDialog):
         part_layout.setContentsMargins(0, 4, 0, 0)
         part_layout.setSpacing(10)
 
-        # Live Green Segment Indicators (8 Segments)
-        segments_layout = QHBoxLayout()
-        segments_layout.setSpacing(6)
-        for i in range(8):
-            box = QLabel()
-            box.setFixedHeight(14)
-            box.setSizePolicy(QSizePolicy_Expanding := box.sizePolicy().horizontalPolicy(), box.sizePolicy().verticalPolicy())
-            box.setStyleSheet("background-color: #1e293b; border-radius: 3px;")
-            self._segment_boxes.append(box)
-            segments_layout.addWidget(box)
-        part_layout.addLayout(segments_layout)
+        # Live Green Segment Indicators
+        self.segments_layout = QHBoxLayout()
+        self.segments_layout.setSpacing(6)
+        part_layout.addLayout(self.segments_layout)
+
+        chunks = self.task.chunks
+        if chunks:
+            initial_count = len(chunks)
+        else:
+            try:
+                from app.core.config import load_network_settings
+                initial_count = load_network_settings().segments_per_download
+            except Exception:
+                initial_count = 8
+        self._rebuild_segment_boxes(initial_count)
 
         # Part Table (# | Status | Downloaded | Total)
         self.part_table = QTableWidget(0, 4)
@@ -370,10 +374,39 @@ class DownloadDetailWindow(QDialog):
         # Chunks and segments view
         self._sync_chunks_view()
 
+    def _rebuild_segment_boxes(self, count: int) -> None:
+        """Dynamically recreates segment indicator boxes to match count."""
+        count = max(1, count)
+        if hasattr(self, "segments_layout"):
+            while self.segments_layout.count():
+                item = self.segments_layout.takeAt(0)
+                w = item.widget()
+                if w:
+                    w.deleteLater()
+        self._segment_boxes.clear()
+        for _ in range(count):
+            box = QLabel()
+            box.setFixedHeight(14)
+            box.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+            box.setStyleSheet("background-color: #1e293b; border-radius: 3px;")
+            self._segment_boxes.append(box)
+            if hasattr(self, "segments_layout"):
+                self.segments_layout.addWidget(box)
+
     def _sync_chunks_view(self) -> None:
         """Fills chunks into table and segment boxes."""
         chunks = self.task.chunks
-        chunk_count = len(chunks) if chunks else 8
+        if chunks:
+            chunk_count = len(chunks)
+        else:
+            try:
+                from app.core.config import load_network_settings
+                chunk_count = load_network_settings().segments_per_download
+            except Exception:
+                chunk_count = 8
+
+        if len(self._segment_boxes) != chunk_count:
+            self._rebuild_segment_boxes(chunk_count)
 
         self.part_table.setRowCount(chunk_count)
         for i in range(chunk_count):

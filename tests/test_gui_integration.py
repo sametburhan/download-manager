@@ -108,7 +108,8 @@ class TestGuiIntegration(unittest.TestCase):
         data = dialog.get_data()
         self.assertEqual(data["url"], "https://speed.hetzner.de/100MB.bin")
         self.assertEqual(data["filename"], "100MB.bin")
-        self.assertEqual(data["num_chunks"], 8)
+        from app.core.config import load_network_settings
+        self.assertEqual(data["num_chunks"], load_network_settings().segments_per_download)
         dialog.close()
 
         print("\n[OK] All Stage 3 GUI and UI integration tests passed successfully!")

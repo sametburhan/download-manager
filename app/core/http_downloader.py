@@ -37,12 +37,18 @@ class HttpChunkDownloader(QThread):
     def __init__(
         self,
         task: DownloadTask,
-        num_chunks: int = 8,
+        num_chunks: Optional[int] = None,
         chunk_buffer_size: int = 64 * 1024,  # 64 KB read buffer
         parent=None
     ):
         super().__init__(parent)
         self.task = task
+        if num_chunks is None or num_chunks <= 0:
+            try:
+                from app.core.config import load_network_settings
+                num_chunks = load_network_settings().segments_per_download
+            except Exception:
+                num_chunks = 8
         self.num_chunks = max(1, num_chunks)
         self.chunk_buffer_size = chunk_buffer_size
 

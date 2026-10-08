@@ -154,7 +154,8 @@ class TestAbDownloadManagerUi(unittest.TestCase):
         self.assertIn("39%-Stories-of-Shahnameh.mp4", detail_win.windowTitle())
         self.assertEqual(detail_win.name_val.text(), "Stories-of-Shahnameh.mp4")
         self.assertEqual(detail_win.resume_val.text(), "Yes")
-        self.assertEqual(len(detail_win._segment_boxes), 8)
+        from app.core.config import load_network_settings
+        self.assertEqual(len(detail_win._segment_boxes), load_network_settings().segments_per_download)
         self.assertEqual(detail_win.part_table.columnCount(), 4)
 
         # Chunk progress update

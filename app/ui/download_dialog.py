@@ -79,11 +79,24 @@ class AddDownloadDialog(QDialog):
         layout.addLayout(dest_layout)
 
         # 4. Chunk Count Selection
+        try:
+            from app.core.config import load_network_settings
+            cfg_chunks = load_network_settings().segments_per_download
+        except Exception:
+            cfg_chunks = 8
+
         chunk_layout = QHBoxLayout()
         chunk_layout.addWidget(QLabel("Concurrent Segments:"))
         self.chunk_combo = QComboBox()
-        self.chunk_combo.addItems(["4 Segments", "8 Segments (Recommended)", "16 Segments", "32 Segments"])
-        self.chunk_combo.setCurrentIndex(1)  # 8 chunks default
+        options = [4, 8, 16, 32]
+        if cfg_chunks not in options:
+            options.append(cfg_chunks)
+            options.sort()
+        for opt in options:
+            label = f"{opt} Segments (Recommended)" if opt == cfg_chunks else f"{opt} Segments"
+            self.chunk_combo.addItem(label, opt)
+        idx = options.index(cfg_chunks) if cfg_chunks in options else 1
+        self.chunk_combo.setCurrentIndex(idx)
         chunk_layout.addWidget(self.chunk_combo)
         chunk_layout.addStretch()
         layout.addLayout(chunk_layout)
@@ -129,8 +142,10 @@ class AddDownloadDialog(QDialog):
 
     def get_data(self) -> Dict[str, Any]:
         """Returns user inputs as dictionary."""
-        chunk_map = {0: 4, 1: 8, 2: 16, 3: 32}
-        num_chunks = chunk_map.get(self.chunk_combo.currentIndex(), 8)
+        num_chunks = self.chunk_combo.currentData()
+        if num_chunks is None:
+            chunk_map = {0: 4, 1: 8, 2: 16, 3: 32}
+            num_chunks = chunk_map.get(self.chunk_combo.currentIndex(), 8)
 
         return {
             "url": self.url_input.text().strip(),

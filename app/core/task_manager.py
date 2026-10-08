@@ -174,8 +174,17 @@ class TaskManager(QObject):
 
         return task_id
 
-    def start_http_worker(self, task: DownloadTask, num_chunks: int = 8) -> None:
+    def start_http_worker(self, task: DownloadTask, num_chunks: Optional[int] = None) -> None:
         """Starts HTTP download engine QThread and connects signals."""
+        if num_chunks is None or num_chunks <= 0:
+            if task.chunks:
+                num_chunks = len(task.chunks)
+            else:
+                try:
+                    from app.core.config import load_network_settings
+                    num_chunks = load_network_settings().segments_per_download
+                except Exception:
+                    num_chunks = 8
         worker = HttpChunkDownloader(task=task, num_chunks=num_chunks)
 
         # Signal connections
@@ -300,7 +309,8 @@ class TaskManager(QObject):
             task = self.tasks[task_id]
             if task.status == DownloadStatus.PAUSED:
                 if task.task_type == TaskType.HTTP_FILE:
-                    self.start_http_worker(task)
+                    num_chunks = len(task.chunks) if task.chunks else None
+                    self.start_http_worker(task, num_chunks=num_chunks)
                 elif task.task_type in (TaskType.MEDIA_VIDEO, TaskType.MEDIA_AUDIO):
                     audio_only = (task.task_type == TaskType.MEDIA_AUDIO)
                     self.start_media_worker(task, audio_only=audio_only)
